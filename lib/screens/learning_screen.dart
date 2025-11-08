@@ -6,6 +6,7 @@ import '../providers/word_provider.dart';
 import '../models/word_model.dart';
 import 'word_card_widget.dart';
 import 'go_to_review_card.dart';
+import 'browse_screen.dart';
 
 class LearningScreen extends StatefulWidget {
   const LearningScreen({super.key});
@@ -43,7 +44,27 @@ class _LearningScreenState extends State<LearningScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Öğrenme Seansı')),
+      appBar: AppBar(
+        title: Text('Öğrenme Seansı'),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 8.0),
+            child: TextButton.icon(
+              icon: Icon(Icons.list_alt, color: Colors.white),
+              label: Text(
+                'Listeyi Gör',
+                style: TextStyle(color: Colors.white, fontSize: 16),
+              ),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const BrowseScreen()),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
       body: AnimatedSwitcher(
         duration: Duration(milliseconds: 300),
         child: _sessionQueue.isEmpty
