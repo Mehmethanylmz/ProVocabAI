@@ -1,4 +1,3 @@
-// lib/services/settings_service.dart
 import 'package:shared_preferences/shared_preferences.dart';
 
 class SettingsService {
@@ -11,7 +10,6 @@ class SettingsService {
 
   Future<int> getBatchSize() async {
     final prefs = await SharedPreferences.getInstance();
-    // Varsayılan olarak 20 kelime seç
-    return prefs.getInt(_batchSizeKey) ?? 20;
+    return prefs.getInt(_batchSizeKey) ?? 30;
   }
 }

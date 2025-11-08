@@ -1,7 +1,7 @@
-// lib/screens/word_card_widget.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import '../models/word_model.dart';
+import 'dart:async';
 
 class WordCardWidget extends StatefulWidget {
   final Word word;
@@ -15,13 +15,24 @@ class WordCardWidget extends StatefulWidget {
 
 class _WordCardWidgetState extends State<WordCardWidget> {
   bool _isAnswerVisible = false;
-  final TextEditingController _textController = TextEditingController();
-  final FlutterTts flutterTts = FlutterTts();
+  bool _isHintVisible = false;
 
+  final FlutterTts flutterTts = FlutterTts();
   @override
   void initState() {
     super.initState();
     _setupTts();
+  }
+
+  @override
+  void didUpdateWidget(covariant WordCardWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.word.id != oldWidget.word.id) {
+      setState(() {
+        _isAnswerVisible = false;
+        _isHintVisible = false;
+      });
+    }
   }
 
   void _setupTts() async {
@@ -35,7 +46,6 @@ class _WordCardWidgetState extends State<WordCardWidget> {
 
   @override
   void dispose() {
-    _textController.dispose();
     flutterTts.stop();
     super.dispose();
   }
@@ -43,7 +53,7 @@ class _WordCardWidgetState extends State<WordCardWidget> {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.all(16.0),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
       child: Card(
         elevation: 6,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
@@ -53,7 +63,6 @@ class _WordCardWidgetState extends State<WordCardWidget> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // İlerleme (örn: 1/50)
                 Text(
                   widget.progress,
                   style: Theme.of(
@@ -61,54 +70,18 @@ class _WordCardWidgetState extends State<WordCardWidget> {
                   ).textTheme.titleMedium?.copyWith(color: Colors.grey[600]),
                 ),
                 SizedBox(height: 30),
-
-                // İngilizce Kelime ve Telaffuz Butonu
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      widget.word.en,
-                      style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    IconButton(
-                      icon: Icon(
-                        Icons.volume_up,
-                        color: Colors.blueAccent,
-                        size: 30,
-                      ),
-                      onPressed: () => _speak(widget.word.en),
-                    ),
-                  ],
+                _buildWordHeader(),
+                SizedBox(height: 40),
+                AnimatedSwitcher(
+                  duration: Duration(milliseconds: 300),
+                  transitionBuilder:
+                      (Widget child, Animation<double> animation) {
+                        return FadeTransition(opacity: animation, child: child);
+                      },
+                  child: _isAnswerVisible
+                      ? _buildAnswerArea()
+                      : _buildQuestionArea(),
                 ),
-                SizedBox(height: 30),
-
-                // Cevap Yazma Alanı
-                TextField(
-                  controller: _textController,
-                  decoration: InputDecoration(
-                    labelText: 'Anlamını yaz...',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                SizedBox(height: 20),
-
-                // Cevabı Göster/Gizle Butonu
-                ElevatedButton(
-                  child: Text(
-                    _isAnswerVisible ? 'Cevabı Gizle' : 'Cevabı Göster',
-                  ),
-                  onPressed: () {
-                    setState(() {
-                      _isAnswerVisible = !_isAnswerVisible;
-                    });
-                  },
-                ),
-                SizedBox(height: 30),
-
-                // Cevap Alanı (Sadece _isAnswerVisible true ise görünür)
-                if (_isAnswerVisible) _buildAnswerArea(),
               ],
             ),
           ),
@@ -117,39 +90,174 @@ class _WordCardWidgetState extends State<WordCardWidget> {
     );
   }
 
-  // Cevabı gösteren alt bölüm
-  Widget _buildAnswerArea() {
-    return Container(
-      padding: EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.grey[100],
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            widget.word.tr, // Türkçe Anlam
+  Widget _buildWordHeader() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Flexible(
+          child: Text(
+            widget.word.en,
             style: Theme.of(
               context,
-            ).textTheme.headlineMedium?.copyWith(color: Colors.green[800]),
+            ).textTheme.displaySmall?.copyWith(fontWeight: FontWeight.bold),
             textAlign: TextAlign.center,
           ),
-          SizedBox(height: 15),
+        ),
+        IconButton(
+          icon: Icon(Icons.volume_up, color: Colors.blueAccent, size: 30),
+          onPressed: () => _speak(widget.word.en),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildQuestionArea() {
+    return Column(
+      key: ValueKey('question'),
+      children: [
+        TextButton.icon(
+          icon: Icon(
+            _isHintVisible ? Icons.lightbulb : Icons.lightbulb_outline,
+          ),
+          label: Text(_isHintVisible ? 'İpucunu Gizle' : 'İpucu İste'),
+          onPressed: () {
+            setState(() {
+              _isHintVisible = !_isHintVisible;
+            });
+          },
+        ),
+        SizedBox(height: 10),
+
+        if (_isHintVisible) _buildHintBox(),
+
+        SizedBox(height: 30),
+
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            padding: EdgeInsets.symmetric(horizontal: 40, vertical: 15),
+          ),
+          child: Text('Cevabı Göster'),
+          onPressed: () {
+            setState(() {
+              _isAnswerVisible = true;
+              _isHintVisible = false;
+            });
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAnswerArea() {
+    if (widget.word.tr.isEmpty && widget.word.meaning.isEmpty) {
+      return Text("Bu kelime için detay bulunamadı.");
+    }
+
+    return Container(
+      key: ValueKey('answer'),
+      width: double.infinity,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Text(
+            widget.word.tr,
+            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+              color: Colors.green[800],
+              fontWeight: FontWeight.bold,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          SizedBox(height: 25),
+
           if (widget.word.meaning.isNotEmpty &&
               widget.word.meaning != "Tanım bulunamadı.")
-            Text(
-              "Definition: ${widget.word.meaning}", // İngilizce Anlam
-              style: Theme.of(context).textTheme.bodyLarge,
-            ),
-          SizedBox(height: 10),
+            _buildInfoRow(Icons.info_outline, "Tanım:", widget.word.meaning),
+
           if (widget.word.exampleSentence.isNotEmpty)
-            Text(
-              "Example: ${widget.word.exampleSentence}", // Örnek Cümle
-              style: Theme.of(
-                context,
-              ).textTheme.bodyMedium?.copyWith(fontStyle: FontStyle.italic),
+            _buildInfoRow(
+              Icons.format_quote,
+              "Örnek:",
+              widget.word.exampleSentence,
             ),
+
+          SizedBox(height: 30),
+
+          TextButton(
+            child: Text('Kartı Çevir'),
+            onPressed: () {
+              setState(() {
+                _isAnswerVisible = false;
+              });
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHintBox() {
+    String hintText = widget.word.exampleSentence.isNotEmpty
+        ? widget.word.exampleSentence
+        : (widget.word.meaning.isNotEmpty &&
+                  widget.word.meaning != "Tanım bulunamadı."
+              ? widget.word.meaning
+              : "Bu kelime için ipucu bulunamadı.");
+
+    return Container(
+      padding: EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.blue[50],
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.blue.shade100),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.lightbulb, size: 18, color: Colors.blue[700]),
+          SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              hintText,
+              style: TextStyle(
+                fontStyle: FontStyle.italic,
+                color: Colors.black87,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoRow(IconData icon, String title, String content) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 15.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+              color: Colors.black54,
+            ),
+          ),
+          SizedBox(height: 4),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(icon, size: 18, color: Colors.grey[600]),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  content,
+                  style: TextStyle(fontSize: 16, fontStyle: FontStyle.italic),
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );

@@ -1,8 +1,7 @@
-// lib/screens/go_to_review_card.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/word_provider.dart';
-import 'review_screen.dart'; // Bu ekranı birazdan oluşturacağız
+import 'review_screen.dart';
 
 class GoToReviewCard extends StatelessWidget {
   const GoToReviewCard({super.key});
@@ -34,16 +33,12 @@ class GoToReviewCard extends StatelessWidget {
                 padding: EdgeInsets.symmetric(horizontal: 40, vertical: 15),
               ),
               onPressed: () {
-                // Provider'ı al
                 final provider = Provider.of<WordProvider>(
                   context,
                   listen: false,
                 );
+                provider.startReview(testMode: 'current');
 
-                // YENİ: Testi başlat
-                provider.startReview();
-
-                // Test Ekranı'na git (Artık parametre göndermiyor)
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => ReviewScreen()),

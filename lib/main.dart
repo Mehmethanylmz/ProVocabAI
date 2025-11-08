@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'providers/word_provider.dart';
 import 'services/database_helper.dart';
-import 'screens/home_screen.dart';
+import 'screens/main_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -19,13 +19,29 @@ class MyApp extends StatelessWidget {
     return ChangeNotifierProvider(
       create: (context) => WordProvider(),
       child: MaterialApp(
-        debugShowCheckedModeBanner: false,
         title: 'Kelime Ezberle',
         theme: ThemeData(
-          primarySwatch: Colors.blue,
+          primaryColor: Color(0xFF4A90E2),
+          scaffoldBackgroundColor: Color(0xFFF4F6F8),
+          appBarTheme: AppBarTheme(
+            backgroundColor: Color(0xFF4A90E2),
+            foregroundColor: Colors.white,
+            elevation: 0,
+          ),
+          elevatedButtonTheme: ElevatedButtonThemeData(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Color(0xFF50E3C2),
+              foregroundColor: Colors.black,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              padding: EdgeInsets.symmetric(vertical: 16),
+            ),
+          ),
           visualDensity: VisualDensity.adaptivePlatformDensity,
         ),
-        home: HomeScreen(),
+        debugShowCheckedModeBanner: false,
+        home: MainScreen(),
       ),
     );
   }

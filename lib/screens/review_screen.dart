@@ -1,4 +1,3 @@
-// lib/screens/review_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_tts/flutter_tts.dart';
@@ -6,7 +5,6 @@ import '../providers/word_provider.dart';
 import '../models/word_model.dart';
 
 class ReviewScreen extends StatefulWidget {
-  // Artık parametre almıyor
   const ReviewScreen({super.key});
 
   @override
@@ -20,10 +18,16 @@ class _ReviewScreenState extends State<ReviewScreen> {
   bool _showFeedback = false;
   bool _isCorrect = false;
 
+  Word? _wordBeingAnswered;
+
   @override
   void initState() {
     super.initState();
     _setupTts();
+    _wordBeingAnswered = Provider.of<WordProvider>(
+      context,
+      listen: false,
+    ).currentReviewWord;
   }
 
   void _setupTts() async {
@@ -42,77 +46,119 @@ class _ReviewScreenState extends State<ReviewScreen> {
     super.dispose();
   }
 
-  // Cevabı kontrol et ve provider'ı güncelle
-  void _checkAnswer(WordProvider provider, Word currentWord) {
+  void _checkAnswer() {
+    if (_wordBeingAnswered == null) return;
+
     setState(() {
       _showFeedback = true;
       _isCorrect =
           _textController.text.trim().toLowerCase() ==
-          currentWord.tr.toLowerCase();
+          _wordBeingAnswered!.tr.toLowerCase();
     });
+  }
 
+  void _nextWord() async {
+    final provider = Provider.of<WordProvider>(context, listen: false);
     if (_isCorrect) {
       provider.answerCorrectly();
     } else {
       provider.answerIncorrectly();
     }
-  }
+    if (provider.reviewQueue.isEmpty) {
+      final int correct = provider.correctCount;
+      final int incorrect = provider.incorrectCount;
+      final int total = correct + incorrect;
 
-  // Sonraki kelimeye geç
-  void _nextWord() {
-    // Provider'ı 'dinlemeden' alıyoruz, çünkü sadece state'i sıfırlayacağız
-    final provider = Provider.of<WordProvider>(context, listen: false);
+      final double successRateNum = (total == 0) ? 0 : (correct / total) * 100;
+      final String successRate = successRateNum.toStringAsFixed(0);
 
-    // Test bittiyse (Test listesi boşaldıysa)
-    if (provider.currentReviewWord == null) {
+      final String dialogTitle;
+      final String buttonText;
+      if (successRateNum >= 80) {
+        dialogTitle = 'Harika İş!';
+        buttonText = 'Süper!';
+      } else if (successRateNum >= 50) {
+        dialogTitle = 'İyi Gidiyorsun!';
+        buttonText = 'Devam Et';
+      } else {
+        dialogTitle = 'Test Bitti';
+        buttonText = 'Tamam';
+      }
+
+      await provider.saveTestResult(correct, total);
+
+      if (!context.mounted) return;
+
       showDialog(
         context: context,
-        barrierDismissible: false, // Dışarı tıklayarak kapatmayı engelle
+        barrierDismissible: false,
         builder: (ctx) => AlertDialog(
-          title: Text('Test Bitti! Mükemmel!'),
+          title: Text(dialogTitle),
           content: Text(
-            'Bu gruptaki tüm kelimeleri doğru bildin. Artık bu grubu bitirebilir veya tekrar test edebilirsin.',
+            'Bu turu tamamladın.\n\n'
+            'Başarı Oranı: %$successRate\n'
+            'Doğru: $correct\n'
+            'Yanlış: $incorrect\n\n'
+            'Skorun kaydedildi.',
           ),
           actions: [
             TextButton(
-              child: Text('Tamam'),
+              child: Text(buttonText),
               onPressed: () {
                 Navigator.of(ctx).pop();
-                Navigator.of(context).pop(); // Test ekranını kapat
+                Navigator.of(context).popUntil((route) => route.isFirst);
               },
             ),
           ],
         ),
       );
     } else {
-      // Test devam ediyorsa, arayüzü sıfırla
       setState(() {
         _textController.clear();
         _showFeedback = false;
+        _isCorrect = false;
+        _wordBeingAnswered = provider.currentReviewWord;
       });
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // Ekranın tamamı artık Provider'a bağlı
     return Consumer<WordProvider>(
       builder: (context, provider, child) {
         final currentWord = provider.currentReviewWord;
 
-        // currentWord null ise (yani _reviewQueue boşsa) test bitmiştir.
-        // Bu durum _nextWord içinde yakalanır, ancak build anında da olabilir.
+        if (provider.isLoading) {
+          return Scaffold(body: Center(child: CircularProgressIndicator()));
+        }
+
         if (currentWord == null) {
-          // Normalde _nextWord içinde yakalanır, ama güvenlik için burada
           return Scaffold(
-            appBar: AppBar(),
-            body: Center(child: Text('Test Tamamlandı!')),
+            appBar: AppBar(title: Text("Test Bitti")),
+            body: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text('Tebrikler, test tamamlandı!'),
+                  SizedBox(height: 20),
+                  ElevatedButton(
+                    onPressed: () => Navigator.of(
+                      context,
+                    ).popUntil((route) => route.isFirst),
+                    child: Text('Ana Ekrana Dön'),
+                  ),
+                ],
+              ),
+            ),
           );
         }
 
-        // Kalan kelime / Toplam kelime (örn: 5/50)
         String progress =
-            "${provider.totalWordsInBatch - provider.reviewQueue.length + 1} / ${provider.totalWordsInBatch}";
+            "${provider.totalWordsInReview - provider.reviewQueue.length + 1} / ${provider.totalWordsInReview}";
+
+        if (provider.totalWordsInReview == 0) {
+          progress = "0 / 0";
+        }
 
         return Scaffold(
           appBar: AppBar(
@@ -122,7 +168,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
               child: Padding(
                 padding: const EdgeInsets.only(bottom: 8.0),
                 child: Text(
-                  'Doğru: ${provider.correctCount} | Yanlış: ${provider.incorrectCount}',
+                  'Kalan: ${provider.reviewQueue.length} | Doğru: ${provider.correctCount} | Yanlış: ${provider.incorrectCount}',
                   style: TextStyle(color: Colors.white, fontSize: 16),
                 ),
               ),
@@ -154,7 +200,6 @@ class _ReviewScreenState extends State<ReviewScreen> {
                   ],
                 ),
                 SizedBox(height: 40),
-
                 TextField(
                   controller: _textController,
                   readOnly: _showFeedback,
@@ -163,27 +208,24 @@ class _ReviewScreenState extends State<ReviewScreen> {
                     border: OutlineInputBorder(),
                   ),
                   onSubmitted: (_) {
-                    if (!_showFeedback) _checkAnswer(provider, currentWord);
+                    if (!_showFeedback) _checkAnswer();
                   },
                 ),
                 SizedBox(height: 20),
-
                 if (!_showFeedback)
                   ElevatedButton(
-                    onPressed: () => _checkAnswer(provider, currentWord),
+                    onPressed: _checkAnswer,
                     child: Text('Kontrol Et'),
                   )
                 else
                   ElevatedButton(
                     onPressed: _nextWord,
-                    child: Text('Sonraki Kelime'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: _isCorrect ? Colors.green : Colors.red,
                     ),
+                    child: Text('Sonraki Kelime'),
                   ),
-
                 SizedBox(height: 30),
-
                 if (_showFeedback)
                   Container(
                     padding: EdgeInsets.all(16),
@@ -217,7 +259,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
                           Padding(
                             padding: const EdgeInsets.only(top: 8.0),
                             child: Text(
-                              '(Bu kelime tekrar sorulacak)',
+                              'Cevabın: ${_textController.text.trim()}',
                               style: TextStyle(color: Colors.red[800]),
                             ),
                           ),
