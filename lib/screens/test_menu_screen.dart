@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/word_provider.dart';
 import 'review_screen.dart';
+import 'review_screen_multiple_choice.dart';
+import 'test_type_dialog.dart';
 
 class TestMenuScreen extends StatefulWidget {
   const TestMenuScreen({super.key});
@@ -41,7 +43,6 @@ class _TestMenuScreenState extends State<TestMenuScreen> {
                     ),
                   ),
                 ),
-
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.all(16.0),
@@ -49,8 +50,23 @@ class _TestMenuScreenState extends State<TestMenuScreen> {
                       children: [
                         _buildTestCard(
                           context: context,
+                          icon: Icons.psychology_alt,
+                          title: 'Zor Kelimeleri Tekrar Et',
+                          subtitle: '${provider.difficultWordCount} zor kelime',
+                          color: Colors.red,
+                          onTap: () {
+                            _startTest(
+                              context,
+                              testMode: 'difficult',
+                              expectedCount: provider.difficultWordCount,
+                            );
+                          },
+                        ),
+                        SizedBox(height: 16),
+                        _buildTestCard(
+                          context: context,
                           icon: Icons.bookmark,
-                          title: 'Mevcut Etabı Test Et',
+                          title: 'Mevcut Seansı Test Et',
                           subtitle:
                               '${provider.currentBatch.length} kelime öğreniliyor',
                           color: Colors.blue,
@@ -92,7 +108,7 @@ class _TestMenuScreenState extends State<TestMenuScreen> {
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(20, 20, 16, 10),
                     child: Text(
-                      'TAMAMLANAN ETAPLAR',
+                      'TAMAMLANAN ESKİ ETAPLAR',
                       style: Theme.of(context).textTheme.titleSmall?.copyWith(
                         color: Colors.grey[600],
                         fontWeight: FontWeight.bold,
@@ -100,7 +116,6 @@ class _TestMenuScreenState extends State<TestMenuScreen> {
                     ),
                   ),
                 ),
-
                 if (provider.isLoading && provider.batchHistory.isEmpty)
                   SliverFillRemaining(
                     child: Center(child: CircularProgressIndicator()),
@@ -244,34 +259,49 @@ class _TestMenuScreenState extends State<TestMenuScreen> {
   }) async {
     final provider = Provider.of<WordProvider>(context, listen: false);
 
+    if (testMode == 'current' && provider.currentBatch.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Önce 'Günün Seansına Başla' butonuna basmalısın."),
+        ),
+      );
+      return;
+    }
+    if (testMode == 'difficult' && provider.difficultWordCount == 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Tekrar edilecek zor kelime bulunamadı.")),
+      );
+      return;
+    }
+
+    final TestType? testType = await showTestTypeDialog(context);
+
+    if (testType == null || !context.mounted) return;
+
     await provider.startReview(
       testMode: testMode,
       batchId: batchId,
       randomCount: randomCount,
     );
 
-    if (provider.reviewQueue.isEmpty) {
-      String message = "Test edilecek kelime bulunamadı!";
-      if (testMode == 'current' && provider.currentBatch.isEmpty) {
-        message = "Önce 'Öğrenmeye Başla' butonuna basarak bir grup almalısın.";
-      } else if (testMode != 'current' && testMode != 'random_learned') {
-        message = "Henüz 'öğrenildi' olarak işaretlenmiş hiç kelimen yok.";
-      } else if (testMode == 'random_learned') {
-        message = "Rastgele test için 'öğrenildi' kelimesi bulunamadı.";
-      }
-
-      if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(message)));
-      }
+    if (provider.reviewQueue.isEmpty && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Bu mod için test edilecek kelime bulunamadı.")),
+      );
       return;
     }
 
-    if (context.mounted) {
+    if (!context.mounted) return;
+
+    if (testType == TestType.writing) {
       Navigator.push(
         context,
         MaterialPageRoute(builder: (context) => ReviewScreen()),
+      );
+    } else {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => ReviewScreenMultipleChoice()),
       );
     }
   }

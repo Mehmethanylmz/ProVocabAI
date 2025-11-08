@@ -1,8 +1,12 @@
+// C:\Users\Mete\Desktop\englishwordsapp\pratikapp\lib\screens\review_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_tts/flutter_tts.dart';
+import '../utils/string_helper.dart';
 import '../providers/word_provider.dart';
 import '../models/word_model.dart';
+import '../services/sound_service.dart';
 
 class ReviewScreen extends StatefulWidget {
   const ReviewScreen({super.key});
@@ -14,20 +18,22 @@ class ReviewScreen extends StatefulWidget {
 class _ReviewScreenState extends State<ReviewScreen> {
   final TextEditingController _textController = TextEditingController();
   final FlutterTts flutterTts = FlutterTts();
+  final SoundService _soundService = SoundService();
 
   bool _showFeedback = false;
   bool _isCorrect = false;
-
+  bool _isPerfect = false;
+  String _userInput = "";
   Word? _wordBeingAnswered;
+  bool _isPassed = false;
 
   @override
   void initState() {
     super.initState();
     _setupTts();
-    _wordBeingAnswered = Provider.of<WordProvider>(
-      context,
-      listen: false,
-    ).currentReviewWord;
+    final provider = Provider.of<WordProvider>(context, listen: false);
+    _wordBeingAnswered = provider.currentReviewWord;
+    _autoPlaySound(provider.autoPlaySound);
   }
 
   void _setupTts() async {
@@ -37,6 +43,12 @@ class _ReviewScreenState extends State<ReviewScreen> {
 
   Future<void> _speak(String text) async {
     await flutterTts.speak(text);
+  }
+
+  void _autoPlaySound(bool autoPlay) {
+    if (autoPlay && _wordBeingAnswered != null) {
+      _speak(_wordBeingAnswered!.en);
+    }
   }
 
   @override
@@ -49,29 +61,75 @@ class _ReviewScreenState extends State<ReviewScreen> {
   void _checkAnswer() {
     if (_wordBeingAnswered == null) return;
 
+    final String userInput = _textController.text.trim().toLowerCase();
+    final String correctAnswer = _wordBeingAnswered!.tr.toLowerCase();
+
+    if (userInput.isEmpty) return;
+
+    final String normalizedInput = normalizeTurkish(userInput);
+    final String normalizedCorrect = normalizeTurkish(correctAnswer);
+
+    bool isPerfect = (userInput == correctAnswer);
+    bool isNormalizedCorrect = (normalizedInput == normalizedCorrect);
+
+    bool isTypoCorrect = false;
+    if (!isPerfect && !isNormalizedCorrect) {
+      int distance = levenshtein(normalizedInput, normalizedCorrect);
+
+      int threshold = 0;
+      if (normalizedCorrect.length > 3) {
+        threshold = 1;
+      }
+
+      isTypoCorrect = (distance <= threshold);
+    }
+
+    bool finalCorrectness = isPerfect || isNormalizedCorrect || isTypoCorrect;
+
+    if (finalCorrectness) {
+      _soundService.playCorrect();
+    } else {
+      _soundService.playIncorrect();
+    }
+
     setState(() {
       _showFeedback = true;
-      _isCorrect =
-          _textController.text.trim().toLowerCase() ==
-          _wordBeingAnswered!.tr.toLowerCase();
+      _userInput = _textController.text.trim();
+      _isPerfect = isPerfect;
+      _isCorrect = finalCorrectness;
+      _isPassed = false;
     });
   }
 
-  void _nextWord() async {
+  void _passQuestion() {
+    if (_wordBeingAnswered == null) return;
+    _textController.clear();
+    _soundService.playIncorrect();
+    setState(() {
+      _showFeedback = true;
+      _isCorrect = false;
+      _isPerfect = false;
+      _isPassed = true;
+      _userInput = "";
+    });
+  }
+
+  void _nextWord() {
     final provider = Provider.of<WordProvider>(context, listen: false);
+    final word = _wordBeingAnswered!;
+
     if (_isCorrect) {
-      provider.answerCorrectly();
+      provider.answerCorrectly(word);
     } else {
-      provider.answerIncorrectly();
+      provider.answerIncorrectly(word);
     }
+
     if (provider.reviewQueue.isEmpty) {
       final int correct = provider.correctCount;
       final int incorrect = provider.incorrectCount;
       final int total = correct + incorrect;
-
       final double successRateNum = (total == 0) ? 0 : (correct / total) * 100;
       final String successRate = successRateNum.toStringAsFixed(0);
-
       final String dialogTitle;
       final String buttonText;
       if (successRateNum >= 80) {
@@ -85,9 +143,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
         buttonText = 'Tamam';
       }
 
-      await provider.saveTestResult(correct, total);
-
-      if (!context.mounted) return;
+      provider.saveTestResult(correct, total);
 
       showDialog(
         context: context,
@@ -117,13 +173,17 @@ class _ReviewScreenState extends State<ReviewScreen> {
         _textController.clear();
         _showFeedback = false;
         _isCorrect = false;
+        _isPerfect = false;
+        _userInput = "";
+        _isPassed = false;
         _wordBeingAnswered = provider.currentReviewWord;
       });
+      _autoPlaySound(provider.autoPlaySound);
     }
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext buildContext) {
     return Consumer<WordProvider>(
       builder: (context, provider, child) {
         final currentWord = provider.currentReviewWord;
@@ -131,7 +191,6 @@ class _ReviewScreenState extends State<ReviewScreen> {
         if (provider.isLoading) {
           return Scaffold(body: Center(child: CircularProgressIndicator()));
         }
-
         if (currentWord == null) {
           return Scaffold(
             appBar: AppBar(title: Text("Test Bitti")),
@@ -152,10 +211,8 @@ class _ReviewScreenState extends State<ReviewScreen> {
             ),
           );
         }
-
         String progress =
             "${provider.totalWordsInReview - provider.reviewQueue.length + 1} / ${provider.totalWordsInReview}";
-
         if (provider.totalWordsInReview == 0) {
           progress = "0 / 0";
         }
@@ -183,10 +240,12 @@ class _ReviewScreenState extends State<ReviewScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text(
-                      currentWord.en,
-                      style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                        fontWeight: FontWeight.bold,
+                    Flexible(
+                      child: Text(
+                        currentWord.en,
+                        style: Theme.of(context).textTheme.displaySmall
+                            ?.copyWith(fontWeight: FontWeight.bold),
+                        textAlign: TextAlign.center,
                       ),
                     ),
                     IconButton(
@@ -213,17 +272,40 @@ class _ReviewScreenState extends State<ReviewScreen> {
                 ),
                 SizedBox(height: 20),
                 if (!_showFeedback)
-                  ElevatedButton(
-                    onPressed: _checkAnswer,
-                    child: Text('Kontrol Et'),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      TextButton(
+                        onPressed: _passQuestion,
+                        child: Text(
+                          'Pas Geç',
+                          style: TextStyle(
+                            color: Colors.grey[700],
+                            fontSize: 16,
+                          ),
+                        ),
+                      ),
+                      ElevatedButton(
+                        onPressed: _checkAnswer,
+                        child: Text(
+                          'Kontrol Et',
+                          style: TextStyle(fontSize: 16),
+                        ),
+                      ),
+                    ],
                   )
                 else
                   ElevatedButton(
                     onPressed: _nextWord,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: _isCorrect ? Colors.green : Colors.red,
+                      backgroundColor: _isCorrect
+                          ? (_isPerfect ? Colors.green : Colors.orange)
+                          : Colors.red,
                     ),
-                    child: Text('Sonraki Kelime'),
+                    child: Text(
+                      'Sonraki Kelime',
+                      style: TextStyle(fontSize: 16),
+                    ),
                   ),
                 SizedBox(height: 30),
                 if (_showFeedback)
@@ -232,35 +314,64 @@ class _ReviewScreenState extends State<ReviewScreen> {
                     width: double.infinity,
                     decoration: BoxDecoration(
                       color: _isCorrect
-                          ? Colors.green.shade50
+                          ? (_isPerfect
+                                ? Colors.green.shade50
+                                : Colors.orange.shade50)
                           : Colors.red.shade50,
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(
-                        color: _isCorrect ? Colors.green : Colors.red,
+                        color: _isCorrect
+                            ? (_isPerfect ? Colors.green : Colors.orange)
+                            : Colors.red,
                       ),
                     ),
                     child: Column(
                       children: [
                         Text(
-                          _isCorrect ? 'Doğru!' : 'Yanlış!',
+                          _isCorrect
+                              ? 'Doğru!'
+                              : (_isPassed ? 'Pas Geçildi' : 'Yanlış!'),
                           style: Theme.of(context).textTheme.headlineSmall
                               ?.copyWith(
                                 color: _isCorrect
-                                    ? Colors.green[800]
+                                    ? (_isPerfect
+                                          ? Colors.green[800]
+                                          : Colors.orange[800])
                                     : Colors.red[800],
                               ),
                         ),
                         SizedBox(height: 10),
+                        if (!_isPerfect && !_isPassed && _userInput.isNotEmpty)
+                          Text(
+                            'Yazdığın: $_userInput',
+                            style: Theme.of(context).textTheme.titleLarge
+                                ?.copyWith(
+                                  color: _isCorrect
+                                      ? Colors.orange[800]
+                                      : Colors.red[800],
+                                  decoration: _isCorrect
+                                      ? null
+                                      : TextDecoration.lineThrough,
+                                ),
+                          ),
                         Text(
                           'Doğru Cevap: ${currentWord.tr}',
-                          style: Theme.of(context).textTheme.titleLarge,
+                          style: Theme.of(context).textTheme.titleLarge
+                              ?.copyWith(
+                                color: _isPerfect
+                                    ? Colors.black87
+                                    : Colors.green[800],
+                                fontWeight: _isPerfect
+                                    ? FontWeight.normal
+                                    : FontWeight.bold,
+                              ),
                         ),
-                        if (!_isCorrect)
+                        if (_isCorrect && !_isPerfect)
                           Padding(
                             padding: const EdgeInsets.only(top: 8.0),
                             child: Text(
-                              'Cevabın: ${_textController.text.trim()}',
-                              style: TextStyle(color: Colors.red[800]),
+                              '(Yazım hatası kabul edildi)',
+                              style: TextStyle(color: Colors.orange[800]),
                             ),
                           ),
                       ],

@@ -1,9 +1,12 @@
+// C:\Users\Mete\Desktop\englishwordsapp\pratikapp\lib\services\database_helper.dart
+
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import 'dart:convert';
 import 'package:flutter/services.dart' show rootBundle;
 import '../models/word_model.dart';
 import '../models/dashboard_stats.dart';
+import '../utils/spaced_repetition.dart';
 import 'dart:math';
 
 class BatchHistory {
@@ -23,7 +26,10 @@ class BatchHistory {
 class DatabaseHelper {
   static final DatabaseHelper instance = DatabaseHelper._init();
   static Database? _database;
+  static const int _userWordIdThreshold = 1000000;
+
   DatabaseHelper._init();
+
   Future<Database> get database async {
     if (_database != null) return _database!;
     _database = await _initDB('words.db');
@@ -35,7 +41,7 @@ class DatabaseHelper {
     final path = join(dbPath, filePath);
     return await openDatabase(
       path,
-      version: 2,
+      version: 5,
       onCreate: _createDB,
       onUpgrade: _onUpgrade,
     );
@@ -44,14 +50,27 @@ class DatabaseHelper {
   Future _createDB(Database db, int version) async {
     await db.execute('''
 CREATE TABLE words ( 
-  id INTEGER PRIMARY KEY, en TEXT NOT NULL, tr TEXT NOT NULL, meaning TEXT,
-  example_sentence TEXT, status TEXT NOT NULL, batchId INTEGER DEFAULT NULL 
+  id INTEGER PRIMARY KEY, 
+  en TEXT NOT NULL,
+  tr TEXT NOT NULL,
+  meaning TEXT,
+  example_sentence TEXT,
+  notes TEXT,
+  status TEXT NOT NULL,
+  batchId INTEGER DEFAULT NULL,
+  mastery_level INTEGER DEFAULT 0 NOT NULL,
+  review_due_date INTEGER DEFAULT 0 NOT NULL,
+  wrong_streak INTEGER DEFAULT 0 NOT NULL
 )
 ''');
     await db.execute('''
 CREATE TABLE batch_scores (
-  id INTEGER PRIMARY KEY AUTOINCREMENT, batchId INTEGER NOT NULL, 
-  correctCount INTEGER NOT NULL, totalCount INTEGER NOT NULL, timestamp INTEGER NOT NULL
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  batchId INTEGER NOT NULL,
+  correctCount INTEGER NOT NULL,
+  totalCount INTEGER NOT NULL,
+  timestamp INTEGER NOT NULL,
+  is_new_session INTEGER DEFAULT 0 NOT NULL
 )
 ''');
   }
@@ -60,10 +79,48 @@ CREATE TABLE batch_scores (
     if (oldVersion < 2) {
       await db.execute('''
 CREATE TABLE batch_scores (
-  id INTEGER PRIMARY KEY AUTOINCREMENT, batchId INTEGER NOT NULL, 
-  correctCount INTEGER NOT NULL, totalCount INTEGER NOT NULL, timestamp INTEGER NOT NULL
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  batchId INTEGER NOT NULL,
+  correctCount INTEGER NOT NULL,
+  totalCount INTEGER NOT NULL,
+  timestamp INTEGER NOT NULL
 )
 ''');
+    }
+    if (oldVersion < 3) {
+      await db.execute(
+        "ALTER TABLE words ADD COLUMN mastery_level INTEGER DEFAULT 0 NOT NULL",
+      );
+      await db.execute(
+        "ALTER TABLE words ADD COLUMN review_due_date INTEGER DEFAULT 0 NOT NULL",
+      );
+      await db.execute(
+        "ALTER TABLE words ADD COLUMN wrong_streak INTEGER DEFAULT 0 NOT NULL",
+      );
+    }
+    if (oldVersion < 4) {
+      await db.execute(
+        "ALTER TABLE batch_scores ADD COLUMN is_new_session INTEGER DEFAULT 0 NOT NULL",
+      );
+    }
+    if (oldVersion < 5) {
+      await db.execute("ALTER TABLE words ADD COLUMN notes TEXT");
+
+      final List<Map<String, dynamic>> maps = await db.query('words');
+      final batch = db.batch();
+      for (var map in maps) {
+        String oldSentence = map['example_sentence'] ?? '';
+        if (oldSentence.isNotEmpty && !oldSentence.startsWith('[')) {
+          String newSentenceJson = jsonEncode([oldSentence]);
+          batch.update(
+            'words',
+            {'example_sentence': newSentenceJson},
+            where: 'id = ?',
+            whereArgs: [map['id']],
+          );
+        }
+      }
+      await batch.commit(noResult: true);
     }
   }
 
@@ -79,13 +136,18 @@ CREATE TABLE batch_scores (
     final List<dynamic> data = json.decode(response);
     Batch batch = db.batch();
     for (var item in data) {
+      String example = item['example_sentence'] ?? '';
       Map<String, dynamic> wordMap = {
         'id': item['id'],
         'en': item['en'],
         'tr': item['tr'],
         'meaning': item['meaning'],
-        'example_sentence': item['example_sentence'],
+        'example_sentence': jsonEncode(example.isNotEmpty ? [example] : []),
+        'notes': '',
         'status': 'unseen',
+        'mastery_level': 0,
+        'review_due_date': 0,
+        'wrong_streak': 0,
       };
       batch.insert(
         'words',
@@ -96,13 +158,44 @@ CREATE TABLE batch_scores (
     await batch.apply();
   }
 
-  Future<void> insertBatchScore(int batchId, int correct, int total) async {
+  Future<void> insertWord(Word word) async {
+    final db = await database;
+    await db.insert(
+      'words',
+      word.toMap(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<void> deleteWord(int id) async {
+    final db = await database;
+    await db.delete('words', where: 'id = ?', whereArgs: [id]);
+  }
+
+  Future<List<Word>> getUserWords() async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'words',
+      where: 'id > ?',
+      whereArgs: [_userWordIdThreshold],
+      orderBy: 'en ASC',
+    );
+    return maps.map((map) => Word.fromMap(map)).toList();
+  }
+
+  Future<void> insertBatchScore(
+    int batchId,
+    int correct,
+    int total,
+    bool isNewSession,
+  ) async {
     final db = await database;
     await db.insert('batch_scores', {
       'batchId': batchId,
       'correctCount': correct,
       'totalCount': total,
       'timestamp': DateTime.now().millisecondsSinceEpoch,
+      'is_new_session': isNewSession ? 1 : 0,
     });
   }
 
@@ -119,16 +212,21 @@ CREATE TABLE batch_scores (
       now.month,
       now.day - 6,
     ).millisecondsSinceEpoch;
+
     final List<Map<String, dynamic>> results = await db.rawQuery('''
       SELECT 
-        (SELECT COUNT(id) FROM words WHERE status = 'learned') as totalLearnedWords,
-        (SELECT SUM(totalCount) FROM batch_scores 
-         WHERE timestamp >= $startOfDay) as wordsLearnedToday,
-        (SELECT SUM(totalCount) FROM batch_scores 
-         WHERE timestamp >= $startOfWeek) as wordsLearnedThisWeek,
-        (SELECT AVG((CAST(correctCount AS REAL) / totalCount) * 100) 
+        (SELECT COUNT(id) FROM words WHERE mastery_level > 0) as totalLearnedWords,
+        
+        (SELECT SUM(correctCount) FROM batch_scores 
+         WHERE timestamp >= $startOfDay AND is_new_session = 1) as wordsLearnedToday,
+         
+        (SELECT SUM(correctCount) FROM batch_scores 
+         WHERE timestamp >= $startOfWeek AND is_new_session = 1) as wordsLearnedThisWeek,
+
+        (SELECT (CAST(SUM(correctCount) AS REAL) / SUM(totalCount)) * 100 
          FROM batch_scores) as overallSuccessRate
     ''');
+
     if (results.isEmpty) {
       return DashboardStats();
     }
@@ -138,22 +236,20 @@ CREATE TABLE batch_scores (
   Future<List<int>> getWeeklyEffort() async {
     final db = await database;
     List<int> weeklyEffort = List.filled(7, 0);
-
     final today = DateTime.now();
     final todayMidnight = DateTime(today.year, today.month, today.day);
     final startDate = todayMidnight.subtract(Duration(days: 6));
     final startTimeStamp = startDate.millisecondsSinceEpoch;
+
     final List<Map<String, dynamic>> maps = await db.rawQuery('''
       SELECT 
         SUM(totalCount) as count, 
         strftime('%Y-%m-%d', timestamp / 1000, 'unixepoch') as date
       FROM batch_scores
-      WHERE timestamp >= $startTimeStamp
+      WHERE timestamp >= $startTimeStamp AND is_new_session = 1
       GROUP BY date
     ''');
-
     if (maps.isEmpty) return weeklyEffort;
-
     for (var map in maps) {
       final date = DateTime.parse(map['date']);
       final count = (map['count'] as int?) ?? 0;
@@ -165,53 +261,39 @@ CREATE TABLE batch_scores (
     return weeklyEffort;
   }
 
-  Future<List<Word>> getNewWordBatch(int batchSize) async {
-    final db = await database;
-    final List<Map<String, dynamic>> idMaps = await db.query(
-      'words',
-      columns: ['id'],
-      where: 'status = ?',
-      whereArgs: ['unseen'],
-    );
-    if (idMaps.isEmpty) return [];
-    List<int> ids = idMaps.map((map) => map['id'] as int).toList();
-    ids.shuffle(Random());
-    List<int> selectedIds = ids.take(batchSize).toList();
-    if (selectedIds.isEmpty) return [];
-    final List<Map<String, dynamic>> maps = await db.query(
-      'words',
-      where: 'id IN (${selectedIds.map((_) => '?').join(',')})',
-      whereArgs: selectedIds,
-    );
-    final wordsList = maps.map((map) => Word.fromMap(map)).toList();
-    wordsList.sort(
-      (a, b) => selectedIds.indexOf(a.id).compareTo(selectedIds.indexOf(b.id)),
-    );
-    return wordsList;
-  }
-
-  Future<int> markBatchAsLearned(List<Word> batch) async {
-    if (batch.isEmpty) return 0;
+  Future<int> getNewBatchId() async {
     final db = await database;
     final List<Map> maxIdResult = await db.rawQuery(
       'SELECT MAX(batchId) as maxId FROM words',
     );
     int newBatchId = (maxIdResult.first['maxId'] as int? ?? 0) + 1;
-    List<int> wordIds = batch.map((word) => word.id).toList();
+    return newBatchId;
+  }
+
+  Future<void> assignBatchIdToNewWords(List<Word> batch, int batchId) async {
+    if (batch.isEmpty) return;
+    final db = await database;
+
+    List<int> newWordIds = batch
+        .where((word) => word.batchId == null)
+        .map((word) => word.id)
+        .toList();
+
+    if (newWordIds.isEmpty) return;
+
     await db.update(
       'words',
-      {'status': 'learned', 'batchId': newBatchId},
-      where: 'id IN (${wordIds.map((_) => '?').join(',')})',
-      whereArgs: wordIds,
+      {'batchId': batchId},
+      where: 'id IN (${newWordIds.map((_) => '?').join(',')})',
+      whereArgs: newWordIds,
     );
-    return newBatchId;
   }
 
   Future<int> getUnlearnedWordCount() async {
     final db = await database;
     final count = Sqflite.firstIntValue(
-      await db.rawQuery('SELECT COUNT(*) FROM words WHERE status = ?', [
-        'unseen',
+      await db.rawQuery('SELECT COUNT(*) FROM words WHERE mastery_level = ?', [
+        0,
       ]),
     );
     return count ?? 0;
@@ -221,8 +303,8 @@ CREATE TABLE batch_scores (
     final db = await database;
     final List<Map<String, dynamic>> maps = await db.query(
       'words',
-      where: 'status = ?',
-      whereArgs: ['learned'],
+      where: 'mastery_level > ?',
+      whereArgs: [0],
     );
     return maps.map((map) => Word.fromMap(map)).toList();
   }
@@ -231,8 +313,8 @@ CREATE TABLE batch_scores (
     final db = await database;
     final List<Map<String, dynamic>> maps = await db.query(
       'words',
-      where: 'status = ?',
-      whereArgs: ['learned'],
+      where: 'mastery_level > ?',
+      whereArgs: [0],
       orderBy: 'RANDOM()',
       limit: count,
     );
@@ -251,18 +333,30 @@ CREATE TABLE batch_scores (
 
   Future<List<BatchHistory>> getBatchHistory() async {
     final db = await database;
+
     final List<Map<String, dynamic>> maps = await db.rawQuery('''
       SELECT 
-        w.batchId, COUNT(w.id) as wordCount,
+        w.batchId, 
+        COUNT(w.id) as wordCount,
+        
         (SELECT (CAST(s1.correctCount AS REAL) / s1.totalCount) * 100 
-         FROM batch_scores s1 WHERE s1.batchId = w.batchId 
+         FROM batch_scores s1 
+         WHERE s1.batchId = w.batchId 
          ORDER BY s1.timestamp DESC LIMIT 1) as lastScore,
+         
         (SELECT MAX((CAST(s2.correctCount AS REAL) / s2.totalCount) * 100) 
-         FROM batch_scores s2 WHERE s2.batchId = w.batchId) as bestScore
+         FROM batch_scores s2 
+         WHERE s2.batchId = w.batchId) as bestScore
+         
       FROM words w
-      WHERE w.status = "learned" AND w.batchId IS NOT NULL 
-      GROUP BY w.batchId ORDER BY w.batchId DESC
+      
+      WHERE w.batchId IS NOT NULL 
+        AND w.batchId IN (SELECT batchId FROM batch_scores WHERE is_new_session = 1)
+        
+      GROUP BY w.batchId 
+      ORDER BY w.batchId DESC
     ''');
+
     if (maps.isEmpty) return [];
     return maps
         .map(
@@ -274,5 +368,126 @@ CREATE TABLE batch_scores (
           ),
         )
         .toList();
+  }
+
+  Future<List<String>> getDecoyWords(String correctTr, int count) async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'words',
+      columns: ['tr'],
+      where: 'tr != ?',
+      whereArgs: [correctTr],
+      orderBy: 'RANDOM()',
+      limit: count,
+    );
+    return maps.map((map) => map['tr'] as String).toList();
+  }
+
+  Future<List<Word>> getDailySession(int totalBatchSize) async {
+    final db = await database;
+    final now = DateTime.now().millisecondsSinceEpoch;
+
+    List<Word> sessionWords = [];
+
+    final List<Map<String, dynamic>> reviewMaps = await db.query(
+      'words',
+      where:
+          'mastery_level > 0 AND mastery_level != ? AND review_due_date <= ?',
+      whereArgs: [SpacedRepetition.leechLevel, now],
+      orderBy: 'review_due_date ASC',
+      limit: totalBatchSize,
+    );
+    sessionWords.addAll(reviewMaps.map((map) => Word.fromMap(map)));
+
+    int remainingCount = totalBatchSize - sessionWords.length;
+    if (remainingCount > 0) {
+      final List<Map<String, dynamic>> userNewMaps = await db.query(
+        'words',
+        where: 'mastery_level = ? AND id > ?',
+        whereArgs: [0, _userWordIdThreshold],
+        orderBy: 'id ASC',
+        limit: remainingCount,
+      );
+      sessionWords.addAll(userNewMaps.map((map) => Word.fromMap(map)));
+    }
+
+    remainingCount = totalBatchSize - sessionWords.length;
+    if (remainingCount > 0) {
+      final List<Map<String, dynamic>> stockNewMaps = await db.query(
+        'words',
+        where: 'mastery_level = ? AND id <= ?',
+        whereArgs: [0, _userWordIdThreshold],
+        orderBy: 'RANDOM()',
+        limit: remainingCount,
+      );
+      sessionWords.addAll(stockNewMaps.map((map) => Word.fromMap(map)));
+    }
+
+    sessionWords.shuffle(Random());
+    return sessionWords;
+  }
+
+  Future<List<Word>> getDifficultWords() async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'words',
+      where: 'mastery_level = ?',
+      whereArgs: [SpacedRepetition.leechLevel],
+    );
+    return maps.map((map) => Word.fromMap(map)).toList();
+  }
+
+  Future<int> getDifficultWordCount() async {
+    final db = await database;
+    final count = Sqflite.firstIntValue(
+      await db.rawQuery('SELECT COUNT(*) FROM words WHERE mastery_level = ?', [
+        SpacedRepetition.leechLevel,
+      ]),
+    );
+    return count ?? 0;
+  }
+
+  Future<void> updateWordMastery(Word word, bool wasCorrect) async {
+    final db = await database;
+    int currentLevel = word.masteryLevel;
+    int currentStreak = word.wrongStreak;
+    int newLevel = currentLevel;
+    int newStreak = currentStreak;
+    int newReviewDate = word.reviewDueDate;
+
+    if (wasCorrect) {
+      newStreak = 0;
+      if (currentLevel == SpacedRepetition.leechLevel) {
+        newLevel = 1;
+      } else if (currentLevel < SpacedRepetition.maxLevel) {
+        newLevel++;
+      }
+      newReviewDate = SpacedRepetition.getNextReviewDate(
+        newLevel,
+      ).millisecondsSinceEpoch;
+    } else {
+      newStreak++;
+      if (newStreak >= SpacedRepetition.leechThreshold) {
+        newLevel = SpacedRepetition.leechLevel;
+      } else if (currentLevel >= 0) {
+        newLevel = (currentLevel ~/ 2);
+        if (newLevel == 0 && currentLevel > 0) newLevel = 1;
+      }
+      newReviewDate = SpacedRepetition.getNextReviewDate(
+        1,
+      ).millisecondsSinceEpoch;
+    }
+
+    await db.update(
+      'words',
+      {
+        'mastery_level': newLevel,
+        'wrong_streak': newStreak,
+        'review_due_date': newReviewDate,
+        'status': (newLevel > 0) ? 'learned' : word.status,
+      },
+      where: 'id = ?',
+      whereArgs: [word.id],
+    );
   }
 }

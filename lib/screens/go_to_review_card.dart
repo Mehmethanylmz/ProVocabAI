@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/word_provider.dart';
 import 'review_screen.dart';
+import 'review_screen_multiple_choice.dart';
+import 'test_type_dialog.dart';
 
 class GoToReviewCard extends StatelessWidget {
   const GoToReviewCard({super.key});
@@ -32,17 +34,33 @@ class GoToReviewCard extends StatelessWidget {
                 backgroundColor: Colors.green,
                 padding: EdgeInsets.symmetric(horizontal: 40, vertical: 15),
               ),
-              onPressed: () {
+              onPressed: () async {
                 final provider = Provider.of<WordProvider>(
                   context,
                   listen: false,
                 );
-                provider.startReview(testMode: 'current');
 
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => ReviewScreen()),
-                );
+                final TestType? testType = await showTestTypeDialog(context);
+
+                if (testType == null || !context.mounted) return;
+
+                await provider.startReview(testMode: 'current');
+
+                if (!context.mounted) return;
+
+                if (testType == TestType.writing) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => ReviewScreen()),
+                  );
+                } else {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => ReviewScreenMultipleChoice(),
+                    ),
+                  );
+                }
               },
               child: Text(
                 'Testi Başlat',
