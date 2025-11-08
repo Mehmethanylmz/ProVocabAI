@@ -20,7 +20,9 @@ class _MyWordsScreenState extends State<MyWordsScreen> {
   @override
   void initState() {
     super.initState();
-    Provider.of<WordProvider>(context, listen: false).fetchUserWords();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Provider.of<WordProvider>(context, listen: false).fetchUserWords();
+    });
     _searchController.addListener(() {
       setState(() {
         _query = _searchController.text;

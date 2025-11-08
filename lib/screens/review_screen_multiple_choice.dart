@@ -8,6 +8,7 @@ import 'package:flutter_tts/flutter_tts.dart';
 import '../providers/word_provider.dart';
 import '../models/word_model.dart';
 import '../services/sound_service.dart';
+import 'test_result_screen.dart';
 
 class ReviewScreenMultipleChoice extends StatefulWidget {
   const ReviewScreenMultipleChoice({super.key});
@@ -53,20 +54,24 @@ class _ReviewScreenMultipleChoiceState
   Future<void> _loadNextWord() async {
     final provider = Provider.of<WordProvider>(context, listen: false);
     if (provider.reviewQueue.isEmpty) {
-      _showTestEndDialog();
+      await _finishTestAndNavigate();
       return;
     }
 
     final word = provider.currentReviewWord;
     if (word == null) {
-      _showTestEndDialog();
+      await _finishTestAndNavigate();
       return;
     }
 
     final decoys = await provider.getDecoys(word.tr, 3);
+
+    // HATA BURADAYDI, ŞİMDİ DÜZELTİLDİ:
     final options = [word.tr, ...decoys];
     options.shuffle(Random());
     final correctIndex = options.indexOf(word.tr);
+
+    if (!mounted) return;
 
     setState(() {
       _currentWord = word;
@@ -115,58 +120,27 @@ class _ReviewScreenMultipleChoiceState
     provider.answerIncorrectly(_currentWord!);
   }
 
-  void _nextWord() {
+  void _nextWord() async {
     if (Provider.of<WordProvider>(context, listen: false).reviewQueue.isEmpty) {
-      _showTestEndDialog();
+      await _finishTestAndNavigate();
     } else {
       _loadNextWord();
     }
   }
 
-  void _showTestEndDialog() {
+  Future<void> _finishTestAndNavigate() async {
     final provider = Provider.of<WordProvider>(context, listen: false);
     final int correct = provider.correctCount;
     final int incorrect = provider.incorrectCount;
     final int total = correct + incorrect;
-    final double successRateNum = (total == 0) ? 0 : (correct / total) * 100;
-    final String successRate = successRateNum.toStringAsFixed(0);
-    final String dialogTitle;
-    final String buttonText;
-    if (successRateNum >= 80) {
-      dialogTitle = 'Harika İş!';
-      buttonText = 'Süper!';
-    } else if (successRateNum >= 50) {
-      dialogTitle = 'İyi Gidiyorsun!';
-      buttonText = 'Devam Et';
-    } else {
-      dialogTitle = 'Test Bitti';
-      buttonText = 'Tamam';
-    }
 
-    provider.saveTestResult(correct, total);
+    await provider.saveTestResult(correct, total);
 
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        title: Text(dialogTitle),
-        content: Text(
-          'Bu turu tamamladın.\n\n'
-          'Başarı Oranı: %$successRate\n'
-          'Doğru: $correct\n'
-          'Yanlış: $incorrect\n\n'
-          'Skorun kaydedildi.',
-        ),
-        actions: [
-          TextButton(
-            child: Text(buttonText),
-            onPressed: () {
-              Navigator.of(ctx).pop();
-              Navigator.of(context).popUntil((route) => route.isFirst);
-            },
-          ),
-        ],
-      ),
+    if (!mounted) return;
+
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => const TestResultScreen()),
     );
   }
 

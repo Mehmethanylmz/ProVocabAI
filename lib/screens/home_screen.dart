@@ -430,7 +430,6 @@ class _HomeScreenState extends State<HomeScreen> {
       padding: const EdgeInsets.fromLTRB(24, 0, 24, 0),
       child: InkWell(
         onTap: () {
-          Provider.of<WordProvider>(context, listen: false).fetchUserWords();
           Navigator.push(
             context,
             MaterialPageRoute(builder: (context) => MyWordsScreen()),

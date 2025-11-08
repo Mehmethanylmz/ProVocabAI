@@ -16,6 +16,7 @@ class WordProvider with ChangeNotifier {
   List<Word> _reviewQueue = [];
   List<BatchHistory> _batchHistory = [];
   List<Word> _userWords = [];
+  List<Word> _wrongAnswersInSession = [];
   int? _currentTestingBatchId;
 
   DashboardStats? _stats;
@@ -41,6 +42,7 @@ class WordProvider with ChangeNotifier {
   List<Word> get reviewQueue => _reviewQueue;
   List<BatchHistory> get batchHistory => _batchHistory;
   List<Word> get userWords => _userWords;
+  List<Word> get wrongAnswersInSession => _wrongAnswersInSession;
   int get correctCount => _correctCount;
   int get incorrectCount => _incorrectCount;
   int get totalWordsInReview => _totalReviewCount;
@@ -159,6 +161,7 @@ class WordProvider with ChangeNotifier {
     notifyListeners();
     _reviewQueue = [];
     _currentTestingBatchId = null;
+    _wrongAnswersInSession.clear();
 
     switch (testMode) {
       case 'current':
@@ -203,6 +206,7 @@ class WordProvider with ChangeNotifier {
   void answerIncorrectly(Word word) {
     if (_reviewQueue.isEmpty) return;
     _incorrectCount++;
+    _wrongAnswersInSession.add(word);
     _reviewQueue.removeAt(0);
     _dbHelper.updateWordMastery(word, false);
     notifyListeners();

@@ -7,6 +7,7 @@ import '../utils/string_helper.dart';
 import '../providers/word_provider.dart';
 import '../models/word_model.dart';
 import '../services/sound_service.dart';
+import 'test_result_screen.dart';
 
 class ReviewScreen extends StatefulWidget {
   const ReviewScreen({super.key});
@@ -114,7 +115,23 @@ class _ReviewScreenState extends State<ReviewScreen> {
     });
   }
 
-  void _nextWord() {
+  Future<void> _finishTestAndNavigate() async {
+    final provider = Provider.of<WordProvider>(context, listen: false);
+    final int correct = provider.correctCount;
+    final int incorrect = provider.incorrectCount;
+    final int total = correct + incorrect;
+
+    await provider.saveTestResult(correct, total);
+
+    if (!mounted) return;
+
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => const TestResultScreen()),
+    );
+  }
+
+  void _nextWord() async {
     final provider = Provider.of<WordProvider>(context, listen: false);
     final word = _wordBeingAnswered!;
 
@@ -125,49 +142,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
     }
 
     if (provider.reviewQueue.isEmpty) {
-      final int correct = provider.correctCount;
-      final int incorrect = provider.incorrectCount;
-      final int total = correct + incorrect;
-      final double successRateNum = (total == 0) ? 0 : (correct / total) * 100;
-      final String successRate = successRateNum.toStringAsFixed(0);
-      final String dialogTitle;
-      final String buttonText;
-      if (successRateNum >= 80) {
-        dialogTitle = 'Harika İş!';
-        buttonText = 'Süper!';
-      } else if (successRateNum >= 50) {
-        dialogTitle = 'İyi Gidiyorsun!';
-        buttonText = 'Devam Et';
-      } else {
-        dialogTitle = 'Test Bitti';
-        buttonText = 'Tamam';
-      }
-
-      provider.saveTestResult(correct, total);
-
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (ctx) => AlertDialog(
-          title: Text(dialogTitle),
-          content: Text(
-            'Bu turu tamamladın.\n\n'
-            'Başarı Oranı: %$successRate\n'
-            'Doğru: $correct\n'
-            'Yanlış: $incorrect\n\n'
-            'Skorun kaydedildi.',
-          ),
-          actions: [
-            TextButton(
-              child: Text(buttonText),
-              onPressed: () {
-                Navigator.of(ctx).pop();
-                Navigator.of(context).popUntil((route) => route.isFirst);
-              },
-            ),
-          ],
-        ),
-      );
+      await _finishTestAndNavigate();
     } else {
       setState(() {
         _textController.clear();
