@@ -1,22 +1,20 @@
+// C:\Users\Mete\Desktop\englishwordsapp\pratikapp\lib\models\dashboard_stats.dart
+
 class DashboardStats {
-  final int wordsLearnedToday;
-  final int wordsLearnedThisWeek;
-  final double overallSuccessRate;
+  final int todayEfor;
+  final double todaySuccessRate;
   final int totalLearnedWords;
 
   DashboardStats({
-    this.wordsLearnedToday = 0,
-    this.wordsLearnedThisWeek = 0,
-    this.overallSuccessRate = 0.0,
+    this.todayEfor = 0,
+    this.todaySuccessRate = 0.0,
     this.totalLearnedWords = 0,
   });
 
   factory DashboardStats.fromMap(Map<String, dynamic> map) {
     return DashboardStats(
-      wordsLearnedToday: map['wordsLearnedToday'] as int? ?? 0,
-      wordsLearnedThisWeek: map['wordsLearnedThisWeek'] as int? ?? 0,
-      overallSuccessRate:
-          (map['overallSuccessRate'] as num?)?.toDouble() ?? 0.0,
+      todayEfor: map['todayEfor'] as int? ?? 0,
+      todaySuccessRate: (map['todaySuccessRate'] as num?)?.toDouble() ?? 0.0,
       totalLearnedWords: map['totalLearnedWords'] as int? ?? 0,
     );
   }

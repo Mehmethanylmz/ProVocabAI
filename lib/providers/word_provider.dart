@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import '../models/word_model.dart';
 import '../models/dashboard_stats.dart';
+import '../models/detailed_stats.dart';
 import '../services/database_helper.dart';
 import '../services/settings_service.dart';
 import '../services/notification_service.dart';
@@ -20,6 +21,7 @@ class WordProvider with ChangeNotifier {
   int? _currentTestingBatchId;
 
   DashboardStats? _stats;
+  DetailedStats? _detailedStats;
   List<int> _weeklyEffort = [];
   int _difficultWordCount = 0;
 
@@ -28,6 +30,7 @@ class WordProvider with ChangeNotifier {
   bool _autoPlaySound = true;
   int _unlearnedCount = 0;
   bool _isLoading = false;
+  bool _isDetailedStatsLoading = false;
 
   int _correctCount = 0;
   int _incorrectCount = 0;
@@ -39,6 +42,7 @@ class WordProvider with ChangeNotifier {
   bool get autoPlaySound => _autoPlaySound;
   int get unlearnedCount => _unlearnedCount;
   bool get isLoading => _isLoading;
+  bool get isDetailedStatsLoading => _isDetailedStatsLoading;
   List<Word> get reviewQueue => _reviewQueue;
   List<BatchHistory> get batchHistory => _batchHistory;
   List<Word> get userWords => _userWords;
@@ -48,6 +52,7 @@ class WordProvider with ChangeNotifier {
   int get totalWordsInReview => _totalReviewCount;
   int? get currentTestingBatchId => _currentTestingBatchId;
   DashboardStats? get stats => _stats;
+  DetailedStats? get detailedStats => _detailedStats;
   List<int> get weeklyEffort => _weeklyEffort;
   int get difficultWordCount => _difficultWordCount;
 
@@ -78,6 +83,14 @@ class WordProvider with ChangeNotifier {
     _stats = await _dbHelper.getDashboardStats();
     _weeklyEffort = await _dbHelper.getWeeklyEffort();
     _difficultWordCount = await _dbHelper.getDifficultWordCount();
+    notifyListeners();
+  }
+
+  Future<void> fetchDetailedStats() async {
+    _isDetailedStatsLoading = true;
+    notifyListeners();
+    _detailedStats = await _dbHelper.getDetailedStats();
+    _isDetailedStatsLoading = false;
     notifyListeners();
   }
 
@@ -218,8 +231,6 @@ class WordProvider with ChangeNotifier {
 
     _currentBatch = [];
     _reviewQueue = [];
-    _correctCount = 0;
-    _incorrectCount = 0;
     _totalReviewCount = 0;
     _unlearnedCount = await _dbHelper.getUnlearnedWordCount();
     return newBatchId;
@@ -245,6 +256,9 @@ class WordProvider with ChangeNotifier {
         isNewSession,
       );
     }
+
+    _correctCount = 0;
+    _incorrectCount = 0;
 
     await fetchBatchHistory();
     await fetchDashboardStats();

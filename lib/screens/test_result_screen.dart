@@ -1,12 +1,20 @@
 // C:\Users\Mete\Desktop\englishwordsapp\pratikapp\lib\screens\test_result_screen.dart
 
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import '../providers/word_provider.dart';
+import '../models/word_model.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 
 class TestResultScreen extends StatefulWidget {
-  const TestResultScreen({super.key});
+  final int correctCount;
+  final int incorrectCount;
+  final List<Word> wrongWords;
+
+  const TestResultScreen({
+    super.key,
+    required this.correctCount,
+    required this.incorrectCount,
+    required this.wrongWords,
+  });
 
   @override
   State<TestResultScreen> createState() => _TestResultScreenState();
@@ -38,11 +46,10 @@ class _TestResultScreenState extends State<TestResultScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final provider = Provider.of<WordProvider>(context, listen: false);
     final theme = Theme.of(context);
 
-    final int correct = provider.correctCount;
-    final int incorrect = provider.incorrectCount;
+    final int correct = widget.correctCount;
+    final int incorrect = widget.incorrectCount;
     final int total = correct + incorrect;
     final double successRate = (total == 0) ? 0 : (correct / total) * 100;
 
@@ -64,7 +71,7 @@ class _TestResultScreenState extends State<TestResultScreen> {
       dialogColor = Colors.orange;
     }
 
-    final wrongWords = provider.wrongAnswersInSession;
+    final wrongWords = widget.wrongWords;
 
     return Scaffold(
       appBar: AppBar(

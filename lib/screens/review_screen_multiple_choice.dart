@@ -66,7 +66,6 @@ class _ReviewScreenMultipleChoiceState
 
     final decoys = await provider.getDecoys(word.tr, 3);
 
-    // HATA BURADAYDI, ŞİMDİ DÜZELTİLDİ:
     final options = [word.tr, ...decoys];
     options.shuffle(Random());
     final correctIndex = options.indexOf(word.tr);
@@ -130,9 +129,11 @@ class _ReviewScreenMultipleChoiceState
 
   Future<void> _finishTestAndNavigate() async {
     final provider = Provider.of<WordProvider>(context, listen: false);
+
     final int correct = provider.correctCount;
     final int incorrect = provider.incorrectCount;
     final int total = correct + incorrect;
+    final List<Word> wrongWords = List.from(provider.wrongAnswersInSession);
 
     await provider.saveTestResult(correct, total);
 
@@ -140,7 +141,13 @@ class _ReviewScreenMultipleChoiceState
 
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (context) => const TestResultScreen()),
+      MaterialPageRoute(
+        builder: (context) => TestResultScreen(
+          correctCount: correct,
+          incorrectCount: incorrect,
+          wrongWords: wrongWords,
+        ),
+      ),
     );
   }
 

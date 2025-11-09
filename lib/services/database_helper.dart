@@ -6,6 +6,7 @@ import 'dart:convert';
 import 'package:flutter/services.dart' show rootBundle;
 import '../models/word_model.dart';
 import '../models/dashboard_stats.dart';
+import '../models/detailed_stats.dart';
 import '../utils/spaced_repetition.dart';
 import 'dart:math';
 
@@ -207,24 +208,17 @@ CREATE TABLE batch_scores (
       now.month,
       now.day,
     ).millisecondsSinceEpoch;
-    final startOfWeek = DateTime(
-      now.year,
-      now.month,
-      now.day - 6,
-    ).millisecondsSinceEpoch;
 
     final List<Map<String, dynamic>> results = await db.rawQuery('''
       SELECT 
         (SELECT COUNT(id) FROM words WHERE mastery_level > 0) as totalLearnedWords,
         
-        (SELECT SUM(correctCount) FROM batch_scores 
-         WHERE timestamp >= $startOfDay AND is_new_session = 1) as wordsLearnedToday,
+        (SELECT SUM(totalCount) FROM batch_scores 
+         WHERE timestamp >= $startOfDay) as todayEfor,
          
-        (SELECT SUM(correctCount) FROM batch_scores 
-         WHERE timestamp >= $startOfWeek AND is_new_session = 1) as wordsLearnedThisWeek,
-
         (SELECT (CAST(SUM(correctCount) AS REAL) / SUM(totalCount)) * 100 
-         FROM batch_scores) as overallSuccessRate
+         FROM batch_scores
+         WHERE timestamp >= $startOfDay) as todaySuccessRate
     ''');
 
     if (results.isEmpty) {
@@ -244,9 +238,9 @@ CREATE TABLE batch_scores (
     final List<Map<String, dynamic>> maps = await db.rawQuery('''
       SELECT 
         SUM(totalCount) as count, 
-        strftime('%Y-%m-%d', timestamp / 1000, 'unixepoch') as date
+        strftime('%Y-%m-%d', timestamp / 1000, 'unixepoch', 'localtime') as date
       FROM batch_scores
-      WHERE timestamp >= $startTimeStamp AND is_new_session = 1
+      WHERE timestamp >= $startTimeStamp
       GROUP BY date
     ''');
     if (maps.isEmpty) return weeklyEffort;
@@ -489,5 +483,177 @@ CREATE TABLE batch_scores (
       where: 'id = ?',
       whereArgs: [word.id],
     );
+  }
+
+  Future<DetailedStats> getDetailedStats() async {
+    final db = await database;
+    final now = DateTime.now();
+    final startOfDay = DateTime(
+      now.year,
+      now.month,
+      now.day,
+    ).millisecondsSinceEpoch;
+    final startOfWeek = DateTime(
+      now.year,
+      now.month,
+      now.day - (now.weekday - 1),
+    ).millisecondsSinceEpoch;
+    final startOfMonth = DateTime(
+      now.year,
+      now.month,
+      1,
+    ).millisecondsSinceEpoch;
+
+    final results = await Future.wait([
+      _getStreakCount(db),
+      _getStatsForPeriod(db, startOfDay),
+      _getStatsForPeriod(db, startOfWeek),
+      _getStatsForPeriod(db, startOfMonth),
+      _getStatsForPeriod(db, 0),
+      getWeeklySuccessChartData(db),
+      _getMasteryDistribution(db),
+      _getHazineStats(db),
+    ]);
+
+    return DetailedStats(
+      dailyStreak: results[0] as int,
+      todayStats: results[1] as ActivityStats,
+      weekStats: results[2] as ActivityStats,
+      monthStats: results[3] as ActivityStats,
+      allTimeStats: results[4] as ActivityStats,
+      weeklySuccessChart: results[5] as List<ChartDataPoint>,
+      masteryDistribution: results[6] as Map<String, int>,
+      hazineStats: results[7] as Map<String, int>,
+    );
+  }
+
+  Future<ActivityStats> _getStatsForPeriod(
+    Database db,
+    int startTimeStamp,
+  ) async {
+    final List<Map<String, dynamic>> maps = await db.rawQuery('''
+      SELECT
+        COUNT(id) as testCount,
+        SUM(totalCount) as totalEfor,
+        SUM(correctCount) as correctCount
+      FROM batch_scores
+      WHERE timestamp >= $startTimeStamp
+    ''');
+    if (maps.isEmpty) return ActivityStats();
+    return ActivityStats.fromMap(maps.first);
+  }
+
+  Future<int> _getStreakCount(Database db) async {
+    final List<Map<String, dynamic>> maps = await db.rawQuery('''
+      SELECT DISTINCT strftime('%Y-%m-%d', timestamp / 1000, 'unixepoch', 'localtime') as date
+      FROM batch_scores
+      ORDER BY date DESC
+    ''');
+    if (maps.isEmpty) return 0;
+
+    int streak = 0;
+    DateTime today = DateTime.parse(maps.first['date']);
+
+    if (DateTime.parse(maps.first['date']) !=
+        DateTime(today.year, today.month, today.day)) {
+      today = DateTime(
+        today.year,
+        today.month,
+        today.day,
+      ).add(Duration(days: 1));
+    }
+
+    for (var map in maps) {
+      final date = DateTime.parse(map['date']);
+      if (date ==
+          DateTime(
+            today.year,
+            today.month,
+            today.day,
+          ).subtract(Duration(days: streak))) {
+        streak++;
+      } else {
+        break;
+      }
+    }
+    return streak;
+  }
+
+  Future<List<ChartDataPoint>> getWeeklySuccessChartData(Database db) async {
+    List<ChartDataPoint> chartData = [];
+    final labels = ['Pzt', 'Sal', 'Çrş', 'Per', 'Cum', 'Cmt', 'Paz'];
+    final today = DateTime.now();
+    final startOfWeek = today.subtract(Duration(days: today.weekday - 1));
+
+    for (int i = 0; i < 7; i++) {
+      final day = startOfWeek.add(Duration(days: i));
+      if (day.isAfter(today)) {
+        chartData.add(ChartDataPoint(labels[i], 0));
+        continue;
+      }
+
+      final startOfDay = DateTime(
+        day.year,
+        day.month,
+        day.day,
+      ).millisecondsSinceEpoch;
+      final endOfDay = DateTime(
+        day.year,
+        day.month,
+        day.day,
+        23,
+        59,
+        59,
+      ).millisecondsSinceEpoch;
+
+      final stats = await _getStatsForPeriod(db, startOfDay);
+      chartData.add(ChartDataPoint(labels[i], stats.successRate));
+    }
+    return chartData;
+  }
+
+  Future<Map<String, int>> _getMasteryDistribution(Database db) async {
+    final List<Map<String, dynamic>> maps = await db.rawQuery('''
+      SELECT
+        CASE
+          WHEN mastery_level = 0 THEN 'Yeni'
+          WHEN mastery_level = -1 THEN 'Zor'
+          WHEN mastery_level BETWEEN 1 AND 3 THEN 'Öğreniliyor'
+          WHEN mastery_level BETWEEN 4 AND 7 THEN 'Pekiştirilmiş'
+          WHEN mastery_level = 8 THEN 'Usta'
+        END as level,
+        COUNT(id) as count
+      FROM words
+      GROUP BY level
+    ''');
+
+    Map<String, int> distribution = {
+      'Yeni': 0,
+      'Öğreniliyor': 0,
+      'Pekiştirilmiş': 0,
+      'Usta': 0,
+      'Zor': 0,
+    };
+    for (var map in maps) {
+      if (map['level'] != null) {
+        distribution[map['level']] = map['count'];
+      }
+    }
+    return distribution;
+  }
+
+  Future<Map<String, int>> _getHazineStats(Database db) async {
+    final List<Map<String, dynamic>> maps = await db.rawQuery('''
+      SELECT
+        (SELECT COUNT(id) FROM words WHERE mastery_level > 0) as ustalikKazanilan,
+        (SELECT COUNT(id) FROM words WHERE id > $_userWordIdThreshold) as ekledigimKelimeler,
+        (SELECT COUNT(id) FROM words) as toplamHavuz
+    ''');
+    if (maps.isEmpty) return {};
+    return {
+      'Ustalık Kazanılan': maps.first['ustalikKazanilan'] ?? 0,
+      'Eklediğim Kelimeler': maps.first['ekledigimKelimeler'] ?? 0,
+      'Toplam Havuz': maps.first['toplamHavuz'] ?? 0,
+    };
   }
 }

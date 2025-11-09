@@ -7,6 +7,7 @@ import '../providers/word_provider.dart';
 import 'learning_screen.dart';
 import 'settings_screen.dart';
 import 'my_words_screen.dart';
+import 'stats_screen.dart';
 import 'test_type_dialog.dart';
 import 'review_screen.dart';
 import 'review_screen_multiple_choice.dart';
@@ -156,7 +157,7 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24.0),
                 child: Text(
-                  'Genel Durum',
+                  'Bugünkü Durum',
                   style: theme.textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
@@ -175,22 +176,22 @@ class _HomeScreenState extends State<HomeScreen> {
                 delegate: SliverChildListDelegate([
                   _buildStatCard(
                     context,
-                    title: 'Bugün Öğrenilen',
-                    value: stats?.wordsLearnedToday.toString() ?? '0',
-                    icon: Icons.today,
+                    title: 'Bugünkü Efor',
+                    value: stats?.todayEfor.toString() ?? '0',
+                    icon: Icons.fitness_center,
                     color: Colors.blue,
                   ),
                   _buildStatCard(
                     context,
-                    title: 'Genel Başarı',
+                    title: 'Bugünkü Başarı',
                     value:
-                        '%${stats?.overallSuccessRate.toStringAsFixed(0) ?? '0'}',
+                        '%${stats?.todaySuccessRate.toStringAsFixed(0) ?? '0'}',
                     icon: Icons.star,
                     color: Colors.orange,
                   ),
                   _buildStatCard(
                     context,
-                    title: 'Toplam Öğrenilen',
+                    title: 'Ustalık Kazanılan',
                     value: stats?.totalLearnedWords.toString() ?? '0',
                     icon: Icons.school,
                     color: Colors.green,
@@ -227,6 +228,29 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             SliverToBoxAdapter(
               child: _buildWeeklyChart(context, provider.weeklyEffort),
+            ),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
+                child: OutlinedButton.icon(
+                  icon: Icon(Icons.bar_chart),
+                  label: Text('Tüm İstatistikleri Gör'),
+                  style: OutlinedButton.styleFrom(
+                    padding: EdgeInsets.symmetric(vertical: 16),
+                    textStyle: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    side: BorderSide(color: theme.primaryColor),
+                  ),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => StatsScreen()),
+                    );
+                  },
+                ),
+              ),
             ),
             SliverToBoxAdapter(child: _buildAddWordCard(context)),
             SliverToBoxAdapter(child: SizedBox(height: 30)),

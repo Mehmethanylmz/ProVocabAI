@@ -117,9 +117,11 @@ class _ReviewScreenState extends State<ReviewScreen> {
 
   Future<void> _finishTestAndNavigate() async {
     final provider = Provider.of<WordProvider>(context, listen: false);
+
     final int correct = provider.correctCount;
     final int incorrect = provider.incorrectCount;
     final int total = correct + incorrect;
+    final List<Word> wrongWords = List.from(provider.wrongAnswersInSession);
 
     await provider.saveTestResult(correct, total);
 
@@ -127,7 +129,13 @@ class _ReviewScreenState extends State<ReviewScreen> {
 
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (context) => const TestResultScreen()),
+      MaterialPageRoute(
+        builder: (context) => TestResultScreen(
+          correctCount: correct,
+          incorrectCount: incorrect,
+          wrongWords: wrongWords,
+        ),
+      ),
     );
   }
 
