@@ -1,9 +1,7 @@
-// C:\Users\Mete\Desktop\englishwordsapp\pratikapp\lib\services\settings_service.dart
-
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-class SettingsService {
+class SettingsRepository {
   static const String _batchSizeKey = 'batchSize';
   static const String _notifyTimeKey = 'notifyTime';
   static const String _autoPlaySoundKey = 'autoPlaySound';

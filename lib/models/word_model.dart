@@ -1,16 +1,9 @@
-// C:\Users\Mete\Desktop\englishwordsapp\pratikapp\lib\models\word_model.dart
-
-import 'dart:convert';
-
 class Word {
   final int id;
   final String en;
   final String tr;
   final String meaning;
-  final List<String> exampleSentences;
-  final String notes;
-  String status;
-  int? batchId;
+  final String exampleSentence;
   int masteryLevel;
   int reviewDueDate;
   int wrongStreak;
@@ -20,10 +13,7 @@ class Word {
     required this.en,
     required this.tr,
     required this.meaning,
-    this.exampleSentences = const [],
-    this.notes = '',
-    this.status = 'unseen',
-    this.batchId,
+    required this.exampleSentence,
     this.masteryLevel = 0,
     this.reviewDueDate = 0,
     this.wrongStreak = 0,
@@ -35,10 +25,7 @@ class Word {
       'en': en,
       'tr': tr,
       'meaning': meaning,
-      'example_sentence': jsonEncode(exampleSentences),
-      'notes': notes,
-      'status': status,
-      'batchId': batchId,
+      'example_sentence': exampleSentence,
       'mastery_level': masteryLevel,
       'review_due_date': reviewDueDate,
       'wrong_streak': wrongStreak,
@@ -51,28 +38,10 @@ class Word {
       en: map['en'],
       tr: map['tr'],
       meaning: map['meaning'] ?? '',
-      exampleSentences: _parseExampleSentences(map['example_sentence']),
-      notes: map['notes'] ?? '',
-      status: map['status'] ?? 'unseen',
-      batchId: map['batchId'],
+      exampleSentence: map['example_sentence'] ?? '',
       masteryLevel: map['mastery_level'] ?? 0,
       reviewDueDate: map['review_due_date'] ?? 0,
       wrongStreak: map['wrong_streak'] ?? 0,
     );
-  }
-
-  static List<String> _parseExampleSentences(dynamic data) {
-    if (data == null || data.toString().isEmpty) {
-      return [];
-    }
-    try {
-      final decoded = jsonDecode(data.toString());
-      if (decoded is List) {
-        return List<String>.from(decoded.map((e) => e.toString()));
-      }
-      return [data.toString()];
-    } catch (e) {
-      return [data.toString()];
-    }
   }
 }

@@ -1,13 +1,11 @@
-// C:\Users\Mete\Desktop\englishwordsapp\pratikapp\lib\screens\review_screen_multiple_choice.dart
-
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:collection/collection.dart';
 import 'package:flutter_tts/flutter_tts.dart';
-import '../providers/word_provider.dart';
-import '../models/word_model.dart';
-import '../services/sound_service.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import '../../models/word_model.dart';
+import '../../viewmodel/review_viewmodel.dart';
 import 'test_result_screen.dart';
 
 class ReviewScreenMultipleChoice extends StatefulWidget {
@@ -20,7 +18,6 @@ class ReviewScreenMultipleChoice extends StatefulWidget {
 
 class _ReviewScreenMultipleChoiceState
     extends State<ReviewScreenMultipleChoice> {
-  final SoundService _soundService = SoundService();
   final FlutterTts flutterTts = FlutterTts();
 
   bool _showFeedback = false;
@@ -52,19 +49,19 @@ class _ReviewScreenMultipleChoiceState
   }
 
   Future<void> _loadNextWord() async {
-    final provider = Provider.of<WordProvider>(context, listen: false);
-    if (provider.reviewQueue.isEmpty) {
+    final viewModel = context.read<ReviewViewModel>();
+    if (viewModel.reviewQueue.isEmpty) {
       await _finishTestAndNavigate();
       return;
     }
 
-    final word = provider.currentReviewWord;
+    final word = viewModel.currentReviewWord;
     if (word == null) {
       await _finishTestAndNavigate();
       return;
     }
 
-    final decoys = await provider.getDecoys(word.tr, 3);
+    final decoys = await viewModel.getDecoys(word.tr, 3);
 
     final options = [word.tr, ...decoys];
     options.shuffle(Random());
@@ -80,7 +77,7 @@ class _ReviewScreenMultipleChoiceState
       _selectedOptionIndex = null;
     });
 
-    if (mounted && provider.autoPlaySound) {
+    if (mounted && viewModel.autoPlaySound) {
       _speak(word.en);
     }
   }
@@ -88,16 +85,14 @@ class _ReviewScreenMultipleChoiceState
   void _checkAnswer(int selectedIndex) {
     if (_showFeedback) return;
 
-    final provider = Provider.of<WordProvider>(context, listen: false);
+    final viewModel = context.read<ReviewViewModel>();
     final word = _currentWord!;
     bool isCorrect = (selectedIndex == _correctOptionIndex);
 
     if (isCorrect) {
-      _soundService.playCorrect();
-      provider.answerCorrectly(word);
+      viewModel.answerCorrectly(word);
     } else {
-      _soundService.playIncorrect();
-      provider.answerIncorrectly(word);
+      viewModel.answerIncorrectly(word);
     }
 
     setState(() {
@@ -108,19 +103,17 @@ class _ReviewScreenMultipleChoiceState
 
   void _passQuestion() {
     if (_showFeedback) return;
-    _soundService.playIncorrect();
 
     setState(() {
       _showFeedback = true;
       _selectedOptionIndex = null;
     });
 
-    final provider = Provider.of<WordProvider>(context, listen: false);
-    provider.answerIncorrectly(_currentWord!);
+    context.read<ReviewViewModel>().answerIncorrectly(_currentWord!);
   }
 
   void _nextWord() async {
-    if (Provider.of<WordProvider>(context, listen: false).reviewQueue.isEmpty) {
+    if (context.read<ReviewViewModel>().reviewQueue.isEmpty) {
       await _finishTestAndNavigate();
     } else {
       _loadNextWord();
@@ -128,14 +121,11 @@ class _ReviewScreenMultipleChoiceState
   }
 
   Future<void> _finishTestAndNavigate() async {
-    final provider = Provider.of<WordProvider>(context, listen: false);
+    final viewModel = context.read<ReviewViewModel>();
 
-    final int correct = provider.correctCount;
-    final int incorrect = provider.incorrectCount;
-    final int total = correct + incorrect;
-    final List<Word> wrongWords = List.from(provider.wrongAnswersInSession);
-
-    await provider.saveTestResult(correct, total);
+    final int correct = viewModel.correctCount;
+    final int incorrect = viewModel.incorrectCount;
+    final List<Word> wrongWords = List.from(viewModel.wrongAnswersInSession);
 
     if (!mounted) return;
 
@@ -153,33 +143,50 @@ class _ReviewScreenMultipleChoiceState
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<WordProvider>(
-      builder: (context, provider, child) {
-        if (provider.isLoading || _currentWord == null) {
-          return Scaffold(body: Center(child: CircularProgressIndicator()));
+    final size = MediaQuery.of(context).size;
+    final isSmallScreen = size.width < 600;
+    final fontSizeWord = isSmallScreen ? 28.0 : 36.0;
+    final buttonHeight = isSmallScreen ? 50.0 : 60.0;
+    final padding = isSmallScreen ? EdgeInsets.all(16.0) : EdgeInsets.all(24.0);
+
+    return Consumer<ReviewViewModel>(
+      builder: (context, viewModel, child) {
+        if (viewModel.isLoading || _currentWord == null) {
+          return Scaffold(
+            body: Center(
+              child: CircularProgressIndicator(color: Colors.blue[700]),
+            ),
+          );
         }
 
         final currentWord = _currentWord!;
         String progress =
-            "${provider.totalWordsInReview - provider.reviewQueue.length + 1} / ${provider.totalWordsInReview}";
-        if (provider.totalWordsInReview == 0) progress = "0 / 0";
+            "${viewModel.totalWordsInReview - viewModel.reviewQueue.length + 1} / ${viewModel.totalWordsInReview}";
+        if (viewModel.totalWordsInReview == 0) progress = "0 / 0";
 
         return Scaffold(
           appBar: AppBar(
-            title: Text('Test Ekranı ($progress)'),
+            title: Text(
+              'Test Ekranı ($progress)',
+              style: TextStyle(fontSize: isSmallScreen ? 18 : 24),
+            ),
+            backgroundColor: Colors.blue[700],
             bottom: PreferredSize(
               preferredSize: Size.fromHeight(30.0),
               child: Padding(
                 padding: const EdgeInsets.only(bottom: 8.0),
                 child: Text(
-                  'Kalan: ${provider.reviewQueue.length} | Doğru: ${provider.correctCount} | Yanlış: ${provider.incorrectCount}',
-                  style: TextStyle(color: Colors.white, fontSize: 16),
+                  'Kalan: ${viewModel.reviewQueue.length} | Doğru: ${viewModel.correctCount} | Yanlış: ${viewModel.incorrectCount}',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: isSmallScreen ? 14 : 16,
+                  ),
                 ),
               ),
             ),
           ),
           body: SingleChildScrollView(
-            padding: const EdgeInsets.all(24.0),
+            padding: padding,
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -190,16 +197,18 @@ class _ReviewScreenMultipleChoiceState
                     Flexible(
                       child: Text(
                         currentWord.en,
-                        style: Theme.of(context).textTheme.displaySmall
-                            ?.copyWith(fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          fontSize: fontSizeWord,
+                          fontWeight: FontWeight.bold,
+                        ),
                         textAlign: TextAlign.center,
-                      ),
+                      ).animate().fadeIn(duration: 400.ms),
                     ),
                     IconButton(
                       icon: Icon(
                         Icons.volume_up,
-                        color: Colors.blueAccent,
-                        size: 30,
+                        color: Colors.green[600],
+                        size: isSmallScreen ? 28 : 36,
                       ),
                       onPressed: () => _speak(currentWord.en),
                     ),
@@ -207,7 +216,15 @@ class _ReviewScreenMultipleChoiceState
                 ),
                 SizedBox(height: 50),
                 ..._options.mapIndexed((index, option) {
-                  return _buildOptionButton(context, option, index);
+                  return _buildOptionButton(
+                        context,
+                        option,
+                        index,
+                        buttonHeight,
+                        isSmallScreen,
+                      )
+                      .animate(delay: (index * 150).ms)
+                      .scale(curve: Curves.easeOut);
                 }).toList(),
                 SizedBox(height: 30),
                 if (!_showFeedback)
@@ -215,20 +232,32 @@ class _ReviewScreenMultipleChoiceState
                     onPressed: _passQuestion,
                     child: Text(
                       'Pas Geç',
-                      style: TextStyle(color: Colors.grey[700], fontSize: 16),
+                      style: TextStyle(
+                        color: Colors.grey[700],
+                        fontSize: isSmallScreen ? 16 : 20,
+                      ),
                     ),
                   )
                 else
                   ElevatedButton(
                     onPressed: _nextWord,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blueAccent,
+                      backgroundColor: Colors.green[600],
+                      padding: EdgeInsets.symmetric(
+                        vertical: isSmallScreen ? 12 : 16,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(30),
+                      ),
                     ),
                     child: Text(
                       'Sonraki Kelime',
-                      style: TextStyle(fontSize: 16),
+                      style: TextStyle(
+                        fontSize: isSmallScreen ? 16 : 20,
+                        color: Colors.white,
+                      ),
                     ),
-                  ),
+                  ).animate().shake(duration: 300.ms),
               ],
             ),
           ),
@@ -237,16 +266,22 @@ class _ReviewScreenMultipleChoiceState
     );
   }
 
-  Widget _buildOptionButton(BuildContext context, String option, int index) {
+  Widget _buildOptionButton(
+    BuildContext context,
+    String option,
+    int index,
+    double buttonHeight,
+    bool isSmallScreen,
+  ) {
     Color buttonColor = Colors.white;
     Color textColor = Colors.black;
 
     if (_showFeedback) {
       if (index == _correctOptionIndex) {
-        buttonColor = Colors.green;
+        buttonColor = Colors.green[600]!;
         textColor = Colors.white;
       } else if (index == _selectedOptionIndex) {
-        buttonColor = Colors.red;
+        buttonColor = Colors.red[600]!;
         textColor = Colors.white;
       } else {
         buttonColor = Colors.grey[200]!;
@@ -260,19 +295,23 @@ class _ReviewScreenMultipleChoiceState
         style: ElevatedButton.styleFrom(
           backgroundColor: buttonColor,
           foregroundColor: textColor,
-          minimumSize: Size(double.infinity, 60),
-          elevation: _showFeedback ? 0 : 2,
+          minimumSize: Size(double.infinity, buttonHeight),
+          elevation: _showFeedback ? 0 : 4,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(20),
             side: BorderSide(
               color: _showFeedback ? Colors.transparent : Colors.grey[300]!,
+              width: 2,
             ),
           ),
         ),
         onPressed: () => _checkAnswer(index),
         child: Text(
           option,
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
+          style: TextStyle(
+            fontSize: isSmallScreen ? 16 : 20,
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ),
     );

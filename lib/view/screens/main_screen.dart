@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../providers/word_provider.dart';
+import '../../viewmodel/home_viewmodel.dart';
+import '../../viewmodel/test_menu_viewmodel.dart';
 import 'home_screen.dart';
 import 'test_menu_screen.dart';
 import 'settings_screen.dart';
@@ -31,7 +32,7 @@ class _MainScreenState extends State<MainScreen> {
 
   Future<void> _checkFirstLaunch() async {
     final prefs = await SharedPreferences.getInstance();
-    final bool isFirstLaunch = prefs.getBool('firstLaunchDone') ?? true;
+    final bool isFirstLaunch = prefs.getBool('isFirstLaunch') ?? true;
 
     if (isFirstLaunch && context.mounted) {
       showModalBottomSheet(
@@ -51,8 +52,10 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   void _onItemTapped(int index) {
-    if (index == 1) {
-      Provider.of<WordProvider>(context, listen: false).fetchBatchHistory();
+    if (index == 0) {
+      context.read<HomeViewModel>().loadHomeData();
+    } else if (index == 1) {
+      context.read<TestMenuViewModel>().loadTestData();
     }
     setState(() {
       _selectedIndex = index;
@@ -61,28 +64,35 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+    final isSmallScreen = size.width < 600;
+    final iconSize = isSmallScreen ? 24.0 : 32.0;
+    final labelStyle = TextStyle(fontSize: isSmallScreen ? 12 : 16);
+
     return Scaffold(
       body: IndexedStack(index: _selectedIndex, children: _widgetOptions),
       bottomNavigationBar: BottomNavigationBar(
-        items: const <BottomNavigationBarItem>[
+        items: <BottomNavigationBarItem>[
           BottomNavigationBarItem(
-            icon: Icon(Icons.lightbulb_outline),
-            activeIcon: Icon(Icons.lightbulb),
-            label: 'Öğren',
+            icon: Icon(Icons.lightbulb_outline, size: iconSize),
+            activeIcon: Icon(Icons.lightbulb, size: iconSize),
+            label: 'İlerleme',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.quiz_outlined),
-            activeIcon: Icon(Icons.quiz),
-            label: 'Test Et',
+            icon: Icon(Icons.quiz_outlined, size: iconSize),
+            activeIcon: Icon(Icons.quiz, size: iconSize),
+            label: 'Test',
           ),
         ],
         currentIndex: _selectedIndex,
-        selectedItemColor: Theme.of(context).primaryColor,
+        selectedItemColor: Colors.blue[700],
         unselectedItemColor: Colors.grey[600],
         onTap: _onItemTapped,
         type: BottomNavigationBarType.fixed,
         backgroundColor: Colors.white,
-        elevation: 10,
+        elevation: 8.0,
+        selectedLabelStyle: labelStyle.copyWith(fontWeight: FontWeight.bold),
+        unselectedLabelStyle: labelStyle,
       ),
     );
   }
