@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../../../models/dashboard_stats.dart';
+import '../../../data/models/dashboard_stats.dart';
 
 class DashboardStatsGrid extends StatelessWidget {
   final DashboardStats? stats;
@@ -12,6 +12,31 @@ class DashboardStatsGrid extends StatelessWidget {
     required this.stats,
     required this.isSmallScreen,
   });
+
+  void _showMasteryInfoDialog(BuildContext context, Color color) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Icon(Icons.info_outline, color: color),
+            SizedBox(width: 10),
+            Text('Ustalaşılan Kelime Nedir?'),
+          ],
+        ),
+        content: Text(
+          "Bu sayaç, Seviye 4 ('Çırak') ve üzerine ulaşan kelimelerin toplamını gösterir.\n\nBir kelime bu seviyeye ulaştığında, onu iyi bildiğiniz varsayılır ve 'ustalaşmış' olarak sayılır. Bu, ilerlemenizi daha hızlı görebilmeniz içindir!",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: Text('Anladım'),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -24,6 +49,7 @@ class DashboardStatsGrid extends StatelessWidget {
       crossAxisSpacing: 16,
       children: [
         _buildStatCard(
+          context,
           'Bugün',
           '${stats?.todayQuestions ?? 0}',
           '${stats?.todaySuccessRate.toStringAsFixed(0) ?? 0}%',
@@ -31,6 +57,7 @@ class DashboardStatsGrid extends StatelessWidget {
           isSmallScreen,
         ),
         _buildStatCard(
+          context,
           'Bu Hafta',
           '${stats?.weekQuestions ?? 0}',
           '${stats?.weekSuccessRate.toStringAsFixed(0) ?? 0}%',
@@ -38,6 +65,7 @@ class DashboardStatsGrid extends StatelessWidget {
           isSmallScreen,
         ),
         _buildStatCard(
+          context,
           'Bu Ay',
           '${stats?.monthQuestions ?? 0}',
           '${stats?.monthSuccessRate.toStringAsFixed(0) ?? 0}%',
@@ -45,6 +73,7 @@ class DashboardStatsGrid extends StatelessWidget {
           isSmallScreen,
         ),
         _buildStatCard(
+          context,
           'Ustalaşılan Kelimeler',
           '${stats?.masteredWords ?? 0}',
           '',
@@ -57,6 +86,7 @@ class DashboardStatsGrid extends StatelessWidget {
   }
 
   Widget _buildStatCard(
+    BuildContext context,
     String title,
     String questions,
     String rate,
@@ -84,13 +114,30 @@ class DashboardStatsGrid extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(
-                        title,
-                        style: GoogleFonts.poppins(
-                          fontSize: titleFontSize,
-                          color: color,
-                          fontWeight: FontWeight.w600,
-                        ),
+                      Row(
+                        children: [
+                          Text(
+                            title,
+                            style: GoogleFonts.poppins(
+                              fontSize: titleFontSize,
+                              color: color,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          if (isSingleValue)
+                            Padding(
+                              padding: const EdgeInsets.only(left: 8.0),
+                              child: InkWell(
+                                onTap: () =>
+                                    _showMasteryInfoDialog(context, color),
+                                child: Icon(
+                                  Icons.info_outline,
+                                  color: color,
+                                  size: titleFontSize,
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
                       const SizedBox(height: 8),
                       Text(
@@ -121,7 +168,7 @@ class DashboardStatsGrid extends StatelessWidget {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          '$rate',
+                          rate,
                           style: GoogleFonts.poppins(
                             fontSize: valueFontSize,
                             fontWeight: FontWeight.bold,

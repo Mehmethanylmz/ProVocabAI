@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-
 import '../../viewmodel/home_viewmodel.dart';
 
 class WeekDetailScreen extends StatefulWidget {
@@ -35,7 +34,11 @@ class _WeekDetailScreenState extends State<WeekDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(widget.title)),
+      appBar: AppBar(
+        title: Text(widget.title),
+        backgroundColor: Colors.blue[700],
+        foregroundColor: Colors.white,
+      ),
       body: FutureBuilder<List<Map<String, dynamic>>>(
         future: _dailyStatsFuture,
         builder: (context, snapshot) {
@@ -43,9 +46,7 @@ class _WeekDetailScreenState extends State<WeekDetailScreen> {
             return Center(child: CircularProgressIndicator());
           }
           if (snapshot.hasError) {
-            return Center(
-              child: Text('Veriler yüklenemedi: ${snapshot.error}'),
-            );
+            return Center(child: Text('Veriler yüklenemedi.'));
           }
           if (!snapshot.hasData || snapshot.data!.isEmpty) {
             return Center(child: Text('Bu hafta için veri bulunamadı.'));
@@ -61,9 +62,12 @@ class _WeekDetailScreenState extends State<WeekDetailScreen> {
               final int total = data['total'] as int;
               final int correct = data['correct'] as int;
               final int wrong = total - correct;
+              final double successRate = total > 0
+                  ? (correct / total) * 100
+                  : 0;
 
               return Card(
-                elevation: 4,
+                elevation: 3,
                 margin: const EdgeInsets.symmetric(vertical: 8),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
@@ -76,7 +80,7 @@ class _WeekDetailScreenState extends State<WeekDetailScreen> {
                   leading: CircleAvatar(
                     backgroundColor: Colors.blue[100],
                     child: Text(
-                      data['dayName'].substring(0, 1),
+                      data['dayName'].substring(0, 2),
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         color: Colors.blue[800],
@@ -91,12 +95,27 @@ class _WeekDetailScreenState extends State<WeekDetailScreen> {
                     data['fullDate'],
                     style: TextStyle(color: Colors.grey[600]),
                   ),
-                  trailing: Text(
-                    "S: $total D: $correct Y: $wrong",
-                    style: GoogleFonts.poppins(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                    ),
+                  trailing: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        "$total Soru",
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      Text(
+                        "%${successRate.toStringAsFixed(0)} Başarı",
+                        style: TextStyle(
+                          color: successRate > 50
+                              ? Colors.green
+                              : Colors.orange,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               );

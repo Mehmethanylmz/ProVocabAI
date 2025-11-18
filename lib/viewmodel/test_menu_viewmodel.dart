@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
-
-import '../data/repository/settings_repository.dart';
-import '../data/repository/test_repository.dart';
-import '../data/repository/word_repository.dart';
-import '../models/test_result.dart';
-import '../models/word_model.dart';
+import '../data/models/test_result.dart';
+import '../data/models/word_model.dart';
+import '../data/repositories/test_repository.dart';
+import '../data/repositories/word_repository.dart';
+import '../data/repositories/settings_repository.dart';
 
 class TestMenuViewModel with ChangeNotifier {
   final TestRepository _testRepo = TestRepository();
@@ -30,27 +29,26 @@ class TestMenuViewModel with ChangeNotifier {
   Future<void> loadTestData() async {
     _isLoading = true;
     notifyListeners();
+
+    final settings = await _settingsRepo.getLanguageSettings();
+    final targetLang = settings['target']!;
+    final batchSize = await _settingsRepo.getBatchSize();
+
     await _testRepo.deleteOldTestHistory();
     await fetchTestHistory();
-    await fetchDailyReviewCount();
-    await fetchDifficultWords();
+
+    _dailyReviewCount = await _wordRepo.getDailyReviewCount(
+      batchSize,
+      targetLang,
+    );
+    _difficultWords = await _wordRepo.getDifficultWords(targetLang);
+
     _isLoading = false;
     notifyListeners();
   }
 
   Future<void> fetchTestHistory() async {
     _testHistory = await _testRepo.getTestHistory();
-    notifyListeners();
-  }
-
-  Future<void> fetchDailyReviewCount() async {
-    final batchSize = await _settingsRepo.getBatchSize();
-    _dailyReviewCount = await _wordRepo.getDailyReviewCount(batchSize);
-    notifyListeners();
-  }
-
-  Future<void> fetchDifficultWords() async {
-    _difficultWords = await _wordRepo.getDifficultWords();
     notifyListeners();
   }
 }

@@ -43,7 +43,7 @@ class _MainScreenState extends State<MainScreen> {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         ),
-        builder: (context) => Container(
+        builder: (context) => SizedBox(
           height: MediaQuery.of(context).size.height * 0.75,
           child: SettingsScreen(isFirstLaunch: true),
         ),

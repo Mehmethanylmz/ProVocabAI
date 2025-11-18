@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../viewmodel/home_viewmodel.dart';
 import 'settings_screen.dart';
 import '../widgets/home/dashboard_stats_grid.dart';
@@ -31,6 +32,38 @@ class _HomeScreenState extends State<HomeScreen> {
         }
       });
     }
+  }
+
+  void _shareProgress(BuildContext context) {
+    final viewModel = context.read<HomeViewModel>();
+    final stats = viewModel.stats;
+    final tiers = stats?.tierDistribution ?? {};
+
+    if (stats == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('İstatistikler yüklenemedi.')));
+      return;
+    }
+
+    final String progressText =
+        """
+🚀 Kelime Uygulaması İlerlemem! 🚀
+
+📊 **Genel İstatistikler**
+- **Ustalaşılan Kelime:** ${stats.masteredWords}
+- **Bu Hafta Çözülen:** ${stats.weekQuestions} Soru
+- **Haftalık Başarı:** ${stats.weekSuccessRate.toStringAsFixed(0)}%
+
+🧠 **Kelime Seviyelerim**
+- **Uzman (Expert):** ${tiers['Expert'] ?? 0}
+- **Çırak (Apprentice):** ${tiers['Apprentice'] ?? 0}
+- **Acemi (Novice):** ${tiers['Novice'] ?? 0}
+- **Zorlanılan (Struggling):** ${tiers['Struggling'] ?? 0}
+- **Öğrenilecek:** ${tiers['Unlearned'] ?? 0}
+""";
+
+    Share.share(progressText, subject: 'Kelime İlerlemem');
   }
 
   void _showDifficultWordsDialog(int difficultWordCount) {
@@ -101,6 +134,10 @@ class _HomeScreenState extends State<HomeScreen> {
               pinned: true,
               floating: true,
               actions: [
+                IconButton(
+                  icon: const Icon(Icons.share),
+                  onPressed: () => _shareProgress(context),
+                ),
                 IconButton(
                   icon: const Icon(Icons.settings),
                   onPressed: () => Navigator.push(

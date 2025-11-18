@@ -64,7 +64,7 @@ class ActivityHistoryList extends StatelessWidget {
             children: [
               ...weeklyData.map((week) {
                 return _buildWeekTile(context, week, parts[0]);
-              }).toList(),
+              }),
               _buildMonthSummary(progressData),
             ],
           );
