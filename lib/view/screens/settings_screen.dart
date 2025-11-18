@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -46,7 +47,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     await viewModel.updateAutoPlaySound(_currentAutoPlaySound);
     await viewModel.updateLanguages(_currentSourceLang, _currentTargetLang);
     await viewModel.updateLevel(_currentProficiencyLevel);
-
+    if (mounted) {
+      await context.setLocale(Locale(_currentSourceLang));
+    }
     if (widget.isFirstLaunch) {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('isFirstLaunch_v2', false);
@@ -88,7 +91,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             padding: EdgeInsets.all(16),
             children: [
               _buildSectionHeader('Dil Ayarları'),
-
               ListTile(
                 title: Text('Ana Dilin'),
                 subtitle: Text(languages[_currentSourceLang] ?? ''),
@@ -110,7 +112,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   }).toList(),
                 ),
               ),
-
               ListTile(
                 title: Text('Öğrenilen Dil'),
                 subtitle: Text(languages[_currentTargetLang] ?? ''),
@@ -138,7 +139,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   }).toList(),
                 ),
               ),
-
               ListTile(
                 title: Text('Zorluk Seviyesi'),
                 subtitle: Text('Örnek cümlelerin karmaşıklığı'),
@@ -155,10 +155,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   }).toList(),
                 ),
               ),
-
               Divider(height: 30),
               _buildSectionHeader('Çalışma Ayarları'),
-
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
                 child: Column(
@@ -178,16 +176,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ],
                 ),
               ),
-
               SwitchListTile(
                 title: Text('Otomatik Seslendirme'),
                 value: _currentAutoPlaySound,
                 activeThumbColor: Colors.blue[700],
                 onChanged: (val) => setState(() => _currentAutoPlaySound = val),
               ),
-
               SizedBox(height: 30),
-
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.blue[700],
@@ -200,7 +195,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 onPressed: () => _saveSettings(context),
                 child: Text('Kaydet', style: TextStyle(fontSize: 18)),
               ),
-
               if (!widget.isFirstLaunch) ...[
                 SizedBox(height: 20),
                 TextButton(

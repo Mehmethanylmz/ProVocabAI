@@ -93,7 +93,8 @@ class DatabaseHelper {
     if (count != null && count > 0) return;
 
     try {
-      final String response = await rootBundle.loadString('assets/words.json');
+      final String response =
+          await rootBundle.loadString('assets/dataset/words.json');
       final List<dynamic> data = json.decode(response);
       Batch batch = db.batch();
 

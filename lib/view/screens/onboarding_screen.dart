@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:easy_localization/easy_localization.dart'; // EKLENDİ
 import '../../viewmodel/onboarding_viewmodel.dart';
 import 'main_screen.dart';
 
@@ -36,16 +37,16 @@ class _OnboardingContent extends StatelessWidget {
                   children: [
                     _buildLanguageSelection(
                       context,
-                      'Hangi dili konuşuyorsun?',
-                      'Ana Dilin',
+                      'onboard_lang_source_title'.tr(), // ÇEVİRİ
+                      'onboard_lang_source_desc'.tr(), // ÇEVİRİ
                       viewModel.selectedSourceLang,
                       viewModel.languages,
                       (val) => viewModel.setSourceLang(val),
                     ),
                     _buildLanguageSelection(
                       context,
-                      'Hangi dili öğrenmek istiyorsun?',
-                      'Hedef Dil',
+                      'onboard_lang_target_title'.tr(), // ÇEVİRİ
+                      'onboard_lang_target_desc'.tr(), // ÇEVİRİ
                       viewModel.selectedTargetLang,
                       viewModel.languages,
                       (val) => viewModel.setTargetLang(val),
@@ -125,9 +126,8 @@ class _OnboardingContent extends StatelessWidget {
                             fontWeight: isSelected
                                 ? FontWeight.bold
                                 : FontWeight.normal,
-                            color: isSelected
-                                ? Colors.blue[900]
-                                : Colors.black87,
+                            color:
+                                isSelected ? Colors.blue[900] : Colors.black87,
                           ),
                         ),
                         Spacer(),
@@ -158,7 +158,7 @@ class _OnboardingContent extends StatelessWidget {
       children: [
         SizedBox(height: 40),
         Text(
-          'Seviyen nedir?',
+          'onboard_level_title'.tr(), // ÇEVİRİ
           style: GoogleFonts.poppins(
             fontSize: 28,
             fontWeight: FontWeight.bold,
@@ -167,7 +167,7 @@ class _OnboardingContent extends StatelessWidget {
         ),
         SizedBox(height: 8),
         Text(
-          'Bu seçim, örnek cümlelerin zorluk derecesini belirler.',
+          'onboard_level_desc'.tr(), // ÇEVİRİ
           style: GoogleFonts.poppins(fontSize: 16, color: Colors.grey[600]),
         ),
         SizedBox(height: 32),
@@ -197,7 +197,8 @@ class _OnboardingContent extends StatelessWidget {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text(
-                              entry.value,
+                              _getLevelTitle(
+                                  entry.key), // Helper metod kullanıyoruz
                               style: GoogleFonts.poppins(
                                 fontSize: 20,
                                 fontWeight: FontWeight.bold,
@@ -244,7 +245,7 @@ class _OnboardingContent extends StatelessWidget {
             TextButton(
               onPressed: viewModel.previousPage,
               child: Text(
-                'Geri',
+                'btn_back'.tr(), // ÇEVİRİ
                 style: GoogleFonts.poppins(
                   fontSize: 16,
                   color: Colors.grey[600],
@@ -254,12 +255,14 @@ class _OnboardingContent extends StatelessWidget {
             )
           else
             SizedBox.shrink(),
-
           ElevatedButton(
             onPressed: () async {
               if (viewModel.currentPage < 2) {
                 viewModel.nextPage();
               } else {
+                // Dil seçimini kaydettikten sonra uygulama dilini de güncelle!
+                await context.setLocale(Locale(viewModel.selectedSourceLang));
+
                 await viewModel.completeOnboarding();
                 if (!context.mounted) return;
                 Navigator.pushReplacement(
@@ -277,7 +280,9 @@ class _OnboardingContent extends StatelessWidget {
               ),
             ),
             child: Text(
-              viewModel.currentPage == 2 ? 'Başla' : 'İleri',
+              viewModel.currentPage == 2
+                  ? 'btn_start'.tr()
+                  : 'btn_next'.tr(), // ÇEVİRİ
               style: GoogleFonts.poppins(
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
@@ -308,14 +313,28 @@ class _OnboardingContent extends StatelessWidget {
     }
   }
 
-  String _getLevelDescription(String level) {
-    switch (level) {
+  // Yeni Helper Metodlar (Çeviri için)
+  String _getLevelTitle(String levelKey) {
+    switch (levelKey) {
       case 'beginner':
-        return 'Temel kelimeler ve basit cümleler.';
+        return 'level_beginner'.tr();
       case 'intermediate':
-        return 'Daha karmaşık gramer ve günlük konuşmalar.';
+        return 'level_intermediate'.tr();
       case 'advanced':
-        return 'Akademik veya profesyonel düzeyde ifadeler.';
+        return 'level_advanced'.tr();
+      default:
+        return levelKey;
+    }
+  }
+
+  String _getLevelDescription(String levelKey) {
+    switch (levelKey) {
+      case 'beginner':
+        return 'level_beginner_desc'.tr();
+      case 'intermediate':
+        return 'level_intermediate_desc'.tr();
+      case 'advanced':
+        return 'level_advanced_desc'.tr();
       default:
         return '';
     }
