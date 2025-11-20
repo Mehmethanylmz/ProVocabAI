@@ -46,7 +46,6 @@ class TestHistoryList extends StatelessWidget {
     }
 
     final fontSizeCaption = isSmallScreen ? 12.0 : 14.0;
-    final fontSizeValue = isSmallScreen ? 16.0 : 18.0;
 
     return ListView.builder(
       shrinkWrap: true,

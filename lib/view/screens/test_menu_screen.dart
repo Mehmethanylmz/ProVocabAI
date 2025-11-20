@@ -2,16 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import 'package:easy_localization/easy_localization.dart';
+import 'package:intl/intl.dart';
 
-// ViewModels
 import '../../viewmodel/review_viewmodel.dart';
 import '../../viewmodel/test_menu_viewmodel.dart';
+import '../../data/models/test_result.dart';
 
-// Widgets
-import '../widgets/test/quiz_start_button.dart';
-import '../widgets/test/test_history_list.dart';
-
-// Screens (Test Türleri)
 import 'multiple_choice_review_screen.dart';
 import 'listening_review_screen.dart';
 import 'speaking_review_screen.dart';
@@ -24,320 +21,517 @@ class TestMenuScreen extends StatefulWidget {
 }
 
 class _TestMenuScreenState extends State<TestMenuScreen> {
-  /// SRP: View sadece emri verir ve gelen sonuca (Enum) göre navigasyon yapar.
-  /// İçerideki 'liste boş mu?' kontrolü ViewModel'in işidir.
-  void _startTestProcess(
-      BuildContext context, String testMode, String testType) async {
-    final reviewViewModel = context.read<ReviewViewModel>();
+  void _startTest(BuildContext context, String mode, String type) async {
+    final menuVM = context.read<TestMenuViewModel>();
+    final reviewVM = context.read<ReviewViewModel>();
 
-    // 1. ViewModel'e "Testi Başlat" emrini ver ve sonucu bekle.
-    final ReviewStatus status = await reviewViewModel.startReview(testMode);
+    if (mode == 'custom' && !menuVM.canStartTest) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text('filter_no_match'.tr()), backgroundColor: Colors.red),
+      );
+      return;
+    }
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    final status = await reviewVM.startReview(
+      mode,
+      categoryFilter: menuVM.selectedCategories,
+      grammarFilter: menuVM.selectedGrammar,
+    );
 
     if (!mounted) return;
+    Navigator.pop(context);
 
-    // 2. Sadece sonuca (Status) göre UI tepkisi ver.
-    switch (status) {
-      case ReviewStatus.success:
-        // Başarılıysa ilgili ekrana git
-        _navigateToTestScreen(context, testType);
-        break;
-
-      case ReviewStatus.empty:
-        // Veri boşsa kullanıcıyı uyar
-        _showSnackBar(context, 'Çalışılacak kelime bulunamadı!', isError: true);
-        break;
-
-      case ReviewStatus.error:
-        // Hata varsa mesaj göster
-        _showSnackBar(
-            context, reviewViewModel.errorMessage ?? 'Bilinmeyen hata',
-            isError: true);
-        break;
-    }
-  }
-
-  void _navigateToTestScreen(BuildContext context, String testType) {
-    Widget page;
-
-    switch (testType) {
-      case 'listening':
-        page = const ListeningReviewScreen();
-        break;
-      case 'speaking':
-        page = const SpeakingReviewScreen();
-        break;
-      case 'quiz':
-      default:
-        page = const MultipleChoiceReviewScreen();
-        break;
-    }
-
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => page),
-    ).then((_) {
-      // Testten dönüldüğünde ana menü verilerini tazele
-      if (mounted) {
-        context.read<TestMenuViewModel>().loadTestData();
+    if (status == ReviewStatus.success) {
+      Widget page;
+      switch (type) {
+        case 'listening':
+          page = const ListeningReviewScreen();
+          break;
+        case 'speaking':
+          page = const SpeakingReviewScreen();
+          break;
+        default:
+          page = const MultipleChoiceReviewScreen();
       }
-    });
-  }
 
-  void _showSnackBar(BuildContext context, String message,
-      {bool isError = false}) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: isError ? Colors.red[700] : Colors.black87,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-  }
-
-  /// Kullanıcıya test türünü seçtiren alt pencere (Bottom Sheet)
-  void _showTestTypeDialog(BuildContext context, String testMode) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (ctx) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Nasıl Çalışmak İstersin?',
-                style: GoogleFonts.poppins(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.grey[900],
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Öğrenme stilini seç:',
-                style:
-                    GoogleFonts.poppins(fontSize: 14, color: Colors.grey[600]),
-              ),
-              const SizedBox(height: 24),
-              _buildTestTypeOption(
-                context,
-                icon: Icons.checklist_rounded,
-                title: 'Çoktan Seçmeli',
-                subtitle: 'Klasik kart sistemi',
-                color: Colors.blue,
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _startTestProcess(context, testMode, 'quiz');
-                },
-              ),
-              _buildTestTypeOption(
-                context,
-                icon: Icons.headphones_rounded,
-                title: 'Dinleme Testi',
-                subtitle: 'Duyduğunu yaz',
-                color: Colors.orange,
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _startTestProcess(context, testMode, 'listening');
-                },
-              ),
-              _buildTestTypeOption(
-                context,
-                icon: Icons.mic_rounded,
-                title: 'Konuşma Testi',
-                subtitle: 'Telaffuzunu geliştir',
-                color: Colors.purple,
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _startTestProcess(context, testMode, 'speaking');
-                },
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTestTypeOption(
-    BuildContext context, {
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12.0),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            border: Border.all(color: Colors.grey.shade200),
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(icon, color: color, size: 28),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(title,
-                        style: GoogleFonts.poppins(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 16,
-                            color: Colors.black87)),
-                    Text(subtitle,
-                        style: GoogleFonts.poppins(
-                            fontSize: 13, color: Colors.grey[600])),
-                  ],
-                ),
-              ),
-              Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey[400]),
-            ],
-          ),
-        ),
-      ),
-    );
+      Navigator.push(context, MaterialPageRoute(builder: (_) => page))
+          .then((_) {
+        if (mounted) menuVM.loadTestData();
+      });
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text(status == ReviewStatus.empty
+                ? 'filter_no_match'.tr()
+                : 'Error'),
+            backgroundColor: Colors.red),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    // Provider'dan verileri dinle
-    final viewModel = context.watch<TestMenuViewModel>();
-
-    // Ekran boyutu hesaplamaları
+    final vm = context.watch<TestMenuViewModel>();
     final size = MediaQuery.of(context).size;
-    final isSmallScreen = size.width < 600;
-    final padding = isSmallScreen
-        ? EdgeInsets.all(size.width * 0.04)
-        : const EdgeInsets.all(24.0);
-    final appBarHeight = isSmallScreen ? size.height * 0.15 : size.height * 0.2;
+
+    final categories = ['all', ...vm.allCategories];
+    final grammars = ['all', ...vm.allPartsOfSpeech];
 
     return Scaffold(
+      backgroundColor: const Color(0xFFF4F6F8),
       body: SafeArea(
         child: CustomScrollView(
           slivers: [
-            // 1. Dinamik Başlık Alanı (SliverAppBar)
-            SliverAppBar(
-              pinned: true,
-              expandedHeight: appBarHeight,
-              flexibleSpace: FlexibleSpaceBar(
-                title: Text(
-                  'Test Alanı',
-                  style: GoogleFonts.poppins(
-                      fontSize: isSmallScreen ? 24 : 32,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                      shadows: [
-                        Shadow(
-                            color: Colors.black.withOpacity(0.3),
-                            blurRadius: 10),
-                      ]),
+            SliverToBoxAdapter(
+              child: Container(
+                margin: const EdgeInsets.all(20),
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF2563EB), Color(0xFF1D4ED8)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(28),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF2563EB).withOpacity(0.4),
+                      blurRadius: 20,
+                      offset: const Offset(0, 10),
+                    ),
+                  ],
                 ),
-                background: Container(
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        Color(0xFF00E676), // Canlı Yeşil
-                        Color(0xFF2196F3), // Canlı Mavi
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'daily_test'.tr(),
+                              style: GoogleFonts.poppins(
+                                  color: Colors.white.withOpacity(0.9),
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              "${vm.dailyReviewCount}/${vm.dailyTarget}",
+                              style: GoogleFonts.poppins(
+                                  color: Colors.white,
+                                  fontSize: 32,
+                                  fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.flag_rounded,
+                              color: Colors.white, size: 32),
+                        ),
                       ],
                     ),
-                  ),
-                  child: Center(
-                    child: Icon(
-                      Icons.quiz_outlined,
-                      size: isSmallScreen ? 80 : 120,
-                      color: Colors.white.withOpacity(0.2),
+                    const SizedBox(height: 20),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: LinearProgressIndicator(
+                        value: vm.dailyTarget > 0
+                            ? (vm.dailyReviewCount / vm.dailyTarget)
+                                .clamp(0.0, 1.0)
+                            : 0,
+                        minHeight: 10,
+                        backgroundColor: Colors.black.withOpacity(0.2),
+                        valueColor:
+                            const AlwaysStoppedAnimation(Color(0xFF4ADE80)),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () => _startTest(context, 'daily', 'quiz'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          foregroundColor: const Color(0xFF1D4ED8),
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14)),
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                        ),
+                        child: Text(
+                          'btn_start'.tr().toUpperCase(),
+                          style: GoogleFonts.poppins(
+                              fontWeight: FontWeight.bold, letterSpacing: 1),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ).animate().slideY(begin: -0.2, duration: 500.ms),
+            ),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.science_rounded, color: Colors.purple[700]),
+                        const SizedBox(width: 8),
+                        Text(
+                          'custom_test_title'.tr(),
+                          style: GoogleFonts.poppins(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.grey[900]),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SliverToBoxAdapter(child: SizedBox(height: 16)),
+            _HorizontalFilterRow(
+              title: 'filter_category'.tr(),
+              items: categories,
+              selected: vm.selectedCategories,
+              onTap: vm.toggleCategory,
+              accentColor: const Color(0xFF7C3AED),
+            ),
+            _HorizontalFilterRow(
+              title: 'filter_grammar'.tr(),
+              items: grammars,
+              selected: vm.selectedGrammar,
+              onTap: vm.toggleGrammar,
+              accentColor: const Color(0xFFEC4899),
+            ),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 24.0),
+                child: Center(
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 300),
+                    child: Text(
+                      '${vm.filteredWordCount} ${'lab_match_count'.tr()}',
+                      key: ValueKey(vm.filteredWordCount),
+                      style: GoogleFonts.poppins(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: vm.canStartTest
+                            ? const Color(0xFF059669)
+                            : const Color(0xFFDC2626),
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
-
-            // 2. İçerik Alanı
             SliverPadding(
-              padding: padding,
-              sliver: SliverList(
-                delegate: SliverChildListDelegate([
-                  // Yükleniyor Durumu
-                  if (viewModel.isLoading)
-                    const Center(
-                        child: Padding(
-                      padding: EdgeInsets.all(20.0),
-                      child: CircularProgressIndicator(),
-                    )),
-
-                  if (!viewModel.isLoading) ...[
-                    // Günlük Test Butonu
-                    QuizStartButton(
-                      title: 'Günlük Test',
-                      subtitle:
-                          '${viewModel.dailyReviewCount} kelime tekrar için hazır',
-                      color: Colors.green[600]!,
-                      onTap: () => _showTestTypeDialog(context, 'daily'),
-                      isSmallScreen: isSmallScreen,
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    // Zor Kelimeler Butonu
-                    QuizStartButton(
-                      title: 'Zor Kelimeler',
-                      subtitle:
-                          '${viewModel.difficultWords.length} kelime üzerinde çalış',
-                      color: Colors.red[600]!,
-                      onTap: () => _showTestTypeDialog(context, 'difficult'),
-                      isSmallScreen: isSmallScreen,
-                    ),
-
-                    SizedBox(height: size.height * 0.04),
-
-                    // Geçmiş Başlığı
-                    Text(
-                      'Son Etkinlikler',
-                      style: GoogleFonts.poppins(
-                        fontSize: isSmallScreen ? 20 : 24,
-                        fontWeight: FontWeight.bold,
-                        color: const Color(0xFF212121),
-                      ),
-                    ).animate().fadeIn(duration: 600.ms, delay: 200.ms),
-
-                    const SizedBox(height: 12),
-
-                    // Geçmiş Listesi
-                    TestHistoryList(
-                      history: viewModel.testHistory,
-                      isSmallScreen: isSmallScreen,
-                    ),
-
-                    // Alt boşluk
-                    const SizedBox(height: 80),
-                  ],
+              padding: EdgeInsets.symmetric(horizontal: size.width * 0.06),
+              sliver: SliverGrid(
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: size.width > 600 ? 3 : 1,
+                  childAspectRatio: size.width > 600 ? 1.7 : 3.8,
+                  mainAxisSpacing: 16,
+                  crossAxisSpacing: 20,
+                ),
+                delegate: SliverChildListDelegate.fixed([
+                  _BigModeCard(
+                    title: 'mode_quiz'.tr(),
+                    icon: Icons.format_list_bulleted_rounded,
+                    gradient: const LinearGradient(
+                        colors: [Color(0xFF7C3AED), Color(0xFF6D28D9)]),
+                    enabled: vm.canStartTest,
+                    onTap: () => _startTest(context, 'custom', 'quiz'),
+                  ),
+                  _BigModeCard(
+                    title: 'mode_listening'.tr(),
+                    icon: Icons.headphones_rounded,
+                    gradient: const LinearGradient(
+                        colors: [Color(0xFFEC4899), Color(0xFFDB2777)]),
+                    enabled: vm.canStartTest,
+                    onTap: () => _startTest(context, 'custom', 'listening'),
+                  ),
+                  _BigModeCard(
+                    title: 'mode_speaking'.tr(),
+                    icon: Icons.mic_rounded,
+                    gradient: const LinearGradient(
+                        colors: [Color(0xFF14B8A6), Color(0xFF0D9488)]),
+                    enabled: vm.canStartTest,
+                    onTap: () => _startTest(context, 'custom', 'speaking'),
+                  ),
                 ]),
               ),
             ),
+            const SliverToBoxAdapter(child: SizedBox(height: 48)),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: size.width * 0.06),
+                child: Text('Son Testler',
+                    style: GoogleFonts.poppins(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: const Color(0xFF1F2937))),
+              ),
+            ),
+            const SliverToBoxAdapter(child: SizedBox(height: 16)),
+            SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (context, i) => Padding(
+                  padding: EdgeInsets.symmetric(
+                      horizontal: size.width * 0.06, vertical: 8),
+                  child: _HistoryCard(result: vm.testHistory[i]),
+                ),
+                childCount: vm.testHistory.length,
+              ),
+            ),
+            const SliverToBoxAdapter(child: SizedBox(height: 100)),
           ],
         ),
       ),
     );
+  }
+}
+
+class _HorizontalFilterRow extends StatelessWidget {
+  final String title;
+  final List<String> items;
+  final List<String> selected;
+  final Function(String) onTap;
+  final Color accentColor;
+
+  const _HorizontalFilterRow({
+    required this.title,
+    required this.items,
+    required this.selected,
+    required this.onTap,
+    required this.accentColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+
+    return SliverToBoxAdapter(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: size.width * 0.06),
+            child: Text(title,
+                style: GoogleFonts.poppins(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFF475569))),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 50,
+            child: ListView.separated(
+              padding: EdgeInsets.symmetric(horizontal: size.width * 0.06),
+              scrollDirection: Axis.horizontal,
+              itemCount: items.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 12),
+              itemBuilder: (context, i) {
+                final item = items[i];
+                final isSelected = selected.contains(item);
+                return GestureDetector(
+                  onTap: () => onTap(item),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 24, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: isSelected ? accentColor : Colors.white,
+                      borderRadius: BorderRadius.circular(30),
+                      border: Border.all(
+                          color:
+                              isSelected ? accentColor : Colors.grey.shade300,
+                          width: 1.5),
+                      boxShadow: isSelected
+                          ? [
+                              BoxShadow(
+                                  color: accentColor.withOpacity(0.3),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 4))
+                            ]
+                          : null,
+                    ),
+                    child: Center(
+                      child: Text(
+                        item == 'all' ? 'filter_all'.tr() : item.toUpperCase(),
+                        style: GoogleFonts.poppins(
+                          fontSize: 14,
+                          color: isSelected ? Colors.white : Colors.grey[700],
+                          fontWeight:
+                              isSelected ? FontWeight.bold : FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          SizedBox(height: size.height * 0.02),
+        ],
+      ),
+    );
+  }
+}
+
+class _BigModeCard extends StatelessWidget {
+  final String title;
+  final IconData icon;
+  final LinearGradient gradient;
+  final bool enabled;
+  final VoidCallback onTap;
+
+  const _BigModeCard({
+    required this.title,
+    required this.icon,
+    required this.gradient,
+    required this.enabled,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: enabled ? onTap : null,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 250),
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        decoration: BoxDecoration(
+          gradient: gradient,
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+                color: Colors.black.withOpacity(enabled ? 0.15 : 0.05),
+                blurRadius: 16,
+                offset: const Offset(0, 8)),
+          ],
+        ),
+        child: Opacity(
+          opacity: enabled ? 1.0 : 0.5,
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, size: 28, color: Colors.white),
+              ),
+              const SizedBox(width: 16),
+              Text(
+                title,
+                style: GoogleFonts.poppins(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white),
+              ),
+              const Spacer(),
+              const Icon(Icons.arrow_forward_ios,
+                  color: Colors.white70, size: 16),
+            ],
+          ),
+        ),
+      ).animate().scale(
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOutBack),
+    );
+  }
+}
+
+class _HistoryCard extends StatelessWidget {
+  final TestResult result;
+
+  const _HistoryCard({required this.result});
+
+  @override
+  Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+    final rateColor = result.successRate >= 80
+        ? Colors.green
+        : result.successRate >= 60
+            ? Colors.orange
+            : Colors.red;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      padding: EdgeInsets.all(size.width * 0.05),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+              color: Colors.grey.withOpacity(0.15),
+              blurRadius: 12,
+              offset: const Offset(0, 6))
+        ],
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 28,
+            backgroundColor: rateColor.withOpacity(0.15),
+            child: Text('${result.successRate.toInt()}%',
+                style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: rateColor,
+                    fontSize: 16)),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(DateFormat('dd MMM yyyy - HH:mm').format(result.date),
+                    style: GoogleFonts.poppins(
+                        fontSize: 15, color: const Color(0xFF475569))),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Icon(Icons.check_circle, size: 20, color: Colors.green),
+                    const SizedBox(width: 4),
+                    Text('${result.correct}',
+                        style: const TextStyle(fontWeight: FontWeight.w600)),
+                    const SizedBox(width: 20),
+                    Icon(Icons.cancel, size: 20, color: Colors.red),
+                    const SizedBox(width: 4),
+                    Text('${result.wrong}',
+                        style: const TextStyle(fontWeight: FontWeight.w600)),
+                    const Spacer(),
+                    Text('${result.questions} soru',
+                        style: TextStyle(color: Colors.grey[600])),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    )
+        .animate()
+        .fadeIn(duration: const Duration(milliseconds: 400))
+        .slideY(begin: 0.2);
   }
 }

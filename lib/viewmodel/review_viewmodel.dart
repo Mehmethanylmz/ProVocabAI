@@ -9,26 +9,21 @@ import '../data/repositories/settings_repository.dart';
 import '../../core/services/tts_service.dart';
 import '../../core/services/speech_service.dart';
 
-// View'ın durumu anlaması için Enum (SRP Prensibi)
 enum ReviewStatus { success, empty, error }
 
 class ReviewViewModel with ChangeNotifier {
-  // --- Repositories & Services ---
   final WordRepository _wordRepo = WordRepository();
   final TestRepository _testRepo = TestRepository();
   final SettingsRepository _settingsRepo = SettingsRepository();
-
   final TtsService _ttsService = TtsService();
   final SpeechService _speechService = SpeechService();
 
-  // --- State Variables ---
   bool _isLoading = false;
   bool get isLoading => _isLoading;
 
   bool _autoPlaySound = true;
   bool get autoPlaySound => _autoPlaySound;
 
-  // Dil ve Seviye Ayarları
   String _sourceLang = 'tr';
   String _targetLang = 'en';
   String _proficiencyLevel = 'beginner';
@@ -37,7 +32,6 @@ class ReviewViewModel with ChangeNotifier {
   String get targetLang => _targetLang;
   String get proficiencyLevel => _proficiencyLevel;
 
-  // Test Kuyruğu ve İlerleme
   List<Word> _reviewQueue = [];
   List<Word> get reviewQueue => _reviewQueue;
 
@@ -55,18 +49,14 @@ class ReviewViewModel with ChangeNotifier {
   String? _errorMessage;
   String? get errorMessage => _errorMessage;
 
-  // --- Speech (Konuşma) State'leri ---
   bool _isListening = false;
   bool get isListening => _isListening;
-
   String _spokenText = "";
   String get spokenText => _spokenText;
 
-  // Şu anki kelime
   Word? get currentReviewWord =>
       _reviewQueue.isNotEmpty ? _reviewQueue.first : null;
 
-  // --- Constructor ---
   ReviewViewModel() {
     _loadSettings();
   }
@@ -80,12 +70,10 @@ class ReviewViewModel with ChangeNotifier {
     notifyListeners();
   }
 
-  // --- TTS (Metin Okuma) İşlemleri ---
   Future<void> speakCurrentWord() async {
     final word = currentReviewWord;
     if (word != null) {
       final content = word.getLocalizedContent(_targetLang);
-      // Eğer kelime boşsa okumaya çalışma
       if ((content['word'] ?? '').isNotEmpty) {
         await _ttsService.speak(content['word']!, _targetLang);
       }
@@ -98,22 +86,15 @@ class ReviewViewModel with ChangeNotifier {
     }
   }
 
-  // --- Speech (Konuşma Algılama) İşlemleri ---
   Future<void> startListeningForSpeech() async {
     final word = currentReviewWord;
     if (word == null) return;
-
-    // GÜVENLİK KONTROLÜ: Eğer o dilde kelimenin karşılığı boşsa (JSON'dan "" geliyorsa)
-    // dinlemeyi hiç başlatma ve kullanıcıyı uyar.
     final content = word.getLocalizedContent(_targetLang);
     if ((content['word'] ?? '').isEmpty) {
-      _errorMessage =
-          "Bu kelimenin $_targetLang dilindeki karşılığı veri setinde yok!";
+      _errorMessage = "Empty word data!";
       notifyListeners();
       return;
     }
-
-    // Dil kodlarını SpeechToText formatına çevir
     String localeId = _targetLang;
     switch (_targetLang) {
       case 'en':
@@ -131,17 +112,15 @@ class ReviewViewModel with ChangeNotifier {
       case 'fr':
         localeId = 'fr-FR';
         break;
-      case 'pt': // EKSİK OLAN KISIM EKLENDİ
+      case 'pt':
         localeId = 'pt-BR';
         break;
       default:
         localeId = _targetLang;
     }
-
     _isListening = true;
     _spokenText = "";
     notifyListeners();
-
     await _speechService.startListening(
       localeId: localeId,
       onResult: (result) {
@@ -157,30 +136,32 @@ class ReviewViewModel with ChangeNotifier {
     notifyListeners();
   }
 
-  // --- Cevap Kontrolü (Yazılı ve Sözlü) ---
   bool checkTextAnswer(String userAnswer) {
     final word = currentReviewWord;
     if (word == null) return false;
-
     final targetContent = word.getLocalizedContent(_targetLang);
     final correctWord = targetContent['word'] ?? '';
-
-    // Normalizasyon: Küçük harf, boşlukları temizle, noktalama işaretlerini kaldır
     final normalizedUser =
         userAnswer.trim().toLowerCase().replaceAll(RegExp(r'[^\w\s]'), '');
     final normalizedCorrect =
         correctWord.trim().toLowerCase().replaceAll(RegExp(r'[^\w\s]'), '');
-
     return normalizedUser == normalizedCorrect;
   }
 
-  // --- Testi Başlatma (Ana Mantık) ---
-  Future<ReviewStatus> startReview(String testMode) async {
+  Future<ReviewStatus> startReview(
+    String testMode, {
+    List<String>? categoryFilter,
+    List<String>? grammarFilter,
+  }) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     await _loadSettings();
+
+    // Null gelirse 'all' ata
+    final selectedCategories = categoryFilter ?? ['all'];
+    final selectedGrammar = grammarFilter ?? ['all'];
 
     _reviewQueue = [];
     _correctCount = 0;
@@ -189,21 +170,20 @@ class ReviewViewModel with ChangeNotifier {
     _testStartTime = DateTime.now();
 
     try {
-      if (testMode == 'daily') {
-        final batchSize = await _settingsRepo.getBatchSize();
-        _reviewQueue = await _wordRepo.getDailyReviewWords(
-          batchSize,
-          _targetLang,
-        );
-      } else if (testMode == 'difficult') {
-        _reviewQueue = await _wordRepo.getDifficultWords(_targetLang);
-      }
+      final batchSize = await _settingsRepo.getBatchSize();
 
-      // KRİTİK FİLTRE: JSON'da boş ("") olan kelimeleri testten çıkar
+      // Repository'den verileri çek
+      _reviewQueue = await _wordRepo.getFilteredWords(
+          targetLang: _targetLang,
+          categories: selectedCategories,
+          grammar: selectedGrammar,
+          mode: testMode,
+          batchSize: batchSize);
+
+      // Boş veri temizliği (Görüntülenecek metni olmayan kelimeler)
       _reviewQueue.removeWhere((word) {
         final content = word.getLocalizedContent(_targetLang);
-        final text = content['word'] ?? '';
-        return text.trim().isEmpty;
+        return (content['word'] ?? '').trim().isEmpty;
       });
 
       _reviewQueue.shuffle(Random());
@@ -212,28 +192,24 @@ class ReviewViewModel with ChangeNotifier {
       _isLoading = false;
       notifyListeners();
 
-      // SRP: Durumu Enum olarak dön
       if (_reviewQueue.isEmpty) {
         return ReviewStatus.empty;
       }
       return ReviewStatus.success;
     } catch (e) {
-      _errorMessage = "Test başlatılamadı: $e";
+      _errorMessage = "Test error: $e";
       _isLoading = false;
       notifyListeners();
       return ReviewStatus.error;
     }
   }
 
-  // Yanlış yapılanları tekrar etme modu
   Future<void> startReviewWithWords(List<Word> words) async {
     _isLoading = true;
     notifyListeners();
     await _loadSettings();
 
     _reviewQueue = List.from(words);
-
-    // Burada da boş veri filtresi ekleyelim, garanti olsun
     _reviewQueue.removeWhere((word) {
       final content = word.getLocalizedContent(_targetLang);
       return (content['word'] ?? '').trim().isEmpty;
@@ -250,17 +226,11 @@ class ReviewViewModel with ChangeNotifier {
     notifyListeners();
   }
 
-  // --- Cevap İşleme ---
   void answerCorrectly(Word word) {
     _correctCount++;
     _reviewQueue.remove(word);
     _wordRepo.updateWordProgress(
-      word.id,
-      _targetLang,
-      true,
-      word.masteryLevel ?? 0,
-      word.streak ?? 0,
-    );
+        word.id, _targetLang, true, word.masteryLevel ?? 0, word.streak ?? 0);
     notifyListeners();
   }
 
@@ -271,23 +241,15 @@ class ReviewViewModel with ChangeNotifier {
     }
     _reviewQueue.remove(word);
     _wordRepo.updateWordProgress(
-      word.id,
-      _targetLang,
-      false,
-      word.masteryLevel ?? 0,
-      word.streak ?? 0,
-    );
+        word.id, _targetLang, false, word.masteryLevel ?? 0, word.streak ?? 0);
     notifyListeners();
   }
 
-  // --- Test Sonucu Kaydetme ---
   Future<void> saveTestResult() async {
-    final duration = DateTime.now().difference(
-      _testStartTime ?? DateTime.now(),
-    );
+    final duration =
+        DateTime.now().difference(_testStartTime ?? DateTime.now());
     final total = _correctCount + _incorrectCount;
     final successRate = total > 0 ? (_correctCount / total) * 100 : 0.0;
-
     final result = TestResult(
       date: DateTime.now(),
       questions: total,
@@ -296,17 +258,13 @@ class ReviewViewModel with ChangeNotifier {
       duration: duration,
       successRate: successRate,
     );
-
     await _testRepo.insertTestResult(result);
   }
 
-  // --- Çoktan Seçmeli İçin Şık Üretme ---
   Future<List<String>> getDecoys(Word correctWord) async {
     try {
       final content = correctWord.getLocalizedContent(_sourceLang);
       final correctTranslation = content['word'] ?? "???";
-
-      // Repo'dan rastgele kelimeler al
       final rawCandidates = await _wordRepo.getRandomCandidates(50);
       List<String> decoys = [];
 
@@ -315,8 +273,6 @@ class ReviewViewModel with ChangeNotifier {
           final contentJson = jsonDecode(map['content'] as String);
           if (contentJson is Map && contentJson.containsKey(_sourceLang)) {
             final word = contentJson[_sourceLang]['word'];
-
-            // Boş olmayan ve doğru cevap olmayanları ekle
             if (word != null &&
                 word.toString().isNotEmpty &&
                 word != correctTranslation &&
@@ -329,8 +285,6 @@ class ReviewViewModel with ChangeNotifier {
         }
         if (decoys.length >= 3) break;
       }
-
-      // Yeterli kelime bulunamazsa doldur
       while (decoys.length < 3) {
         decoys.add("Seçenek ${decoys.length + 1}");
       }

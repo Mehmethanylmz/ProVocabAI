@@ -36,7 +36,6 @@ class OnboardingViewModel with ChangeNotifier {
   Future<void> _init() async {
     final currentSettings = await _settingsRepo.getLanguageSettings();
     _selectedSourceLang = currentSettings['source']!;
-    // Hedef dil kaynak dille aynı olmasın diye basit kontrol
     if (_selectedSourceLang == 'en') {
       _selectedTargetLang = 'es';
     } else {
@@ -48,7 +47,6 @@ class OnboardingViewModel with ChangeNotifier {
   void setSourceLang(String code) {
     _selectedSourceLang = code;
     if (_selectedTargetLang == code) {
-      // Çakışmayı önle
       _selectedTargetLang = code == 'en' ? 'tr' : 'en';
     }
     notifyListeners();

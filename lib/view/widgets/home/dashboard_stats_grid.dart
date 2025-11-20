@@ -98,91 +98,90 @@ class DashboardStatsGrid extends StatelessWidget {
     final double valueFontSize = isSmallScreen ? 28.0 : 32.0;
 
     return Card(
-          elevation: 6,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          color: color.withOpacity(0.1),
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
+      elevation: 6,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+      ),
+      color: color.withOpacity(0.1),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
                     children: [
-                      Row(
-                        children: [
-                          Text(
-                            title,
-                            style: GoogleFonts.poppins(
-                              fontSize: titleFontSize,
+                      Text(
+                        title,
+                        style: GoogleFonts.poppins(
+                          fontSize: titleFontSize,
+                          color: color,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      if (isSingleValue)
+                        Padding(
+                          padding: const EdgeInsets.only(left: 8.0),
+                          child: InkWell(
+                            onTap: () => _showMasteryInfoDialog(context, color),
+                            child: Icon(
+                              Icons.info_outline,
                               color: color,
-                              fontWeight: FontWeight.w600,
+                              size: titleFontSize,
                             ),
                           ),
-                          if (isSingleValue)
-                            Padding(
-                              padding: const EdgeInsets.only(left: 8.0),
-                              child: InkWell(
-                                onTap: () =>
-                                    _showMasteryInfoDialog(context, color),
-                                child: Icon(
-                                  Icons.info_outline,
-                                  color: color,
-                                  size: titleFontSize,
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        questions,
-                        style: GoogleFonts.poppins(
-                          fontSize: valueFontSize,
-                          fontWeight: FontWeight.bold,
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
                     ],
                   ),
-                ),
-                if (!isSingleValue)
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          'Başarı',
-                          style: GoogleFonts.poppins(
-                            fontSize: titleFontSize,
-                            color: color,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          rate,
-                          style: GoogleFonts.poppins(
-                            fontSize: valueFontSize,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
+                  const SizedBox(height: 8),
+                  Text(
+                    questions,
+                    style: GoogleFonts.poppins(
+                      fontSize: valueFontSize,
+                      fontWeight: FontWeight.bold,
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-              ],
+                ],
+              ),
             ),
-          ),
-        )
+            if (!isSingleValue)
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Başarı',
+                      style: GoogleFonts.poppins(
+                        fontSize: titleFontSize,
+                        color: color,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      rate,
+                      style: GoogleFonts.poppins(
+                        fontSize: valueFontSize,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      ),
+    )
         .animate(onPlay: (controller) => controller.repeat(reverse: true))
         .shimmer(duration: 2.seconds, color: Colors.white.withOpacity(0.3));
   }

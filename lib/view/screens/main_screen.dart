@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../../viewmodel/home_viewmodel.dart';
 import '../../viewmodel/test_menu_viewmodel.dart';
 import 'home_screen.dart';
 import 'test_menu_screen.dart';
-import 'settings_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -21,35 +19,6 @@ class _MainScreenState extends State<MainScreen> {
     HomeScreen(),
     TestMenuScreen(),
   ];
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _checkFirstLaunch();
-    });
-  }
-
-  Future<void> _checkFirstLaunch() async {
-    final prefs = await SharedPreferences.getInstance();
-    final bool isFirstLaunch = prefs.getBool('isFirstLaunch') ?? true;
-
-    if (isFirstLaunch && context.mounted) {
-      showModalBottomSheet(
-        context: context,
-        isScrollControlled: true,
-        isDismissible: false,
-        enableDrag: false,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        builder: (context) => SizedBox(
-          height: MediaQuery.of(context).size.height * 0.75,
-          child: SettingsScreen(isFirstLaunch: true),
-        ),
-      );
-    }
-  }
 
   void _onItemTapped(int index) {
     if (index == 0) {

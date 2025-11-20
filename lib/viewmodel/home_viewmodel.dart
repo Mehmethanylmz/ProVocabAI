@@ -22,8 +22,20 @@ class HomeViewModel with ChangeNotifier {
   List<Map<String, dynamic>> _monthlyActivity = [];
   List<Map<String, dynamic>> get monthlyActivity => _monthlyActivity;
 
-  final Map<String, List<Map<String, dynamic>>> _weeklyActivityCache = {};
-  final Map<String, Map<String, dynamic>> _monthlyProgressCache = {};
+  Map<String, List<Map<String, dynamic>>> _weeklyActivityCache = {};
+  Map<String, Map<String, dynamic>> _monthlyProgressCache = {};
+
+  // --- RADAR VERİLERİ ---
+  Map<String, double> _skillStats = {
+    'reading': 50,
+    'listening': 50,
+    'speaking': 50,
+    'grammar': 50,
+  };
+  Map<String, double> get skillStats => _skillStats;
+
+  String _coachMessage = "coach_msg_general";
+  String get coachMessage => _coachMessage;
 
   HomeViewModel() {
     loadHomeData();
@@ -38,6 +50,9 @@ class HomeViewModel with ChangeNotifier {
 
     await fetchDashboardStats(targetLang);
     await fetchAllActivityStats();
+
+    calculateSkillStats();
+
     _isLoading = false;
     notifyListeners();
   }
@@ -54,11 +69,10 @@ class HomeViewModel with ChangeNotifier {
     _monthlyProgressCache.clear();
     for (var month in _monthlyActivity) {
       final monthYear = month['monthYear'] as String;
-      _weeklyActivityCache[monthYear] = await _statsRepo
-          .getWeeklyActivityStatsForMonth(monthYear);
-      _monthlyProgressCache[monthYear] = await _statsRepo.getProgressForMonth(
-        monthYear,
-      );
+      _weeklyActivityCache[monthYear] =
+          await _statsRepo.getWeeklyActivityStatsForMonth(monthYear);
+      _monthlyProgressCache[monthYear] =
+          await _statsRepo.getProgressForMonth(monthYear);
     }
     notifyListeners();
   }
@@ -72,9 +86,28 @@ class HomeViewModel with ChangeNotifier {
   }
 
   Future<List<Map<String, dynamic>>> getDailyStats(
-    String weekOfYear,
-    String year,
-  ) async {
+      String weekOfYear, String year) async {
     return await _statsRepo.getDailyActivityStatsForWeek(weekOfYear, year);
+  }
+
+  // Radar Hesaplama (Şimdilik Mock)
+  void calculateSkillStats() {
+    _skillStats = {
+      'reading': 80,
+      'listening': 45,
+      'speaking': 30,
+      'grammar': 60,
+    };
+
+    final lowest =
+        _skillStats.entries.reduce((a, b) => a.value < b.value ? a : b);
+
+    if (lowest.key == 'speaking') {
+      _coachMessage = "coach_msg_speaking";
+    } else if (lowest.key == 'listening') {
+      _coachMessage = "coach_msg_listening";
+    } else {
+      _coachMessage = "coach_msg_general";
+    }
   }
 }
