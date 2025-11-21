@@ -6,6 +6,9 @@ import '../models/dashboard_stats.dart';
 class StatsRepository {
   final dbHelper = DatabaseHelper.instance;
 
+  // Yardımcı: Yerel saat farkını saniye cinsinden al (Örn: TR için +10800)
+  int get _offsetInSeconds => DateTime.now().timeZoneOffset.inSeconds;
+
   Future<Map<String, int>> getTierDistribution(String targetLang) async {
     final db = await dbHelper.database;
 
@@ -28,13 +31,11 @@ class StatsRepository {
       [targetLang],
     );
 
-    final int totalWords =
-        Sqflite.firstIntValue(
+    final int totalWords = Sqflite.firstIntValue(
           await db.rawQuery('SELECT COUNT(*) FROM words'),
         ) ??
         0;
-    final int activeWords =
-        Sqflite.firstIntValue(
+    final int activeWords = Sqflite.firstIntValue(
           await db.rawQuery(
             'SELECT COUNT(*) FROM progress WHERE target_lang = ?',
             [targetLang],
@@ -50,8 +51,7 @@ class StatsRepository {
       'Expert': 0,
     };
 
-    final unlearnedInProgress =
-        Sqflite.firstIntValue(
+    final unlearnedInProgress = Sqflite.firstIntValue(
           await db.rawQuery(
             'SELECT COUNT(*) FROM progress WHERE target_lang = ? AND mastery_level = 0',
             [targetLang],
@@ -76,22 +76,25 @@ class StatsRepository {
   Future<DashboardStats> getDashboardStats(String targetLang) async {
     final db = await dbHelper.database;
     final now = DateTime.now();
-    final startOfDay = DateTime(
-      now.year,
-      now.month,
-      now.day,
-    ).millisecondsSinceEpoch;
+
+    // Yerel saat ile gün, hafta ve ay başlangıçlarını alıyoruz.
+    // timestamp DB'de UTC tutuluyor olsa bile, DateTime(...).millisecondsSinceEpoch
+    // yerel saatin o anki UTC karşılığını verir.
+    // Örnek: TR saatiyle gece 00:00 aslında UTC 21:00'dır.
+    // Bu hesaplama doğrudur, çünkü DB'deki timestamp >= UTC 21:00 dediğimizde
+    // aslında yerel saatle 00:00'dan sonrasını kastetmiş oluruz.
+
+    final startOfDay =
+        DateTime(now.year, now.month, now.day).millisecondsSinceEpoch;
     final startOfWeek = now
         .subtract(Duration(days: now.weekday - 1))
-        .millisecondsSinceEpoch;
-    final startOfMonth = DateTime(
-      now.year,
-      now.month,
-      1,
-    ).millisecondsSinceEpoch;
+        .millisecondsSinceEpoch; // Pazartesi
 
-    final masteredCount =
-        Sqflite.firstIntValue(
+    // Ay başı hesabı (Düzeltme: Sadece yıl ve ay vererek o ayın 1. günü 00:00 alınır)
+    final startOfMonth =
+        DateTime(now.year, now.month, 1).millisecondsSinceEpoch;
+
+    final masteredCount = Sqflite.firstIntValue(
           await db.rawQuery(
             'SELECT COUNT(*) FROM progress WHERE target_lang = ? AND mastery_level >= 4',
             [targetLang],
@@ -140,9 +143,7 @@ class StatsRepository {
       whereArgs: [todayEpoch],
     );
 
-    final distribution = await getTierDistribution(
-      'tr',
-    ); // Dil bağımsız veya varsayılan bir dil alabiliriz
+    final distribution = await getTierDistribution('tr');
 
     final snapshotData = {
       'date': todayEpoch,
@@ -165,17 +166,21 @@ class StatsRepository {
     }
   }
 
+  // --- DÜZELTİLEN METOTLAR (SAAT DİLİMİ AYARLI) ---
+
   Future<List<Map<String, dynamic>>> getMonthlyActivityStats() async {
     final db = await dbHelper.database;
+    // timestamp ms cinsinden, 1000'e bölüp saniye yapıyoruz.
+    // Sonra yerel saat farkını (offset) ekliyoruz.
     final List<Map<String, dynamic>> results = await db.rawQuery('''
       SELECT 
-        strftime('%Y-%m', timestamp / 1000, 'unixepoch') as monthYear,
+        strftime('%Y-%m', (timestamp / 1000) + ?, 'unixepoch') as monthYear,
         SUM(totalCount) as total,
         SUM(correctCount) as correct
       FROM test_results
       GROUP BY monthYear
       ORDER BY monthYear DESC
-    ''');
+    ''', [_offsetInSeconds]);
     return results;
   }
 
@@ -186,16 +191,16 @@ class StatsRepository {
     final List<Map<String, dynamic>> results = await db.rawQuery(
       '''
       SELECT 
-        strftime('%W', timestamp / 1000, 'unixepoch') as weekOfYear,
+        strftime('%W', (timestamp / 1000) + ?, 'unixepoch') as weekOfYear,
         SUM(totalCount) as total,
         SUM(correctCount) as correct,
-        MIN(timestamp / 1000, 'unixepoch') as weekStartDate
+        MIN((timestamp / 1000) + ?, 'unixepoch') as weekStartDate
       FROM test_results
-      WHERE strftime('%Y-%m', timestamp / 1000, 'unixepoch') = ?
+      WHERE strftime('%Y-%m', (timestamp / 1000) + ?, 'unixepoch') = ?
       GROUP BY weekOfYear
       ORDER BY weekStartDate ASC
     ''',
-      [monthYear],
+      [_offsetInSeconds, _offsetInSeconds, _offsetInSeconds, monthYear],
     );
     return results;
   }
@@ -205,43 +210,51 @@ class StatsRepository {
     String year,
   ) async {
     final db = await dbHelper.database;
+
+    // Günlük verileri çekerken de yerel saati baz alıyoruz.
+    // dateStr (dd-MM-yyyy) formatında grupluyoruz ki gece yarısı geçişleri düzgün olsun.
     final List<Map<String, dynamic>> results = await db.rawQuery(
       '''
       SELECT 
-        strftime('%w', timestamp / 1000, 'unixepoch') as dayOfWeek,
+        strftime('%w', (timestamp / 1000) + ?, 'unixepoch') as dayOfWeek,
+        strftime('%d-%m-%Y', (timestamp / 1000) + ?, 'unixepoch') as dateStr,
         SUM(totalCount) as total,
-        SUM(correctCount) as correct,
-        date(timestamp / 1000, 'unixepoch') as fullDate
+        SUM(correctCount) as correct
       FROM test_results
-      WHERE strftime('%Y', timestamp / 1000, 'unixepoch') = ?
-        AND strftime('%W', timestamp / 1000, 'unixepoch') = ?
-      GROUP BY dayOfWeek
-      ORDER BY fullDate ASC
+      WHERE strftime('%Y', (timestamp / 1000) + ?, 'unixepoch') = ?
+        AND strftime('%W', (timestamp / 1000) + ?, 'unixepoch') = ?
+      GROUP BY dateStr
+      ORDER BY dateStr ASC
     ''',
-      [year, weekOfYear],
+      [
+        _offsetInSeconds,
+        _offsetInSeconds,
+        _offsetInSeconds,
+        year,
+        _offsetInSeconds,
+        weekOfYear
+      ],
     );
 
-    final dayNames = [
-      'Pazar',
-      'Pazartesi',
-      'Salı',
-      'Çarşamba',
-      'Perşembe',
-      'Cuma',
-      'Cumartesi',
-    ];
-    List<Map<String, dynamic>> formattedResults = [];
+    // Sonuçları UI'ın beklediği formata dönüştür
+    return results.map((row) {
+      final dateStr = row['dateStr'] as String;
+      final parts = dateStr.split('-');
+      // String tarihi DateTime objesine çevirip saniye timestamp'ini alıyoruz
+      final date = DateTime(
+        int.parse(parts[2]), // Yıl
+        int.parse(parts[1]), // Ay
+        int.parse(parts[0]), // Gün
+      );
 
-    for (var res in results) {
-      final dayIndex = int.parse(res['dayOfWeek'] as String);
-      formattedResults.add({
-        'dayName': dayNames[dayIndex],
-        'fullDate': res['fullDate'],
-        'total': res['total'],
-        'correct': res['correct'],
-      });
-    }
-    return formattedResults;
+      return {
+        'weekday': row['dayOfWeek'],
+        // ActivityHistoryList widget'ı "date" alanını integer (saniye) olarak bekliyor
+        'date': date.millisecondsSinceEpoch ~/ 1000,
+        'total': row['total'],
+        'correct': row['correct'],
+      };
+    }).toList();
   }
 
   Future<Map<String, dynamic>> getProgressForMonth(String monthYear) async {
@@ -250,12 +263,9 @@ class StatsRepository {
     final year = int.parse(parts[0]);
     final month = int.parse(parts[1]);
 
-    // Ayın ilk ve son günlerinin epoch zaman damgalarını al
     final startOfMonthEpoch = DateTime(year, month, 1).millisecondsSinceEpoch;
-    // Ayın son gününü bulmak için sonraki ayın 0. günü (bir önceki gün)
     final endOfMonthEpoch = DateTime(year, month + 1, 0).millisecondsSinceEpoch;
 
-    // Ayın ilk gününe ait ilk snapshot (start)
     final startSnapshot = await db.query(
       'progress_snapshots',
       orderBy: 'date ASC',

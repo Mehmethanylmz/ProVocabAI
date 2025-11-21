@@ -29,9 +29,7 @@ class _SpeakingReviewScreenState extends State<SpeakingReviewScreen> {
 
   Future<void> _checkPermissions() async {
     final status = await Permission.microphone.request();
-    setState(() {
-      _hasPermission = status.isGranted;
-    });
+    setState(() => _hasPermission = status.isGranted);
   }
 
   Future<void> _loadNextWord() async {
@@ -42,17 +40,11 @@ class _SpeakingReviewScreenState extends State<SpeakingReviewScreen> {
       return;
     }
 
-    final word = viewModel.currentReviewWord;
-    if (word == null) return;
-
     setState(() {
-      _currentWord = word;
+      _currentWord = viewModel.currentReviewWord;
       _isAnswered = false;
       _isCorrect = false;
     });
-
-    // Otomatik okuma (isteğe bağlı, önce kullanıcının duymasını istiyorsak)
-    // viewModel.speakCurrentWord();
   }
 
   void _handleMicPress(bool isDown) async {
@@ -68,14 +60,12 @@ class _SpeakingReviewScreenState extends State<SpeakingReviewScreen> {
       await viewModel.startListeningForSpeech();
     } else {
       await viewModel.stopListeningForSpeech();
-      // Konuşma bitti, kontrol et
       _checkAnswer();
     }
   }
 
   void _checkAnswer() {
     final viewModel = context.read<ReviewViewModel>();
-    // Kullanıcının söylediği metin ViewModel'de saklanıyor
     final spoken = viewModel.spokenText;
 
     if (spoken.isEmpty) {
@@ -100,16 +90,20 @@ class _SpeakingReviewScreenState extends State<SpeakingReviewScreen> {
   }
 
   Future<void> _finishTestAndNavigate() async {
-    if (!mounted) return;
     final viewModel = context.read<ReviewViewModel>();
+    if (!mounted) return;
+
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(
-        builder: (_) => TestResultScreen(
+      PageRouteBuilder(
+        transitionDuration: 600.ms,
+        pageBuilder: (_, __, ___) => TestResultScreen(
           correctCount: viewModel.correctCount,
           incorrectCount: viewModel.incorrectCount,
           wrongWords: List.from(viewModel.wrongAnswersInSession),
         ),
+        transitionsBuilder: (_, animation, __, child) =>
+            FadeTransition(opacity: animation, child: child),
       ),
     );
   }
@@ -119,157 +113,258 @@ class _SpeakingReviewScreenState extends State<SpeakingReviewScreen> {
     final viewModel = context.watch<ReviewViewModel>();
 
     if (viewModel.isLoading || _currentWord == null) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return Scaffold(
+        body: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFFF0F7FF), Colors.white],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+            ),
+          ),
+          child: const Center(
+            child: CircularProgressIndicator(strokeWidth: 3),
+          ),
+        ),
+      );
     }
 
     final word = _currentWord!;
     final targetContent = word.getLocalizedContent(viewModel.targetLang);
 
     return Scaffold(
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: Text("Konuşma Testi",
-            style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
+        title: Text(
+          "Konuşma Testi",
+          style: GoogleFonts.poppins(
+            fontWeight: FontWeight.w700,
+            fontSize: 22,
+            color: Colors.grey[900],
+          ),
+        ),
         centerTitle: true,
+        backgroundColor: Colors.transparent,
         elevation: 0,
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          children: [
-            // Kelime Kartı
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(32),
-              decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: [
-                    BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 20,
-                        offset: const Offset(0, 10))
-                  ]),
-              child: Column(
-                children: [
-                  Text(
-                    targetContent['word'] ?? '',
-                    style: GoogleFonts.poppins(
-                        fontSize: 36, fontWeight: FontWeight.bold),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 10),
-                  IconButton(
-                    icon: const Icon(Icons.volume_up,
-                        size: 30, color: Colors.blue),
-                    onPressed: viewModel.speakCurrentWord,
-                  )
-                ],
-              ),
-            ),
-
-            const Spacer(),
-
-            // Algılanan Metin
-            if (viewModel.spokenText.isNotEmpty)
-              Text(
-                "Algılanan: \"${viewModel.spokenText}\"",
-                style: TextStyle(
-                    fontSize: 18,
-                    color: Colors.grey[800],
-                    fontStyle: FontStyle.italic),
-              ).animate().fadeIn(),
-
-            const SizedBox(height: 20),
-
-            // Cevap Geri Bildirimi
-            if (_isAnswered) ...[
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: _isCorrect ? Colors.green.shade50 : Colors.red.shade50,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(_isCorrect ? Icons.check_circle : Icons.cancel,
-                        color: _isCorrect ? Colors.green : Colors.red),
-                    const SizedBox(width: 8),
-                    Text(_isCorrect ? "Mükemmel Telaffuz!" : "Tekrar Dene",
-                        style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: _isCorrect
-                                ? Colors.green.shade800
-                                : Colors.red.shade800)),
-                  ],
-                ),
-              ).animate().scale(),
-            ],
-
-            const Spacer(),
-
-            // Mikrofon Butonu
-            if (!_isAnswered)
-              GestureDetector(
-                onLongPressStart: (_) => _handleMicPress(true),
-                onLongPressEnd: (_) => _handleMicPress(false),
-                // Dokunmatik olmayan cihazlar (simülatör) için onTap
-                onTap: () {
-                  if (viewModel.isListening) {
-                    _handleMicPress(false);
-                  } else {
-                    _handleMicPress(true);
-                  }
-                },
-                child: AnimatedContainer(
-                  duration: 200.ms,
-                  width: viewModel.isListening ? 100 : 80,
-                  height: viewModel.isListening ? 100 : 80,
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xFFF0F7FF), Colors.white],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+        ),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(22.0),
+            child: Column(
+              children: [
+                // KELİME KARTI
+                Container(
+                  padding: const EdgeInsets.all(32),
+                  width: double.infinity,
                   decoration: BoxDecoration(
-                      color: viewModel.isListening ? Colors.red : Colors.blue,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color:
-                              (viewModel.isListening ? Colors.red : Colors.blue)
-                                  .withOpacity(0.4),
-                          blurRadius: 20,
-                          spreadRadius: 5,
-                        )
-                      ]),
-                  child: Icon(
-                      viewModel.isListening ? Icons.mic : Icons.mic_none,
-                      color: Colors.white,
-                      size: 40),
-                ),
-              ),
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(32),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.indigo.withOpacity(0.15),
+                        blurRadius: 30,
+                        offset: const Offset(0, 15),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    children: [
+                      Text(
+                        targetContent['word'] ?? '',
+                        style: GoogleFonts.poppins(
+                          fontSize: 48,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.grey[900],
+                          height: 1.1,
+                        ),
+                        textAlign: TextAlign.center,
+                      ).animate().scale(
+                            duration: 600.ms,
+                            curve: Curves.easeOutBack,
+                          ),
+                      const SizedBox(height: 12),
+                      ElevatedButton(
+                        onPressed: () => viewModel.speakText(
+                          targetContent['word'] ?? '',
+                          viewModel.targetLang,
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          shape: const CircleBorder(),
+                          padding: const EdgeInsets.all(20),
+                          backgroundColor: Colors.indigo.shade500,
+                          foregroundColor: Colors.white,
+                          elevation: 10,
+                        ),
+                        child: const Icon(Icons.volume_up, size: 32),
+                      ).animate().scale(
+                            delay: 200.ms,
+                            duration: 800.ms,
+                            curve: Curves.elasticOut,
+                          ),
+                    ],
+                  ),
+                ).animate().slideY(begin: -0.25, duration: 700.ms).fade(),
 
-            if (!_isAnswered)
-              Padding(
-                padding: const EdgeInsets.only(top: 16.0),
-                child: Text(
-                  viewModel.isListening
-                      ? "Dinleniyor..."
-                      : "Basılı Tut ve Konuş",
-                  style: TextStyle(color: Colors.grey[600]),
-                ),
-              ),
+                const Spacer(),
 
-            if (_isAnswered)
-              SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: ElevatedButton(
-                  onPressed: _loadNextWord,
-                  style: ElevatedButton.styleFrom(
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16))),
-                  child: const Text("Devam Et", style: TextStyle(fontSize: 18)),
-                ),
-              )
-          ],
+                // Algılanan metin balonu
+                if (viewModel.spokenText.isNotEmpty)
+                  Container(
+                    padding: const EdgeInsets.all(18),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: Colors.blue.shade200),
+                    ),
+                    child: Text(
+                      "“${viewModel.spokenText}”",
+                      style: GoogleFonts.poppins(
+                        fontSize: 18,
+                        color: Colors.blue.shade800,
+                        fontStyle: FontStyle.italic,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ).animate().fadeIn().slideY(begin: 0.2),
+
+                const SizedBox(height: 20),
+
+                // DOĞRU/YANLIŞ geri bildirimi
+                if (_isAnswered) _buildFeedbackCard(),
+
+                const Spacer(),
+
+                // MİKROFON BUTONU
+                if (!_isAnswered)
+                  GestureDetector(
+                    onLongPressStart: (_) => _handleMicPress(true),
+                    onLongPressEnd: (_) => _handleMicPress(false),
+                    onTap: () {
+                      if (viewModel.isListening) {
+                        _handleMicPress(false);
+                      } else {
+                        _handleMicPress(true);
+                      }
+                    },
+                    child: _buildMicButton(viewModel),
+                  ),
+
+                const SizedBox(height: 16),
+
+                if (!_isAnswered)
+                  Text(
+                    viewModel.isListening
+                        ? "Dinleniyor..."
+                        : "Basılı Tut ve Konuş",
+                    style: GoogleFonts.poppins(
+                      color: Colors.grey[600],
+                      fontSize: 15,
+                    ),
+                  ),
+
+                if (_isAnswered)
+                  SizedBox(
+                    width: double.infinity,
+                    height: 64,
+                    child: ElevatedButton(
+                      onPressed: _loadNextWord,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.indigo.shade600,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(24),
+                        ),
+                        elevation: 10,
+                      ),
+                      child: Text(
+                        "Devam Et",
+                        style: GoogleFonts.poppins(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ).animate().scale(
+                        delay: 200.ms,
+                        duration: 700.ms,
+                        curve: Curves.elasticOut,
+                      ),
+              ],
+            ),
+          ),
         ),
       ),
     );
+  }
+
+  Widget _buildMicButton(ReviewViewModel viewModel) {
+    final isListening = viewModel.isListening;
+
+    return AnimatedContainer(
+      duration: 300.ms,
+      width: isListening ? 110 : 90,
+      height: isListening ? 110 : 90,
+      decoration: BoxDecoration(
+        color: isListening ? Colors.red : Colors.indigo.shade500,
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(
+            color: (isListening ? Colors.red : Colors.indigo).withOpacity(0.4),
+            blurRadius: 25,
+            spreadRadius: 8,
+          ),
+        ],
+      ),
+      child: Icon(
+        isListening ? Icons.mic : Icons.mic_none,
+        color: Colors.white,
+        size: isListening ? 46 : 40,
+      ),
+    ).animate().scale(duration: 400.ms, curve: Curves.easeOutBack);
+  }
+
+  Widget _buildFeedbackCard() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      margin: const EdgeInsets.only(top: 10),
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: _isCorrect ? Colors.green.shade50 : Colors.red.shade50,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: (_isCorrect ? Colors.green : Colors.red).withOpacity(0.18),
+            blurRadius: 25,
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            _isCorrect ? Icons.check_circle : Icons.cancel,
+            size: 32,
+            color: _isCorrect ? Colors.green.shade700 : Colors.red.shade700,
+          ),
+          const SizedBox(width: 12),
+          Text(
+            _isCorrect ? "Mükemmel Telaffuz!" : "Tekrar Dene",
+            style: GoogleFonts.poppins(
+              fontSize: 18,
+              color: _isCorrect ? Colors.green.shade800 : Colors.red.shade800,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    ).animate().fade().slideY(begin: 0.3);
   }
 }

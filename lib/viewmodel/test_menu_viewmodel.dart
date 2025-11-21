@@ -41,18 +41,6 @@ class TestMenuViewModel with ChangeNotifier {
 
   List<String> _selectedGrammar = ['all'];
   List<String> get selectedGrammar => _selectedGrammar;
-
-  Map<String, double> _skillStats = {
-    'reading': 50,
-    'listening': 50,
-    'speaking': 50,
-    'grammar': 50,
-  };
-  Map<String, double> get skillStats => _skillStats;
-
-  String _coachMessage = "coach_msg_general";
-  String get coachMessage => _coachMessage;
-
   TestMenuViewModel() {
     loadTestData();
   }
@@ -75,31 +63,10 @@ class TestMenuViewModel with ChangeNotifier {
     _allCategories = await _wordRepo.getAllUniqueCategories();
     _allPartsOfSpeech = await _wordRepo.getUniquePartsOfSpeech();
 
-    calculateSkillStats();
     await refreshFilteredCount();
 
     _isLoading = false;
     notifyListeners();
-  }
-
-  void calculateSkillStats() {
-    _skillStats = {
-      'reading': 75,
-      'listening': 40,
-      'speaking': 25,
-      'grammar': 60,
-    };
-
-    final lowest =
-        _skillStats.entries.reduce((a, b) => a.value < b.value ? a : b);
-
-    if (lowest.key == 'speaking') {
-      _coachMessage = "coach_msg_speaking";
-    } else if (lowest.key == 'listening') {
-      _coachMessage = "coach_msg_listening";
-    } else {
-      _coachMessage = "coach_msg_general";
-    }
   }
 
   Future<void> refreshFilteredCount() async {

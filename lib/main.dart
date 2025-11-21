@@ -7,6 +7,7 @@ import 'data/repositories/settings_repository.dart';
 import 'view/screens/main_screen.dart';
 import 'view/screens/onboarding_screen.dart';
 import 'viewmodel/home_viewmodel.dart';
+import 'viewmodel/main_viewmodel.dart';
 import 'viewmodel/test_menu_viewmodel.dart';
 import 'viewmodel/review_viewmodel.dart';
 import 'viewmodel/settings_viewmodel.dart';
@@ -52,6 +53,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => TestMenuViewModel()),
         ChangeNotifierProvider(create: (_) => ReviewViewModel()),
         ChangeNotifierProvider(create: (_) => SettingsViewModel()),
+        ChangeNotifierProvider(create: (_) => MainViewModel()),
       ],
       child: MaterialApp(
         title: 'Global Kelime',

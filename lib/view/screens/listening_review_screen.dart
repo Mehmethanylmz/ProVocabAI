@@ -29,8 +29,15 @@ class _ListeningReviewScreenState extends State<ListeningReviewScreen> {
   @override
   void dispose() {
     _controller.dispose();
-    _focusNode.dispose();
+    _focus_nodeDispose();
     super.dispose();
+  }
+
+  // small helper because some codebases prefer explicit null-safety handling
+  void _focus_nodeDispose() {
+    try {
+      _focusNode.dispose();
+    } catch (_) {}
   }
 
   Future<void> _loadNextWord() async {
@@ -47,6 +54,7 @@ class _ListeningReviewScreenState extends State<ListeningReviewScreen> {
     setState(() {
       _currentWord = word;
       _isAnswered = false;
+      _isCorrect = false;
       _controller.clear();
     });
 
@@ -62,7 +70,8 @@ class _ListeningReviewScreenState extends State<ListeningReviewScreen> {
   void _checkAnswer() {
     if (_isAnswered) return;
     final viewModel = context.read<ReviewViewModel>();
-    final isCorrect = viewModel.checkTextAnswer(_controller.text);
+    final userInput = _controller.text.trim();
+    final isCorrect = viewModel.checkTextAnswer(userInput);
 
     setState(() {
       _isAnswered = true;
@@ -81,12 +90,15 @@ class _ListeningReviewScreenState extends State<ListeningReviewScreen> {
     final viewModel = context.read<ReviewViewModel>();
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(
-        builder: (_) => TestResultScreen(
+      PageRouteBuilder(
+        transitionDuration: 500.ms,
+        pageBuilder: (_, __, ___) => TestResultScreen(
           correctCount: viewModel.correctCount,
           incorrectCount: viewModel.incorrectCount,
           wrongWords: List.from(viewModel.wrongAnswersInSession),
         ),
+        transitionsBuilder: (_, animation, __, child) =>
+            FadeTransition(opacity: animation, child: child),
       ),
     );
   }
@@ -94,156 +106,304 @@ class _ListeningReviewScreenState extends State<ListeningReviewScreen> {
   @override
   Widget build(BuildContext context) {
     final viewModel = context.watch<ReviewViewModel>();
-    final size = MediaQuery.of(context).size;
 
     if (viewModel.isLoading || _currentWord == null) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return Scaffold(
+        body: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFFF0F7FF), Colors.white],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+            ),
+          ),
+          child: const Center(child: CircularProgressIndicator(strokeWidth: 3)),
+        ),
+      );
     }
 
     final word = _currentWord!;
     final targetContent = word.getLocalizedContent(viewModel.targetLang);
     final sourceContent = word.getLocalizedContent(viewModel.sourceLang);
 
+    final progress = viewModel.totalWordsInReview > 0
+        ? (viewModel.totalWordsInReview - viewModel.reviewQueue.length) /
+            viewModel.totalWordsInReview
+        : 0.0;
+
     return Scaffold(
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: Text("Dinleme Testi",
-            style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
-        centerTitle: true,
+        backgroundColor: Colors.transparent,
         elevation: 0,
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          children: [
-            // İlerleme Çubuğu
-            LinearProgressIndicator(
-              value: viewModel.totalWordsInReview > 0
-                  ? (viewModel.totalWordsInReview -
-                          viewModel.reviewQueue.length) /
-                      viewModel.totalWordsInReview
-                  : 0,
-              minHeight: 8,
-              borderRadius: BorderRadius.circular(4),
-            ),
-            const Spacer(flex: 1),
-
-            // Ses Butonu (Büyük)
-            GestureDetector(
-              onTap: viewModel.speakCurrentWord,
-              child: Container(
-                width: 120,
-                height: 120,
-                decoration: BoxDecoration(
-                    color: Colors.blue.shade50,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.blue.shade200, width: 2),
-                    boxShadow: [
-                      BoxShadow(
-                          color: Colors.blue.withOpacity(0.2),
-                          blurRadius: 20,
-                          offset: Offset(0, 10))
-                    ]),
-                child: Icon(Icons.volume_up_rounded,
-                    size: 60, color: Colors.blue.shade700),
-              ),
-            )
-                .animate(onPlay: (c) => c.repeat(reverse: true))
-                .scaleXY(end: 1.05, duration: 1000.ms),
-
-            const SizedBox(height: 16),
-            Text("Kelimeyi duyup aşağıya yazın",
-                style: TextStyle(color: Colors.grey[600])),
-
-            const Spacer(flex: 1),
-
-            // Input Alanı
-            TextField(
-              controller: _controller,
-              focusNode: _focusNode,
-              enabled: !_isAnswered,
-              textAlign: TextAlign.center,
-              style: GoogleFonts.poppins(
-                  fontSize: 24, fontWeight: FontWeight.bold),
-              decoration: InputDecoration(
-                hintText: "Buraya yazın...",
-                filled: true,
-                fillColor: Colors.white,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide.none,
-                ),
-              ),
-              onSubmitted: (_) => _checkAnswer(),
-            ),
-
-            // Cevap Gösterimi (Cevaplandıktan Sonra)
-            if (_isAnswered) ...[
-              const SizedBox(height: 24),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: _isCorrect ? Colors.green.shade50 : Colors.red.shade50,
-                  borderRadius: BorderRadius.circular(16),
-                  border:
-                      Border.all(color: _isCorrect ? Colors.green : Colors.red),
-                ),
-                child: Column(
+        centerTitle: true,
+        title: Text(
+          'Dinleme Testi',
+          style: GoogleFonts.poppins(fontSize: 22, fontWeight: FontWeight.w700),
+        ),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(56),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8),
+            child: Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(_isCorrect ? Icons.check_circle : Icons.cancel,
-                            color: _isCorrect ? Colors.green : Colors.red),
-                        const SizedBox(width: 8),
-                        Text(_isCorrect ? "Doğru!" : "Yanlış!",
-                            style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: _isCorrect
-                                    ? Colors.green.shade800
-                                    : Colors.red.shade800)),
-                      ],
-                    ),
-                    if (!_isCorrect) ...[
-                      const SizedBox(height: 8),
-                      Text("Doğrusu: ${targetContent['word']}",
-                          style: const TextStyle(
-                              fontSize: 18, fontWeight: FontWeight.bold)),
-                    ],
-                    const SizedBox(height: 8),
                     Text(
-                        "${sourceContent['word']} (${sourceContent['meaning']})",
-                        style: TextStyle(color: Colors.grey[700])),
+                      '${(progress * viewModel.totalWordsInReview).toInt()}/${viewModel.totalWordsInReview}',
+                      style: GoogleFonts.poppins(color: Colors.black54),
+                    ),
+                    IconButton(
+                      onPressed: () => viewModel.speakCurrentWord(),
+                      icon: Icon(Icons.volume_up_rounded,
+                          color: Colors.indigo.shade700),
+                    ),
                   ],
                 ),
-              ).animate().fadeIn().slideY(begin: 0.2),
-            ],
-
-            const Spacer(flex: 2),
-
-            // Buton
-            SizedBox(
-              width: double.infinity,
-              height: 56,
-              child: ElevatedButton(
-                onPressed: _isAnswered ? _loadNextWord : _checkAnswer,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _isAnswered
-                      ? (_isCorrect ? Colors.green : Colors.red)
-                      : Colors.blue[700],
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16)),
+                const SizedBox(height: 6),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: LinearProgressIndicator(
+                    value: progress,
+                    minHeight: 8,
+                    backgroundColor: Colors.grey.shade200,
+                    valueColor: AlwaysStoppedAnimation(Colors.indigo.shade400),
+                  ),
                 ),
-                child: Text(
-                  _isAnswered ? "Devam Et" : "Kontrol Et",
-                  style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white),
-                ),
-              ),
+                const SizedBox(height: 8),
+              ],
             ),
-          ],
+          ),
+        ),
+      ),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xFFF0F7FF), Colors.white],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+        ),
+        child: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              children: [
+                // Big Card with instruction
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(26),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(28),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.indigo.withOpacity(0.12),
+                        blurRadius: 28,
+                        offset: const Offset(0, 12),
+                      )
+                    ],
+                  ),
+                  child: Column(
+                    children: [
+                      Text(
+                        'Duy ve Yaz',
+                        style: GoogleFonts.poppins(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.indigo.shade800,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Aşağıdaki butona dokun, kelimeyi dinle ve kutuya yaz.',
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.roboto(
+                          fontSize: 14,
+                          color: Colors.grey[700],
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+
+                      // Big speaker with subtle pulse
+                      GestureDetector(
+                        onTap: () => viewModel.speakCurrentWord(),
+                        child: Container(
+                          width: 120,
+                          height: 120,
+                          decoration: BoxDecoration(
+                            color: Colors.indigo.shade50,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                                color: Colors.indigo.shade100, width: 2),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.indigo.withOpacity(0.06),
+                                blurRadius: 20,
+                                offset: const Offset(0, 10),
+                              )
+                            ],
+                          ),
+                          child: Icon(Icons.volume_up_rounded,
+                              size: 56, color: Colors.indigo.shade700),
+                        )
+                            .animate(
+                                onPlay: (controller) => controller.repeat())
+                            .scaleXY(end: 1.05, duration: 1000.ms),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 28),
+
+                // Input field
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: Column(
+                    children: [
+                      TextField(
+                        controller: _controller,
+                        focusNode: _focusNode,
+                        enabled: !_isAnswered,
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.poppins(
+                            fontSize: 22, fontWeight: FontWeight.w700),
+                        decoration: InputDecoration(
+                          hintText: 'Buraya yazın...',
+                          filled: true,
+                          fillColor: Colors.white,
+                          contentPadding: const EdgeInsets.symmetric(
+                              vertical: 18, horizontal: 20),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: BorderSide.none,
+                          ),
+                        ),
+                        onSubmitted: (_) => _checkAnswer(),
+                      ),
+
+                      const SizedBox(height: 18),
+
+                      // Hint / small info
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.info_outline,
+                              size: 16, color: Colors.grey[600]),
+                          const SizedBox(width: 8),
+                          Text(
+                              'Büyük/küçük harf önemli değil. Boşluklar otomatik kırpılır.',
+                              style: GoogleFonts.roboto(
+                                  fontSize: 12, color: Colors.grey[600])),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 22),
+
+                // Feedback card (after answer)
+                if (_isAnswered) ...[
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(18),
+                    decoration: BoxDecoration(
+                      color: _isCorrect
+                          ? Colors.green.shade50
+                          : Colors.red.shade50,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                          color: _isCorrect
+                              ? Colors.green.shade200
+                              : Colors.red.shade200),
+                      boxShadow: [
+                        BoxShadow(
+                          color: (_isCorrect ? Colors.green : Colors.red)
+                              .withOpacity(0.08),
+                          blurRadius: 18,
+                          offset: const Offset(0, 8),
+                        )
+                      ],
+                    ),
+                    child: Column(
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              _isCorrect ? Icons.check_circle : Icons.cancel,
+                              color: _isCorrect
+                                  ? Colors.green.shade700
+                                  : Colors.red.shade700,
+                              size: 28,
+                            ),
+                            const SizedBox(width: 10),
+                            Text(
+                              _isCorrect ? 'Doğru!' : 'Yanlış',
+                              style: GoogleFonts.poppins(
+                                  fontSize: 18, fontWeight: FontWeight.w700),
+                            ),
+                          ],
+                        ),
+                        if (!_isCorrect) ...[
+                          const SizedBox(height: 12),
+                          Text('Doğrusu: ${"${targetContent['word']}"}',
+                              style: GoogleFonts.poppins(
+                                  fontWeight: FontWeight.w600)),
+                        ],
+                        const SizedBox(height: 12),
+                        Text(
+                            '${sourceContent['word']} (${sourceContent['meaning']})',
+                            style: GoogleFonts.roboto(color: Colors.grey[700])),
+                      ],
+                    ),
+                  ).animate().fadeIn().slideY(begin: 0.2),
+                  const SizedBox(height: 18),
+                ],
+
+                // Action button
+                SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: ElevatedButton(
+                    onPressed: _isAnswered ? _loadNextWord : _checkAnswer,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _isAnswered
+                          ? (_isCorrect
+                              ? Colors.green.shade700
+                              : Colors.red.shade700)
+                          : Colors.indigo.shade600,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14)),
+                      elevation: 10,
+                      shadowColor: Colors.indigo.withOpacity(0.25),
+                    ),
+                    child: Text(
+                      _isAnswered ? 'Devam Et' : 'Kontrol Et',
+                      style: GoogleFonts.poppins(
+                          fontSize: 18, fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 26),
+
+                // Small footer: example sentence
+                if (_isAnswered)
+                  Text(
+                    word.getSentence(
+                            viewModel.proficiencyLevel, viewModel.targetLang) ??
+                        '',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.poppins(color: Colors.grey[700]),
+                  ),
+              ],
+            ),
+          ),
         ),
       ),
     );
