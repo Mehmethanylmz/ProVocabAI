@@ -1,7 +1,9 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/extensions/responsive_extension.dart';
+import '../../../../core/constants/app_colors.dart';
 
 class WordTierPanel extends StatelessWidget {
   final Map<String, int> tierDistribution;
@@ -23,34 +25,34 @@ class WordTierPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final tierInfo = {
       'Expert': {
-        'color': Colors.green[600]!,
-        'gradient': const [Color(0xFF11998e), Color(0xFF38ef7d)],
+        'color': AppColors.success,
+        'gradient': AppColors.gradientGreen,
         'icon': Icons.workspace_premium,
-        'label': 'Uzman'
+        'label': 'expert'.tr()
       },
       'Apprentice': {
-        'color': Colors.blue[700]!,
-        'gradient': const [Color(0xFF667eea), Color(0xFF764ba2)],
+        'color': AppColors.primary,
+        'gradient': AppColors.gradientPurple,
         'icon': Icons.trending_up,
-        'label': 'Çırak'
+        'label': 'apprentice'.tr()
       },
       'Novice': {
-        'color': Colors.orange[600]!,
-        'gradient': const [Color(0xFFF09819), Color(0xFFEDDE5D)],
+        'color': AppColors.warning,
+        'gradient': AppColors.gradientOrange,
         'icon': Icons.school,
-        'label': 'Acemi'
+        'label': 'novice'.tr()
       },
       'Struggling': {
-        'color': Colors.red[600]!,
-        'gradient': const [Color(0xFFEB3349), Color(0xFFF45C43)],
+        'color': AppColors.error,
+        'gradient': AppColors.gradientPink,
         'icon': Icons.priority_high,
-        'label': 'Zorlanılan'
+        'label': 'struggling'.tr()
       },
       'Unlearned': {
-        'color': Colors.grey[700]!,
+        'color': AppColors.textDisabled,
         'gradient': const [Color(0xFF525252), Color(0xFF3d3d3d)],
         'icon': Icons.circle_outlined,
-        'label': 'Başlanmadı'
+        'label': 'unlearned'.tr()
       },
     };
 
@@ -59,20 +61,22 @@ class WordTierPanel extends StatelessWidget {
         .toList();
 
     return Card(
-      elevation: 8,
+      elevation: context.responsive.elevationMedium,
       shadowColor: Colors.black12,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(context.responsive.borderRadiusL),
+      ),
       child: Container(
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(context.responsive.borderRadiusL),
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [Colors.white, Colors.grey[50]!],
+            colors: [AppColors.surface, AppColors.background],
           ),
         ),
         child: Padding(
-          padding: context.paddingMedium,
+          padding: context.responsive.paddingCard,
           child: Column(
             children: [
               Row(
@@ -81,51 +85,64 @@ class WordTierPanel extends StatelessWidget {
                   Row(
                     children: [
                       Container(
-                        padding: context.paddingLow,
+                        padding: EdgeInsets.all(context.responsive.spacingXS),
                         decoration: BoxDecoration(
-                          color: Colors.purple[50],
-                          borderRadius: BorderRadius.circular(12),
+                          color: AppColors.primary.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(
+                            context.responsive.borderRadiusM,
+                          ),
                         ),
-                        child: Icon(Icons.analytics,
-                            color: Colors.purple[700], size: context.iconSmall),
+                        child: Icon(
+                          Icons.analytics,
+                          color: AppColors.primary,
+                          size: context.responsive.iconSizeM,
+                        ),
                       ),
-                      SizedBox(width: context.normalValue),
+                      SizedBox(width: context.responsive.spacingM),
                       Text(
-                        'Seviye Dağılımı',
+                        'level_distribution'.tr(),
                         style: GoogleFonts.poppins(
-                          fontSize: context.fontMedium,
+                          fontSize: context.responsive.fontSizeH3,
                           fontWeight: FontWeight.w600,
-                          color: Colors.grey[800],
+                          color: AppColors.textPrimary,
                         ),
                       ),
                     ],
                   ),
                   Container(
                     padding: EdgeInsets.symmetric(
-                        horizontal: context.normalValue,
-                        vertical: context.lowValue),
+                      horizontal: context.responsive.spacingM,
+                      vertical: context.responsive.spacingXS,
+                    ),
                     decoration: BoxDecoration(
-                      color: Colors.blue[50],
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: Colors.blue[100]!, width: 1),
+                      color: AppColors.primaryLight.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(
+                        context.responsive.borderRadiusXL,
+                      ),
+                      border: Border.all(
+                        color: AppColors.primaryLight.withOpacity(0.3),
+                        width: 1,
+                      ),
                     ),
                     child: Text(
-                      '$totalWords Kelime',
+                      '$totalWords ${'words'.tr()}',
                       style: GoogleFonts.poppins(
-                        fontSize: context.fontSmall,
+                        fontSize: context.responsive.fontSizeCaption,
                         fontWeight: FontWeight.bold,
-                        color: Colors.blue[700],
+                        color: AppColors.primary,
                       ),
                     ),
                   ),
                 ],
               ),
-              SizedBox(height: context.mediumValue),
+              SizedBox(height: context.responsive.spacingL),
               if (validEntries.isEmpty)
                 Padding(
-                  padding: context.paddingMedium,
-                  child: Text("Henüz veri yok.",
-                      style: GoogleFonts.poppins(color: Colors.grey)),
+                  padding: context.responsive.paddingSection,
+                  child: Text(
+                    "no_data_yet".tr(),
+                    style: GoogleFonts.poppins(color: AppColors.textDisabled),
+                  ),
                 )
               else
                 ...validEntries.map((entry) {
@@ -137,30 +154,44 @@ class WordTierPanel extends StatelessWidget {
                   final baseColor = info['color'] as Color;
 
                   return Padding(
-                    padding: EdgeInsets.only(bottom: context.mediumValue),
+                    padding:
+                        EdgeInsets.only(bottom: context.responsive.spacingL),
                     child: Column(
                       children: [
                         Row(
                           children: [
                             Container(
-                                width: context.value(mobile: 40, tablet: 48),
-                                height: context.value(mobile: 40, tablet: 48),
-                                decoration: BoxDecoration(
-                                  gradient:
-                                      LinearGradient(colors: gradientColors),
-                                  borderRadius: BorderRadius.circular(14),
-                                  boxShadow: [
-                                    BoxShadow(
-                                        color:
-                                            gradientColors[0].withOpacity(0.3),
-                                        blurRadius: 8,
-                                        offset: const Offset(0, 4))
-                                  ],
+                              width: context.responsive.value(
+                                mobile: 40,
+                                tablet: 48,
+                                desktop: 56,
+                              ),
+                              height: context.responsive.value(
+                                mobile: 40,
+                                tablet: 48,
+                                desktop: 56,
+                              ),
+                              decoration: BoxDecoration(
+                                gradient:
+                                    LinearGradient(colors: gradientColors),
+                                borderRadius: BorderRadius.circular(
+                                  context.responsive.borderRadiusM,
                                 ),
-                                child: Icon(icon,
-                                    color: Colors.white,
-                                    size: context.iconSmall)),
-                            SizedBox(width: context.mediumValue),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: gradientColors[0].withOpacity(0.3),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: Icon(
+                                icon,
+                                color: Colors.white,
+                                size: context.responsive.iconSizeS,
+                              ),
+                            ),
+                            SizedBox(width: context.responsive.spacingM),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -168,17 +199,18 @@ class WordTierPanel extends StatelessWidget {
                                   Text(
                                     label,
                                     style: GoogleFonts.poppins(
-                                      fontSize: context.fontNormal,
+                                      fontSize: context.responsive.fontSizeBody,
                                       fontWeight: FontWeight.bold,
-                                      color: Colors.grey[800],
+                                      color: AppColors.textPrimary,
                                     ),
                                   ),
                                   Text(
                                     '${percentage.toStringAsFixed(1)}%',
                                     style: GoogleFonts.poppins(
-                                      fontSize: context.fontSmall,
+                                      fontSize:
+                                          context.responsive.fontSizeCaption,
                                       fontWeight: FontWeight.w500,
-                                      color: Colors.grey[500],
+                                      color: AppColors.textSecondary,
                                     ),
                                   ),
                                 ],
@@ -187,21 +219,27 @@ class WordTierPanel extends StatelessWidget {
                             Text(
                               entry.value.toString(),
                               style: GoogleFonts.poppins(
-                                fontSize: context.fontLarge,
+                                fontSize: context.responsive.fontSizeH3,
                                 fontWeight: FontWeight.bold,
                                 color: baseColor,
                               ),
                             ),
                           ],
                         ),
-                        SizedBox(height: context.normalValue),
+                        SizedBox(height: context.responsive.spacingM),
                         ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(
+                            context.responsive.borderRadiusS,
+                          ),
                           child: LinearProgressIndicator(
                             value: percentage / 100,
-                            backgroundColor: Colors.grey[100],
+                            backgroundColor: AppColors.borderLight,
                             color: baseColor,
-                            minHeight: context.value(mobile: 6, tablet: 8),
+                            minHeight: context.responsive.value(
+                              mobile: 6,
+                              tablet: 8,
+                              desktop: 10,
+                            ),
                           ),
                         ),
                       ],

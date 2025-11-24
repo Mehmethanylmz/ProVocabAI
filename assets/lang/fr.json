@@ -34,5 +34,14 @@
     "level_advanced_desc": "Expressions académiques ou professionnelles.",
     "btn_back": "Retour",
     "btn_next": "Suivant",
-    "btn_start": "Commencer"
+    "btn_start": "Commencer",
+    "speaking_test": "Test d'Expression Orale",
+    "speaking_no_audio": "Aucun audio détecté, veuillez réessayer.",
+    "speaking_listening": "Écoute...",
+    "speaking_hold_to_talk": "Maintenez et Parlez",
+    "speaking_perfect": "Prononciation Parfaite !",
+    "speaking_try_again": "Réessayer",
+    "error_general": "Une erreur s'est produite",
+    "test_history_title": "Tests Récents",
+    "test_history_desc": "Seuls les tests des 3 derniers jours sont affichés ici. Consultez l'écran 'Progression' pour les plus anciens."
 }

@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:easy_localization/easy_localization.dart'; // EKLENDİ
+import 'package:easy_localization/easy_localization.dart';
 import '../../viewmodel/onboarding_viewmodel.dart';
 import 'main_screen.dart';
+import '../../core/extensions/responsive_extension.dart';
+import '../../core/constants/app_colors.dart';
 
 class OnboardingScreen extends StatelessWidget {
   const OnboardingScreen({super.key});
@@ -25,10 +27,10 @@ class _OnboardingContent extends StatelessWidget {
     final viewModel = context.watch<OnboardingViewModel>();
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.surface,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(24.0),
+          padding: context.responsive.paddingPage,
           child: Column(
             children: [
               Expanded(
@@ -37,16 +39,16 @@ class _OnboardingContent extends StatelessWidget {
                   children: [
                     _buildLanguageSelection(
                       context,
-                      'onboard_lang_source_title'.tr(), // ÇEVİRİ
-                      'onboard_lang_source_desc'.tr(), // ÇEVİRİ
+                      'onboard_lang_source_title'.tr(),
+                      'onboard_lang_source_desc'.tr(),
                       viewModel.selectedSourceLang,
                       viewModel.languages,
                       (val) => viewModel.setSourceLang(val),
                     ),
                     _buildLanguageSelection(
                       context,
-                      'onboard_lang_target_title'.tr(), // ÇEVİRİ
-                      'onboard_lang_target_desc'.tr(), // ÇEVİRİ
+                      'onboard_lang_target_title'.tr(),
+                      'onboard_lang_target_desc'.tr(),
                       viewModel.selectedTargetLang,
                       viewModel.languages,
                       (val) => viewModel.setTargetLang(val),
@@ -76,39 +78,48 @@ class _OnboardingContent extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SizedBox(height: 40),
+        SizedBox(height: context.responsive.spacingXL),
         Text(
           title,
           style: GoogleFonts.poppins(
-            fontSize: 28,
+            fontSize: context.responsive.fontSizeH1,
             fontWeight: FontWeight.bold,
-            color: Colors.black87,
+            color: AppColors.textPrimary,
           ),
         ),
-        SizedBox(height: 8),
+        SizedBox(height: context.responsive.spacingXS),
         Text(
           subtitle,
-          style: GoogleFonts.poppins(fontSize: 16, color: Colors.grey[600]),
+          style: GoogleFonts.poppins(
+            fontSize: context.responsive.fontSizeBody,
+            color: AppColors.textSecondary,
+          ),
         ),
-        SizedBox(height: 32),
+        SizedBox(height: context.responsive.spacingL),
         Expanded(
           child: ListView(
             children: options.entries.map((entry) {
-              if (entry.key == exclude) return SizedBox.shrink();
+              if (entry.key == exclude) return const SizedBox.shrink();
 
               final isSelected = entry.key == selectedValue;
               return Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8.0),
+                padding:
+                    EdgeInsets.symmetric(vertical: context.responsive.spacingS),
                 child: InkWell(
                   onTap: () => onSelect(entry.key),
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius:
+                      BorderRadius.circular(context.responsive.borderRadiusL),
                   child: Container(
-                    padding: EdgeInsets.all(20),
+                    padding: EdgeInsets.all(context.responsive.spacingL),
                     decoration: BoxDecoration(
-                      color: isSelected ? Colors.blue[50] : Colors.grey[50],
-                      borderRadius: BorderRadius.circular(16),
+                      color: isSelected
+                          ? AppColors.primary.withOpacity(0.1)
+                          : AppColors.background,
+                      borderRadius: BorderRadius.circular(
+                          context.responsive.borderRadiusL),
                       border: Border.all(
-                        color: isSelected ? Colors.blue : Colors.transparent,
+                        color:
+                            isSelected ? AppColors.primary : Colors.transparent,
                         width: 2,
                       ),
                     ),
@@ -116,26 +127,34 @@ class _OnboardingContent extends StatelessWidget {
                       children: [
                         Text(
                           _getFlag(entry.key),
-                          style: TextStyle(fontSize: 32),
-                        ),
-                        SizedBox(width: 16),
-                        Text(
-                          entry.value,
-                          style: GoogleFonts.poppins(
-                            fontSize: 18,
-                            fontWeight: isSelected
-                                ? FontWeight.bold
-                                : FontWeight.normal,
-                            color:
-                                isSelected ? Colors.blue[900] : Colors.black87,
+                          style: TextStyle(
+                            fontSize: context.responsive.value(
+                              mobile: 28,
+                              tablet: 32,
+                              desktop: 36,
+                            ),
                           ),
                         ),
-                        Spacer(),
+                        SizedBox(width: context.responsive.spacingM),
+                        Expanded(
+                          child: Text(
+                            entry.value,
+                            style: GoogleFonts.poppins(
+                              fontSize: context.responsive.fontSizeH3,
+                              fontWeight: isSelected
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
+                              color: isSelected
+                                  ? AppColors.primary
+                                  : AppColors.textPrimary,
+                            ),
+                          ),
+                        ),
                         if (isSelected)
                           Icon(
                             Icons.check_circle,
-                            color: Colors.blue,
-                            size: 28,
+                            color: AppColors.primary,
+                            size: context.responsive.iconSizeL,
                           ),
                       ],
                     ),
@@ -156,37 +175,46 @@ class _OnboardingContent extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SizedBox(height: 40),
+        SizedBox(height: context.responsive.spacingXL),
         Text(
-          'onboard_level_title'.tr(), // ÇEVİRİ
+          'onboard_level_title'.tr(),
           style: GoogleFonts.poppins(
-            fontSize: 28,
+            fontSize: context.responsive.fontSizeH1,
             fontWeight: FontWeight.bold,
-            color: Colors.black87,
+            color: AppColors.textPrimary,
           ),
         ),
-        SizedBox(height: 8),
+        SizedBox(height: context.responsive.spacingXS),
         Text(
-          'onboard_level_desc'.tr(), // ÇEVİRİ
-          style: GoogleFonts.poppins(fontSize: 16, color: Colors.grey[600]),
+          'onboard_level_desc'.tr(),
+          style: GoogleFonts.poppins(
+            fontSize: context.responsive.fontSizeBody,
+            color: AppColors.textSecondary,
+          ),
         ),
-        SizedBox(height: 32),
+        SizedBox(height: context.responsive.spacingL),
         Expanded(
           child: ListView(
             children: viewModel.levels.entries.map((entry) {
               final isSelected = entry.key == viewModel.selectedLevel;
               return Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8.0),
+                padding:
+                    EdgeInsets.symmetric(vertical: context.responsive.spacingS),
                 child: InkWell(
                   onTap: () => viewModel.setLevel(entry.key),
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius:
+                      BorderRadius.circular(context.responsive.borderRadiusL),
                   child: Container(
-                    padding: EdgeInsets.all(24),
+                    padding: EdgeInsets.all(context.responsive.spacingL),
                     decoration: BoxDecoration(
-                      color: isSelected ? Colors.blue[50] : Colors.grey[50],
-                      borderRadius: BorderRadius.circular(16),
+                      color: isSelected
+                          ? AppColors.primary.withOpacity(0.1)
+                          : AppColors.background,
+                      borderRadius: BorderRadius.circular(
+                          context.responsive.borderRadiusL),
                       border: Border.all(
-                        color: isSelected ? Colors.blue : Colors.transparent,
+                        color:
+                            isSelected ? AppColors.primary : Colors.transparent,
                         width: 2,
                       ),
                     ),
@@ -196,31 +224,32 @@ class _OnboardingContent extends StatelessWidget {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(
-                              _getLevelTitle(
-                                  entry.key), // Helper metod kullanıyoruz
-                              style: GoogleFonts.poppins(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                                color: isSelected
-                                    ? Colors.blue[900]
-                                    : Colors.black87,
+                            Expanded(
+                              child: Text(
+                                _getLevelTitle(entry.key),
+                                style: GoogleFonts.poppins(
+                                  fontSize: context.responsive.fontSizeH3,
+                                  fontWeight: FontWeight.bold,
+                                  color: isSelected
+                                      ? AppColors.primary
+                                      : AppColors.textPrimary,
+                                ),
                               ),
                             ),
                             if (isSelected)
                               Icon(
                                 Icons.check_circle,
-                                color: Colors.blue,
-                                size: 28,
+                                color: AppColors.primary,
+                                size: context.responsive.iconSizeL,
                               ),
                           ],
                         ),
-                        SizedBox(height: 8),
+                        SizedBox(height: context.responsive.spacingS),
                         Text(
                           _getLevelDescription(entry.key),
                           style: GoogleFonts.poppins(
-                            fontSize: 14,
-                            color: Colors.grey[600],
+                            fontSize: context.responsive.fontSizeBody,
+                            color: AppColors.textSecondary,
                           ),
                         ),
                       ],
@@ -237,7 +266,7 @@ class _OnboardingContent extends StatelessWidget {
 
   Widget _buildBottomBar(BuildContext context, OnboardingViewModel viewModel) {
     return Padding(
-      padding: const EdgeInsets.only(top: 16.0),
+      padding: EdgeInsets.only(top: context.responsive.spacingM),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -245,22 +274,21 @@ class _OnboardingContent extends StatelessWidget {
             TextButton(
               onPressed: viewModel.previousPage,
               child: Text(
-                'btn_back'.tr(), // ÇEVİRİ
+                'btn_back'.tr(),
                 style: GoogleFonts.poppins(
-                  fontSize: 16,
-                  color: Colors.grey[600],
+                  fontSize: context.responsive.fontSizeBody,
+                  color: AppColors.textSecondary,
                   fontWeight: FontWeight.w600,
                 ),
               ),
             )
           else
-            SizedBox.shrink(),
+            const SizedBox.shrink(),
           ElevatedButton(
             onPressed: () async {
               if (viewModel.currentPage < 2) {
                 viewModel.nextPage();
               } else {
-                // Dil seçimini kaydettikten sonra uygulama dilini de güncelle!
                 await context.setLocale(Locale(viewModel.selectedSourceLang));
 
                 await viewModel.completeOnboarding();
@@ -272,19 +300,22 @@ class _OnboardingContent extends StatelessWidget {
               }
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blue[700],
-              foregroundColor: Colors.white,
-              padding: EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(30),
+              backgroundColor: AppColors.primary,
+              foregroundColor: AppColors.surface,
+              padding: EdgeInsets.symmetric(
+                horizontal: context.responsive.spacingXL,
+                vertical: context.responsive.spacingM,
               ),
+              shape: RoundedRectangleBorder(
+                borderRadius:
+                    BorderRadius.circular(context.responsive.borderRadiusXL),
+              ),
+              elevation: context.responsive.elevationMedium,
             ),
             child: Text(
-              viewModel.currentPage == 2
-                  ? 'btn_start'.tr()
-                  : 'btn_next'.tr(), // ÇEVİRİ
+              viewModel.currentPage == 2 ? 'btn_start'.tr() : 'btn_next'.tr(),
               style: GoogleFonts.poppins(
-                fontSize: 18,
+                fontSize: context.responsive.fontSizeH3,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -313,7 +344,6 @@ class _OnboardingContent extends StatelessWidget {
     }
   }
 
-  // Yeni Helper Metodlar (Çeviri için)
   String _getLevelTitle(String levelKey) {
     switch (levelKey) {
       case 'beginner':

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:easy_localization/easy_localization.dart';
+import '../../../core/constants/app_colors.dart';
+import '../../../core/extensions/responsive_extension.dart';
 
 class FilterRow extends StatelessWidget {
   final String title;
@@ -15,33 +17,52 @@ class FilterRow extends StatelessWidget {
     required this.items,
     required this.selected,
     required this.onTap,
-    required this.accentColor,
+    this.accentColor = AppColors.primary,
   });
 
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
-
     return SliverToBoxAdapter(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: EdgeInsets.symmetric(horizontal: size.width * 0.06),
-            child: Text(title,
-                style: GoogleFonts.poppins(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: const Color(0xFF475569))),
+            padding: EdgeInsets.symmetric(
+              horizontal: context.responsive.value(
+                mobile: 16,
+                tablet: 24,
+                desktop: 32,
+              ),
+            ),
+            child: Text(
+              title,
+              style: GoogleFonts.poppins(
+                fontSize: context.responsive.fontSizeBody,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textSecondary,
+              ),
+            ),
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: context.responsive.spacingS),
           SizedBox(
-            height: 50,
+            height: context.responsive.value(
+              mobile: 45,
+              tablet: 50,
+              desktop: 55,
+            ),
             child: ListView.separated(
-              padding: EdgeInsets.symmetric(horizontal: size.width * 0.06),
+              padding: EdgeInsets.symmetric(
+                horizontal: context.responsive.value(
+                  mobile: 16,
+                  tablet: 24,
+                  desktop: 32,
+                ),
+              ),
               scrollDirection: Axis.horizontal,
               itemCount: items.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 12),
+              separatorBuilder: (_, __) => SizedBox(
+                width: context.responsive.spacingS,
+              ),
               itemBuilder: (context, i) {
                 final item = items[i];
                 final isSelected = selected.contains(item);
@@ -49,21 +70,26 @@ class FilterRow extends StatelessWidget {
                   onTap: () => onTap(item),
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 200),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 24, vertical: 12),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: context.responsive.spacingL,
+                      vertical: context.responsive.spacingS,
+                    ),
                     decoration: BoxDecoration(
-                      color: isSelected ? accentColor : Colors.white,
-                      borderRadius: BorderRadius.circular(30),
+                      color: isSelected ? accentColor : AppColors.surface,
+                      borderRadius: BorderRadius.circular(
+                        context.responsive.borderRadiusXL,
+                      ),
                       border: Border.all(
-                          color:
-                              isSelected ? accentColor : Colors.grey.shade300,
-                          width: 1.5),
+                        color: isSelected ? accentColor : AppColors.borderLight,
+                        width: 1.5,
+                      ),
                       boxShadow: isSelected
                           ? [
                               BoxShadow(
-                                  color: accentColor.withOpacity(0.3),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 4))
+                                color: accentColor.withOpacity(0.3),
+                                blurRadius: 8,
+                                offset: const Offset(0, 4),
+                              ),
                             ]
                           : null,
                     ),
@@ -71,8 +97,10 @@ class FilterRow extends StatelessWidget {
                       child: Text(
                         item == 'all' ? 'filter_all'.tr() : item.toUpperCase(),
                         style: GoogleFonts.poppins(
-                          fontSize: 14,
-                          color: isSelected ? Colors.white : Colors.grey[700],
+                          fontSize: context.responsive.fontSizeCaption,
+                          color: isSelected
+                              ? Colors.white
+                              : AppColors.textSecondary,
                           fontWeight:
                               isSelected ? FontWeight.bold : FontWeight.w500,
                         ),
@@ -83,7 +111,7 @@ class FilterRow extends StatelessWidget {
               },
             ),
           ),
-          SizedBox(height: size.height * 0.02),
+          SizedBox(height: context.responsive.spacingM),
         ],
       ),
     );

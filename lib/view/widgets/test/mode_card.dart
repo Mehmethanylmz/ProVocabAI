@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import '../../../core/extensions/responsive_extension.dart';
 
 class ModeCard extends StatelessWidget {
   final String title;
@@ -24,15 +25,19 @@ class ModeCard extends StatelessWidget {
       onTap: enabled ? onTap : null,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 250),
-        padding: const EdgeInsets.symmetric(horizontal: 24),
+        padding: EdgeInsets.symmetric(
+          horizontal: context.responsive.spacingXL,
+          vertical: context.responsive.spacingL,
+        ),
         decoration: BoxDecoration(
           gradient: gradient,
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(context.responsive.borderRadiusL),
           boxShadow: [
             BoxShadow(
-                color: Colors.black.withOpacity(enabled ? 0.15 : 0.05),
-                blurRadius: 16,
-                offset: const Offset(0, 8)),
+              color: Colors.black.withOpacity(enabled ? 0.15 : 0.05),
+              blurRadius: 16,
+              offset: const Offset(0, 8),
+            ),
           ],
         ),
         child: Opacity(
@@ -40,30 +45,39 @@ class ModeCard extends StatelessWidget {
           child: Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(10),
+                padding: EdgeInsets.all(context.responsive.spacingM),
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(0.2),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(icon, size: 28, color: Colors.white),
+                child: Icon(
+                  icon,
+                  size: context.responsive.iconSizeM,
+                  color: Colors.white,
+                ),
               ),
-              const SizedBox(width: 16),
+              SizedBox(width: context.responsive.spacingL),
               Text(
                 title,
                 style: GoogleFonts.poppins(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white),
+                  fontSize: context.responsive.fontSizeH3,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                ),
               ),
               const Spacer(),
-              const Icon(Icons.arrow_forward_ios,
-                  color: Colors.white70, size: 16),
+              Icon(
+                Icons.arrow_forward_ios,
+                color: Colors.white70,
+                size: context.responsive.iconSizeS,
+              ),
             ],
           ),
         ),
       ).animate().scale(
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOutBack),
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOutBack,
+          ),
     );
   }
 }

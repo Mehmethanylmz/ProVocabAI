@@ -1,11 +1,14 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../viewmodel/home_viewmodel.dart';
 import '../../viewmodel/settings_viewmodel.dart';
 import '../../viewmodel/test_menu_viewmodel.dart';
 import 'onboarding_screen.dart';
+import '../../core/extensions/responsive_extension.dart';
+import '../../core/constants/app_colors.dart';
 
 class SettingsScreen extends StatefulWidget {
   final bool isFirstLaunch;
@@ -25,6 +28,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   bool _isInitialized = false;
 
+  // Localization key'leri kullanıyoruz
   final Map<String, String> languages = {
     'tr': 'Türkçe',
     'en': 'English',
@@ -34,10 +38,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
     'pt': 'Português',
   };
 
+  // Level'lar için localization key'leri
   final Map<String, String> levels = {
-    'beginner': 'Başlangıç (A1-A2)',
-    'intermediate': 'Orta (B1-B2)',
-    'advanced': 'İleri (C1-C2)',
+    'beginner': 'level_beginner'.tr(),
+    'intermediate': 'level_intermediate'.tr(),
+    'advanced': 'level_advanced'.tr(),
   };
 
   Future<void> _saveSettings(BuildContext context) async {
@@ -47,9 +52,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
     await viewModel.updateAutoPlaySound(_currentAutoPlaySound);
     await viewModel.updateLanguages(_currentSourceLang, _currentTargetLang);
     await viewModel.updateLevel(_currentProficiencyLevel);
+
     if (mounted) {
       await context.setLocale(Locale(_currentSourceLang));
     }
+
     if (widget.isFirstLaunch) {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('isFirstLaunch_v2', false);
@@ -68,7 +75,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Consumer<SettingsViewModel>(
       builder: (context, viewModel, child) {
         if (viewModel.isLoading) {
-          return Scaffold(body: Center(child: CircularProgressIndicator()));
+          return Scaffold(
+            body: Center(
+              child: CircularProgressIndicator(
+                color: AppColors.primary,
+              ),
+            ),
+          );
         }
 
         if (!_isInitialized) {
@@ -82,139 +95,59 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
         return Scaffold(
           appBar: AppBar(
-            title: Text('Ayarlar'),
+            title: Text(
+              'settings_title'.tr(),
+              style: GoogleFonts.poppins(
+                fontWeight: FontWeight.w600,
+                fontSize: context.responsive.fontSizeH2,
+              ),
+            ),
             centerTitle: true,
-            backgroundColor: Colors.blue[700],
-            foregroundColor: Colors.white,
+            backgroundColor: AppColors.primary,
+            foregroundColor: AppColors.surface,
           ),
           body: ListView(
-            padding: EdgeInsets.all(16),
+            padding: context.responsive.paddingPage,
             children: [
-              _buildSectionHeader('Dil Ayarları'),
-              ListTile(
-                title: Text('Ana Dilin'),
-                subtitle: Text(languages[_currentSourceLang] ?? ''),
-                trailing: DropdownButton<String>(
-                  value: _currentSourceLang,
-                  underline: SizedBox(),
-                  onChanged: (String? newValue) {
-                    if (newValue != null) {
-                      setState(() {
-                        _currentSourceLang = newValue;
-                        if (_currentTargetLang == newValue) {
-                          _currentTargetLang = newValue == 'en' ? 'tr' : 'en';
-                        }
-                      });
-                    }
-                  },
-                  items: languages.entries.map((e) {
-                    return DropdownMenuItem(value: e.key, child: Text(e.value));
-                  }).toList(),
-                ),
+              _buildSectionHeader('language_settings'.tr()),
+              _buildLanguageSettingItem(
+                context,
+                'native_language'.tr(),
+                languages[_currentSourceLang] ?? '',
+                _currentSourceLang,
+                (newValue) {
+                  if (newValue != null) {
+                    setState(() {
+                      _currentSourceLang = newValue;
+                      if (_currentTargetLang == newValue) {
+                        _currentTargetLang = newValue == 'en' ? 'tr' : 'en';
+                      }
+                    });
+                  }
+                },
               ),
-              ListTile(
-                title: Text('Öğrenilen Dil'),
-                subtitle: Text(languages[_currentTargetLang] ?? ''),
-                trailing: DropdownButton<String>(
-                  value: _currentTargetLang,
-                  underline: SizedBox(),
-                  onChanged: (String? newValue) {
-                    if (newValue != null && newValue != _currentSourceLang) {
-                      setState(() => _currentTargetLang = newValue);
-                    }
-                  },
-                  items: languages.entries.map((e) {
-                    return DropdownMenuItem(
-                      value: e.key,
-                      enabled: e.key != _currentSourceLang,
-                      child: Text(
-                        e.value,
-                        style: TextStyle(
-                          color: e.key == _currentSourceLang
-                              ? Colors.grey
-                              : Colors.black,
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                ),
+              _buildLanguageSettingItem(
+                context,
+                'target_language'.tr(),
+                languages[_currentTargetLang] ?? '',
+                _currentTargetLang,
+                (newValue) {
+                  if (newValue != null && newValue != _currentSourceLang) {
+                    setState(() => _currentTargetLang = newValue);
+                  }
+                },
+                enabled: _currentTargetLang != _currentSourceLang,
               ),
-              ListTile(
-                title: Text('Zorluk Seviyesi'),
-                subtitle: Text('Örnek cümlelerin karmaşıklığı'),
-                trailing: DropdownButton<String>(
-                  value: _currentProficiencyLevel,
-                  underline: SizedBox(),
-                  onChanged: (String? newValue) {
-                    if (newValue != null) {
-                      setState(() => _currentProficiencyLevel = newValue);
-                    }
-                  },
-                  items: levels.entries.map((e) {
-                    return DropdownMenuItem(value: e.key, child: Text(e.value));
-                  }).toList(),
-                ),
-              ),
-              Divider(height: 30),
-              _buildSectionHeader('Çalışma Ayarları'),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Günlük Kelime Hedefi: $_currentBatchSize'),
-                    Slider(
-                      value: _currentBatchSize.toDouble(),
-                      min: 5,
-                      max: 50,
-                      divisions: 9,
-                      label: _currentBatchSize.toString(),
-                      activeColor: Colors.blue[700],
-                      onChanged: (val) =>
-                          setState(() => _currentBatchSize = val.toInt()),
-                    ),
-                  ],
-                ),
-              ),
-              SwitchListTile(
-                title: Text('Otomatik Seslendirme'),
-                value: _currentAutoPlaySound,
-                activeThumbColor: Colors.blue[700],
-                onChanged: (val) => setState(() => _currentAutoPlaySound = val),
-              ),
-              SizedBox(height: 30),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue[700],
-                  foregroundColor: Colors.white,
-                  padding: EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                onPressed: () => _saveSettings(context),
-                child: Text('Kaydet', style: TextStyle(fontSize: 18)),
-              ),
+              _buildLevelSettingItem(context),
+              Divider(height: context.responsive.spacingXL),
+              _buildSectionHeader('study_settings'.tr()),
+              _buildBatchSizeSlider(context),
+              _buildAutoPlaySwitch(context),
+              SizedBox(height: context.responsive.spacingXL),
+              _buildSaveButton(context),
               if (!widget.isFirstLaunch) ...[
-                SizedBox(height: 20),
-                TextButton(
-                  onPressed: () async {
-                    final prefs = await SharedPreferences.getInstance();
-                    await prefs.setBool('isFirstLaunch_v2', true);
-                    if (context.mounted) {
-                      Navigator.of(context).pushAndRemoveUntil(
-                        MaterialPageRoute(
-                          builder: (context) => OnboardingScreen(),
-                        ),
-                        (route) => false,
-                      );
-                    }
-                  },
-                  child: Text(
-                    'Başlangıç Ekranına Dön (Reset)',
-                    style: TextStyle(color: Colors.grey),
-                  ),
-                ),
+                SizedBox(height: context.responsive.spacingL),
+                _buildResetButton(context),
               ],
             ],
           ),
@@ -225,14 +158,261 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Widget _buildSectionHeader(String title) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
+      padding: EdgeInsets.symmetric(
+        vertical: context.responsive.spacingS,
+        horizontal: context.responsive.spacingM,
+      ),
       child: Text(
         title,
-        style: TextStyle(
-          fontSize: 14,
+        style: GoogleFonts.poppins(
+          fontSize: context.responsive.fontSizeCaption,
           fontWeight: FontWeight.bold,
-          color: Colors.blue[900],
+          color: AppColors.primary,
           letterSpacing: 1.0,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLanguageSettingItem(
+    BuildContext context,
+    String title,
+    String subtitle,
+    String currentValue,
+    Function(String?) onChanged, {
+    bool enabled = true,
+  }) {
+    return Container(
+      margin: EdgeInsets.symmetric(vertical: context.responsive.spacingXS),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(context.responsive.borderRadiusM),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: ListTile(
+        title: Text(
+          title,
+          style: GoogleFonts.poppins(
+            fontSize: context.responsive.fontSizeBody,
+            fontWeight: FontWeight.w500,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        subtitle: Text(
+          subtitle,
+          style: GoogleFonts.poppins(
+            fontSize: context.responsive.fontSizeCaption,
+            color: AppColors.textSecondary,
+          ),
+        ),
+        trailing: DropdownButton<String>(
+          value: currentValue,
+          underline: const SizedBox(),
+          onChanged: enabled ? onChanged : null,
+          items: languages.entries.map((e) {
+            return DropdownMenuItem(
+              value: e.key,
+              enabled: e.key != _currentSourceLang ||
+                  title != 'target_language'.tr(),
+              child: Text(
+                e.value,
+                style: GoogleFonts.poppins(
+                  fontSize: context.responsive.fontSizeBody,
+                  color: (e.key == _currentSourceLang &&
+                          title == 'target_language'.tr())
+                      ? AppColors.textDisabled
+                      : AppColors.textPrimary,
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLevelSettingItem(BuildContext context) {
+    return Container(
+      margin: EdgeInsets.symmetric(vertical: context.responsive.spacingXS),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(context.responsive.borderRadiusM),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: ListTile(
+        title: Text(
+          'difficulty_level'.tr(),
+          style: GoogleFonts.poppins(
+            fontSize: context.responsive.fontSizeBody,
+            fontWeight: FontWeight.w500,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        subtitle: Text(
+          'difficulty_level_desc'.tr(),
+          style: GoogleFonts.poppins(
+            fontSize: context.responsive.fontSizeCaption,
+            color: AppColors.textSecondary,
+          ),
+        ),
+        trailing: DropdownButton<String>(
+          value: _currentProficiencyLevel,
+          underline: const SizedBox(),
+          onChanged: (String? newValue) {
+            if (newValue != null) {
+              setState(() => _currentProficiencyLevel = newValue);
+            }
+          },
+          items: levels.entries.map((e) {
+            return DropdownMenuItem(
+              value: e.key,
+              child: Text(
+                e.value,
+                style: GoogleFonts.poppins(
+                  fontSize: context.responsive.fontSizeBody,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBatchSizeSlider(BuildContext context) {
+    return Container(
+      margin: EdgeInsets.symmetric(vertical: context.responsive.spacingXS),
+      padding: EdgeInsets.all(context.responsive.spacingM),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(context.responsive.borderRadiusM),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '${'daily_goal'.tr()}: $_currentBatchSize',
+            style: GoogleFonts.poppins(
+              fontSize: context.responsive.fontSizeBody,
+              fontWeight: FontWeight.w500,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          SizedBox(height: context.responsive.spacingM),
+          Slider(
+            value: _currentBatchSize.toDouble(),
+            min: 5,
+            max: 50,
+            divisions: 9,
+            label: _currentBatchSize.toString(),
+            activeColor: AppColors.primary,
+            inactiveColor: AppColors.borderLight,
+            onChanged: (val) => setState(() => _currentBatchSize = val.toInt()),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAutoPlaySwitch(BuildContext context) {
+    return Container(
+      margin: EdgeInsets.symmetric(vertical: context.responsive.spacingXS),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(context.responsive.borderRadiusM),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: SwitchListTile(
+        title: Text(
+          'auto_play_sound'.tr(),
+          style: GoogleFonts.poppins(
+            fontSize: context.responsive.fontSizeBody,
+            fontWeight: FontWeight.w500,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        value: _currentAutoPlaySound,
+        activeColor: AppColors.primary,
+        activeTrackColor: AppColors.primary.withOpacity(0.3),
+        onChanged: (val) => setState(() => _currentAutoPlaySound = val),
+      ),
+    );
+  }
+
+  Widget _buildSaveButton(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.primary,
+          foregroundColor: AppColors.surface,
+          padding: EdgeInsets.symmetric(vertical: context.responsive.spacingM),
+          shape: RoundedRectangleBorder(
+            borderRadius:
+                BorderRadius.circular(context.responsive.borderRadiusL),
+          ),
+          elevation: context.responsive.elevationMedium,
+        ),
+        onPressed: () => _saveSettings(context),
+        child: Text(
+          'btn_save'.tr(),
+          style: GoogleFonts.poppins(
+            fontSize: context.responsive.fontSizeH3,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildResetButton(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      child: TextButton(
+        onPressed: () async {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setBool('isFirstLaunch_v2', true);
+          if (context.mounted) {
+            Navigator.of(context).pushAndRemoveUntil(
+              MaterialPageRoute(
+                builder: (context) => const OnboardingScreen(),
+              ),
+              (route) => false,
+            );
+          }
+        },
+        child: Text(
+          'reset_onboarding'.tr(),
+          style: GoogleFonts.poppins(
+            fontSize: context.responsive.fontSizeBody,
+            color: AppColors.textSecondary,
+          ),
         ),
       ),
     );

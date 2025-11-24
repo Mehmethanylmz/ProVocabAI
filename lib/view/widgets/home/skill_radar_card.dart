@@ -2,8 +2,9 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-// Extension Import
+import 'package:easy_localization/easy_localization.dart';
 import '../../../../core/extensions/responsive_extension.dart';
+import '../../../../core/constants/app_colors.dart';
 
 class SkillRadarCard extends StatelessWidget {
   final Map<String, double> volumeStats;
@@ -19,22 +20,19 @@ class SkillRadarCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final gridColor = Colors.white.withOpacity(0.1);
-    final titleColor = Colors.white.withOpacity(0.9);
-    final accuracyColor = const Color(0xFF50E3C2);
-    final volumeColor = const Color(0xFFFFB74D);
+    final gridColor = AppColors.surface.withOpacity(0.1);
+    final titleColor = AppColors.surface.withOpacity(0.9);
 
     return Container(
-      // Yükseklik: Mobilde 280, Tablette 350 (Daha rahat görünsün)
-      height: context.value(mobile: 280, tablet: 350),
-      margin: EdgeInsets.symmetric(vertical: context.normalValue),
+      height: context.responsive.value(mobile: 280, tablet: 350, desktop: 400),
+      margin: EdgeInsets.symmetric(vertical: context.responsive.spacingS),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [Color(0xFF2A2D3E), Color(0xFF1F2029)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(32),
+        borderRadius: BorderRadius.circular(context.responsive.borderRadiusXL),
         boxShadow: [
           BoxShadow(
             color: const Color(0xFF2A2D3E).withOpacity(0.5),
@@ -50,13 +48,13 @@ class SkillRadarCard extends StatelessWidget {
             top: -20,
             child: Icon(
               Icons.radar_outlined,
-              // İkon boyutu dinamik
-              size: context.value(mobile: 150, tablet: 200),
-              color: Colors.white.withOpacity(0.03),
+              size: context.responsive
+                  .value(mobile: 150, tablet: 200, desktop: 250),
+              color: AppColors.surface.withOpacity(0.03),
             ),
           ),
           Padding(
-            padding: context.paddingMedium, // 16 veya 24
+            padding: EdgeInsets.all(context.responsive.spacingM),
             child: Row(
               children: [
                 Expanded(
@@ -65,8 +63,8 @@ class SkillRadarCard extends StatelessWidget {
                     RadarChartData(
                       dataSets: [
                         RadarDataSet(
-                          fillColor: volumeColor.withOpacity(0.15),
-                          borderColor: volumeColor,
+                          fillColor: AppColors.chartVolume.withOpacity(0.15),
+                          borderColor: AppColors.chartVolume,
                           entryRadius: 2,
                           dataEntries: [
                             RadarEntry(value: volumeStats['speaking'] ?? 0),
@@ -77,8 +75,8 @@ class SkillRadarCard extends StatelessWidget {
                           borderWidth: 2,
                         ),
                         RadarDataSet(
-                          fillColor: accuracyColor.withOpacity(0.25),
-                          borderColor: accuracyColor,
+                          fillColor: AppColors.chartAccuracy.withOpacity(0.25),
+                          borderColor: AppColors.chartAccuracy,
                           entryRadius: 3,
                           dataEntries: [
                             RadarEntry(value: accuracyStats['speaking'] ?? 0),
@@ -96,23 +94,31 @@ class SkillRadarCard extends StatelessWidget {
                       titlePositionPercentageOffset: 0.2,
                       titleTextStyle: GoogleFonts.poppins(
                         color: titleColor,
-                        fontSize: context.fontSmall, // 10-12 arası
+                        fontSize: context.responsive.fontSizeCaption,
                         fontWeight: FontWeight.bold,
                       ),
-                      // ... (getTitle fonksiyonu aynı kalabilir) ...
                       getTitle: (index, angle) {
                         switch (index) {
                           case 0:
                             return RadarChartTitle(
-                                text: 'KONUŞMA', angle: angle);
+                              text: 'radar_speaking'.tr(),
+                              angle: angle,
+                            );
                           case 1:
                             return RadarChartTitle(
-                                text: 'DİNLEME', angle: angle);
+                              text: 'radar_listening'.tr(),
+                              angle: angle,
+                            );
                           case 2:
-                            return RadarChartTitle(text: 'TEST', angle: angle);
+                            return RadarChartTitle(
+                              text: 'radar_test'.tr(),
+                              angle: angle,
+                            );
                           case 3:
                             return RadarChartTitle(
-                                text: 'KELİME', angle: angle);
+                              text: 'radar_vocabulary'.tr(),
+                              angle: angle,
+                            );
                           default:
                             return const RadarChartTitle(text: '');
                         }
@@ -127,41 +133,46 @@ class SkillRadarCard extends StatelessWidget {
                     swapAnimationCurve: Curves.elasticOut,
                   ),
                 ),
-                SizedBox(width: context.mediumValue),
+                SizedBox(width: context.responsive.spacingM),
                 Expanded(
                   flex: 2,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      _buildLegendItem("Başarı", accuracyColor, context),
-                      SizedBox(height: context.lowValue),
-                      _buildLegendItem("Hacim", volumeColor, context),
-                      SizedBox(height: context.mediumValue),
+                      _buildLegendItem("radar_accuracy".tr(),
+                          AppColors.chartAccuracy, context),
+                      SizedBox(height: context.responsive.spacingXS),
+                      _buildLegendItem(
+                          "radar_volume".tr(), AppColors.chartVolume, context),
+                      SizedBox(height: context.responsive.spacingM),
                       Container(
                         padding: EdgeInsets.symmetric(
-                            horizontal: context.normalValue,
-                            vertical: context.lowValue),
+                          horizontal: context.responsive.spacingS,
+                          vertical: context.responsive.spacingXS,
+                        ),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.white24),
+                          color: AppColors.surface.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(
+                              context.responsive.borderRadiusS),
+                          border: Border.all(
+                              color: AppColors.surface.withOpacity(0.2)),
                         ),
                         child: Text(
-                          "ANALİZ",
+                          "radar_analysis".tr(),
                           style: GoogleFonts.poppins(
-                            color: Colors.white,
-                            fontSize: context.fontSmall,
+                            color: AppColors.surface,
+                            fontSize: context.responsive.fontSizeCaption,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                       ),
-                      SizedBox(height: context.normalValue),
+                      SizedBox(height: context.responsive.spacingS),
                       Text(
                         message,
                         style: GoogleFonts.poppins(
-                          color: Colors.white.withOpacity(0.9),
-                          fontSize: context.fontSmall, // Dinamik font
+                          color: AppColors.surface.withOpacity(0.9),
+                          fontSize: context.responsive.fontSizeCaption,
                           height: 1.4,
                           fontWeight: FontWeight.w400,
                         ),
@@ -181,21 +192,25 @@ class SkillRadarCard extends StatelessWidget {
     return Row(
       children: [
         Container(
-          width: context.value(mobile: 8, tablet: 10),
-          height: context.value(mobile: 8, tablet: 10),
+          width: context.responsive.value(mobile: 8, tablet: 10, desktop: 12),
+          height: context.responsive.value(mobile: 8, tablet: 10, desktop: 12),
           decoration: BoxDecoration(
-              color: color,
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(color: color.withOpacity(0.6), blurRadius: 6)
-              ]),
+            color: color,
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: color.withOpacity(0.6),
+                blurRadius: 6,
+              ),
+            ],
+          ),
         ),
-        SizedBox(width: context.lowValue),
+        SizedBox(width: context.responsive.spacingXS),
         Text(
           text,
           style: GoogleFonts.poppins(
-            color: Colors.white70,
-            fontSize: context.fontSmall,
+            color: AppColors.surface.withOpacity(0.8),
+            fontSize: context.responsive.fontSizeCaption,
           ),
         ),
       ],

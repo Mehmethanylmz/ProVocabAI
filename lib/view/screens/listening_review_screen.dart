@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:easy_localization/easy_localization.dart';
 import '../../data/models/word_model.dart';
 import '../../viewmodel/review_viewmodel.dart';
 import 'test_result_screen.dart';
+import '../../core/extensions/responsive_extension.dart';
+import '../../core/constants/app_colors.dart';
 
 class ListeningReviewScreen extends StatefulWidget {
   const ListeningReviewScreen({super.key});
@@ -29,15 +32,8 @@ class _ListeningReviewScreenState extends State<ListeningReviewScreen> {
   @override
   void dispose() {
     _controller.dispose();
-    _focus_nodeDispose();
+    _focusNode.dispose();
     super.dispose();
-  }
-
-  // small helper because some codebases prefer explicit null-safety handling
-  void _focus_nodeDispose() {
-    try {
-      _focusNode.dispose();
-    } catch (_) {}
   }
 
   Future<void> _loadNextWord() async {
@@ -110,14 +106,19 @@ class _ListeningReviewScreenState extends State<ListeningReviewScreen> {
     if (viewModel.isLoading || _currentWord == null) {
       return Scaffold(
         body: Container(
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: [Color(0xFFF0F7FF), Colors.white],
+              colors: [AppColors.primary.withOpacity(0.05), AppColors.surface],
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
             ),
           ),
-          child: const Center(child: CircularProgressIndicator(strokeWidth: 3)),
+          child: Center(
+            child: CircularProgressIndicator(
+              strokeWidth: 3,
+              color: AppColors.primary,
+            ),
+          ),
         ),
       );
     }
@@ -138,13 +139,24 @@ class _ListeningReviewScreenState extends State<ListeningReviewScreen> {
         elevation: 0,
         centerTitle: true,
         title: Text(
-          'Dinleme Testi',
-          style: GoogleFonts.poppins(fontSize: 22, fontWeight: FontWeight.w700),
+          'listening_test'.tr(),
+          style: GoogleFonts.poppins(
+            fontSize: context.responsive.fontSizeH2,
+            fontWeight: FontWeight.w700,
+            color: AppColors.textPrimary,
+          ),
         ),
         bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(56),
+          preferredSize: Size.fromHeight(context.responsive.value(
+            mobile: 56,
+            tablet: 64,
+            desktop: 72,
+          )),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8),
+            padding: EdgeInsets.symmetric(
+              horizontal: context.responsive.spacingL,
+              vertical: context.responsive.spacingS,
+            ),
             child: Column(
               children: [
                 Row(
@@ -152,54 +164,66 @@ class _ListeningReviewScreenState extends State<ListeningReviewScreen> {
                   children: [
                     Text(
                       '${(progress * viewModel.totalWordsInReview).toInt()}/${viewModel.totalWordsInReview}',
-                      style: GoogleFonts.poppins(color: Colors.black54),
+                      style: GoogleFonts.poppins(
+                        color: AppColors.textSecondary,
+                        fontSize: context.responsive.fontSizeBody,
+                      ),
                     ),
                     IconButton(
                       onPressed: () => viewModel.speakCurrentWord(),
-                      icon: Icon(Icons.volume_up_rounded,
-                          color: Colors.indigo.shade700),
+                      icon: Icon(
+                        Icons.volume_up_rounded,
+                        color: AppColors.primary,
+                        size: context.responsive.iconSizeM,
+                      ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 6),
+                SizedBox(height: context.responsive.spacingXS),
                 ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius:
+                      BorderRadius.circular(context.responsive.borderRadiusM),
                   child: LinearProgressIndicator(
                     value: progress,
-                    minHeight: 8,
-                    backgroundColor: Colors.grey.shade200,
-                    valueColor: AlwaysStoppedAnimation(Colors.indigo.shade400),
+                    minHeight: context.responsive.value(
+                      mobile: 8,
+                      tablet: 10,
+                      desktop: 12,
+                    ),
+                    backgroundColor: AppColors.borderLight,
+                    valueColor: AlwaysStoppedAnimation(AppColors.primary),
                   ),
                 ),
-                const SizedBox(height: 8),
+                SizedBox(height: context.responsive.spacingS),
               ],
             ),
           ),
         ),
       ),
       body: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [Color(0xFFF0F7FF), Colors.white],
+            colors: [AppColors.primary.withOpacity(0.05), AppColors.surface],
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
           ),
         ),
         child: SafeArea(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(20),
+            padding: context.responsive.paddingPage,
             child: Column(
               children: [
                 // Big Card with instruction
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.all(26),
+                  padding: EdgeInsets.all(context.responsive.spacingL),
                   decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(28),
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(
+                        context.responsive.borderRadiusXL),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.indigo.withOpacity(0.12),
+                        color: AppColors.primary.withOpacity(0.12),
                         blurRadius: 28,
                         offset: const Offset(0, 12),
                       )
@@ -208,45 +232,62 @@ class _ListeningReviewScreenState extends State<ListeningReviewScreen> {
                   child: Column(
                     children: [
                       Text(
-                        'Duy ve Yaz',
+                        'listen_and_write'.tr(),
                         style: GoogleFonts.poppins(
-                          fontSize: 18,
+                          fontSize: context.responsive.fontSizeH3,
                           fontWeight: FontWeight.w600,
-                          color: Colors.indigo.shade800,
+                          color: AppColors.primary,
                         ),
                       ),
-                      const SizedBox(height: 8),
+                      SizedBox(height: context.responsive.spacingS),
                       Text(
-                        'Aşağıdaki butona dokun, kelimeyi dinle ve kutuya yaz.',
+                        'listening_instruction'.tr(),
                         textAlign: TextAlign.center,
                         style: GoogleFonts.roboto(
-                          fontSize: 14,
-                          color: Colors.grey[700],
+                          fontSize: context.responsive.fontSizeBody,
+                          color: AppColors.textSecondary,
                         ),
                       ),
-                      const SizedBox(height: 18),
+                      SizedBox(height: context.responsive.spacingM),
 
                       // Big speaker with subtle pulse
                       GestureDetector(
                         onTap: () => viewModel.speakCurrentWord(),
                         child: Container(
-                          width: 120,
-                          height: 120,
+                          width: context.responsive.value(
+                            mobile: 100,
+                            tablet: 120,
+                            desktop: 140,
+                          ),
+                          height: context.responsive.value(
+                            mobile: 100,
+                            tablet: 120,
+                            desktop: 140,
+                          ),
                           decoration: BoxDecoration(
-                            color: Colors.indigo.shade50,
+                            color: AppColors.primary.withOpacity(0.1),
                             shape: BoxShape.circle,
                             border: Border.all(
-                                color: Colors.indigo.shade100, width: 2),
+                              color: AppColors.primary.withOpacity(0.3),
+                              width: 2,
+                            ),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.indigo.withOpacity(0.06),
+                                color: AppColors.primary.withOpacity(0.1),
                                 blurRadius: 20,
                                 offset: const Offset(0, 10),
                               )
                             ],
                           ),
-                          child: Icon(Icons.volume_up_rounded,
-                              size: 56, color: Colors.indigo.shade700),
+                          child: Icon(
+                            Icons.volume_up_rounded,
+                            size: context.responsive.value(
+                              mobile: 48,
+                              tablet: 56,
+                              desktop: 64,
+                            ),
+                            color: AppColors.primary,
+                          ),
                         )
                             .animate(
                                 onPlay: (controller) => controller.repeat())
@@ -256,12 +297,14 @@ class _ListeningReviewScreenState extends State<ListeningReviewScreen> {
                   ),
                 ),
 
-                const SizedBox(height: 28),
+                SizedBox(height: context.responsive.spacingL),
 
                 // Input field
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: context.responsive.spacingS,
+                  ),
                   child: Column(
                     children: [
                       TextField(
@@ -270,60 +313,87 @@ class _ListeningReviewScreenState extends State<ListeningReviewScreen> {
                         enabled: !_isAnswered,
                         textAlign: TextAlign.center,
                         style: GoogleFonts.poppins(
-                            fontSize: 22, fontWeight: FontWeight.w700),
+                          fontSize: context.responsive.fontSizeH2,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                        ),
                         decoration: InputDecoration(
-                          hintText: 'Buraya yazın...',
+                          hintText: 'write_here'.tr(),
+                          hintStyle: GoogleFonts.poppins(
+                            color: AppColors.textDisabled,
+                          ),
                           filled: true,
-                          fillColor: Colors.white,
-                          contentPadding: const EdgeInsets.symmetric(
-                              vertical: 18, horizontal: 20),
+                          fillColor: AppColors.surface,
+                          contentPadding: EdgeInsets.symmetric(
+                            vertical: context.responsive.spacingM,
+                            horizontal: context.responsive.spacingL,
+                          ),
                           border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(14),
+                            borderRadius: BorderRadius.circular(
+                              context.responsive.borderRadiusL,
+                            ),
                             borderSide: BorderSide.none,
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(
+                              context.responsive.borderRadiusL,
+                            ),
+                            borderSide: BorderSide(
+                              color: AppColors.primary,
+                              width: 2,
+                            ),
                           ),
                         ),
                         onSubmitted: (_) => _checkAnswer(),
                       ),
-
-                      const SizedBox(height: 18),
-
-                      // Hint / small info
+                      SizedBox(height: context.responsive.spacingM),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.info_outline,
-                              size: 16, color: Colors.grey[600]),
-                          const SizedBox(width: 8),
+                          Icon(
+                            Icons.info_outline,
+                            size: context.responsive.iconSizeS,
+                            color: AppColors.textSecondary,
+                          ),
+                          SizedBox(width: context.responsive.spacingXS),
                           Text(
-                              'Büyük/küçük harf önemli değil. Boşluklar otomatik kırpılır.',
-                              style: GoogleFonts.roboto(
-                                  fontSize: 12, color: Colors.grey[600])),
+                            'case_sensitive_info'.tr(),
+                            style: GoogleFonts.roboto(
+                              fontSize: context.responsive.fontSizeCaption,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
                         ],
                       ),
                     ],
                   ),
                 ),
 
-                const SizedBox(height: 22),
+                SizedBox(height: context.responsive.spacingL),
 
                 // Feedback card (after answer)
                 if (_isAnswered) ...[
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.all(18),
+                    padding: EdgeInsets.all(context.responsive.spacingM),
                     decoration: BoxDecoration(
                       color: _isCorrect
-                          ? Colors.green.shade50
-                          : Colors.red.shade50,
-                      borderRadius: BorderRadius.circular(16),
+                          ? AppColors.success.withOpacity(0.1)
+                          : AppColors.error.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(
+                        context.responsive.borderRadiusL,
+                      ),
                       border: Border.all(
-                          color: _isCorrect
-                              ? Colors.green.shade200
-                              : Colors.red.shade200),
+                        color: _isCorrect
+                            ? AppColors.success.withOpacity(0.3)
+                            : AppColors.error.withOpacity(0.3),
+                        width: 1.5,
+                      ),
                       boxShadow: [
                         BoxShadow(
-                          color: (_isCorrect ? Colors.green : Colors.red)
-                              .withOpacity(0.08),
+                          color:
+                              (_isCorrect ? AppColors.success : AppColors.error)
+                                  .withOpacity(0.08),
                           blurRadius: 18,
                           offset: const Offset(0, 8),
                         )
@@ -337,69 +407,94 @@ class _ListeningReviewScreenState extends State<ListeningReviewScreen> {
                             Icon(
                               _isCorrect ? Icons.check_circle : Icons.cancel,
                               color: _isCorrect
-                                  ? Colors.green.shade700
-                                  : Colors.red.shade700,
-                              size: 28,
+                                  ? AppColors.success
+                                  : AppColors.error,
+                              size: context.responsive.iconSizeL,
                             ),
-                            const SizedBox(width: 10),
+                            SizedBox(width: context.responsive.spacingS),
                             Text(
-                              _isCorrect ? 'Doğru!' : 'Yanlış',
+                              _isCorrect ? 'correct'.tr() : 'wrong'.tr(),
                               style: GoogleFonts.poppins(
-                                  fontSize: 18, fontWeight: FontWeight.w700),
+                                fontSize: context.responsive.fontSizeH3,
+                                fontWeight: FontWeight.w700,
+                                color: _isCorrect
+                                    ? AppColors.success
+                                    : AppColors.error,
+                              ),
                             ),
                           ],
                         ),
                         if (!_isCorrect) ...[
-                          const SizedBox(height: 12),
-                          Text('Doğrusu: ${"${targetContent['word']}"}',
-                              style: GoogleFonts.poppins(
-                                  fontWeight: FontWeight.w600)),
+                          SizedBox(height: context.responsive.spacingS),
+                          Text(
+                            'correct_answer'
+                                .tr(args: [targetContent['word'] ?? '']),
+                            style: GoogleFonts.poppins(
+                              fontSize: context.responsive.fontSizeBody,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
                         ],
-                        const SizedBox(height: 12),
+                        SizedBox(height: context.responsive.spacingS),
                         Text(
-                            '${sourceContent['word']} (${sourceContent['meaning']})',
-                            style: GoogleFonts.roboto(color: Colors.grey[700])),
+                          '${sourceContent['word']} (${sourceContent['meaning']})',
+                          style: GoogleFonts.roboto(
+                            fontSize: context.responsive.fontSizeBody,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
                       ],
                     ),
                   ).animate().fadeIn().slideY(begin: 0.2),
-                  const SizedBox(height: 18),
+                  SizedBox(height: context.responsive.spacingM),
                 ],
 
                 // Action button
                 SizedBox(
                   width: double.infinity,
-                  height: 56,
+                  height: context.responsive.value(
+                    mobile: 56,
+                    tablet: 60,
+                    desktop: 64,
+                  ),
                   child: ElevatedButton(
                     onPressed: _isAnswered ? _loadNextWord : _checkAnswer,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: _isAnswered
-                          ? (_isCorrect
-                              ? Colors.green.shade700
-                              : Colors.red.shade700)
-                          : Colors.indigo.shade600,
+                          ? (_isCorrect ? AppColors.success : AppColors.error)
+                          : AppColors.primary,
                       shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14)),
-                      elevation: 10,
-                      shadowColor: Colors.indigo.withOpacity(0.25),
+                        borderRadius: BorderRadius.circular(
+                          context.responsive.borderRadiusL,
+                        ),
+                      ),
+                      elevation: context.responsive.elevationHigh,
+                      shadowColor: AppColors.primary.withOpacity(0.3),
                     ),
                     child: Text(
-                      _isAnswered ? 'Devam Et' : 'Kontrol Et',
+                      _isAnswered ? 'continue'.tr() : 'check_answer'.tr(),
                       style: GoogleFonts.poppins(
-                          fontSize: 18, fontWeight: FontWeight.w700),
+                        fontSize: context.responsive.fontSizeH3,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.surface,
+                      ),
                     ),
                   ),
                 ),
 
-                const SizedBox(height: 26),
+                SizedBox(height: context.responsive.spacingL),
 
                 // Small footer: example sentence
                 if (_isAnswered)
                   Text(
                     word.getSentence(
-                            viewModel.proficiencyLevel, viewModel.targetLang) ??
-                        '',
+                        viewModel.proficiencyLevel, viewModel.targetLang),
                     textAlign: TextAlign.center,
-                    style: GoogleFonts.poppins(color: Colors.grey[700]),
+                    style: GoogleFonts.poppins(
+                      fontSize: context.responsive.fontSizeBody,
+                      color: AppColors.textSecondary,
+                    ),
                   ),
               ],
             ),

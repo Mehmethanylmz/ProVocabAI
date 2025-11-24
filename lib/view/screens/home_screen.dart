@@ -4,14 +4,22 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:easy_localization/easy_localization.dart';
+
 import '../../viewmodel/home_viewmodel.dart';
 import '../../viewmodel/test_menu_viewmodel.dart';
 import '../../viewmodel/main_viewmodel.dart';
+import '../../viewmodel/review_viewmodel.dart';
+
 import 'settings_screen.dart';
+import 'multiple_choice_review_screen.dart';
+
 import '../widgets/home/skill_radar_card.dart';
 import '../widgets/home/dashboard_stats_grid.dart';
 import '../widgets/home/word_tier_panel.dart';
 import '../widgets/home/activity_history_list.dart';
+
+import '../../core/extensions/responsive_extension.dart';
+import '../../core/constants/app_colors.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -34,6 +42,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     final viewModel = context.watch<HomeViewModel>();
+
     if (viewModel.difficultWords.length > 2 && !_difficultWordsPopupShown) {
       _difficultWordsPopupShown = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -44,20 +53,69 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  Future<void> _quickStartTest() async {
+    final reviewVM = context.read<ReviewViewModel>();
+    final testMenuVM = context.read<TestMenuViewModel>();
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      await testMenuVM.loadTestData();
+      final status = await reviewVM.startReview(
+        'daily',
+        categoryFilter: ['all'],
+        grammarFilter: ['all'],
+      );
+
+      if (!mounted) return;
+      Navigator.pop(context);
+
+      if (status == ReviewStatus.success) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const MultipleChoiceReviewScreen()),
+        ).then((_) {
+          if (mounted) {
+            testMenuVM.loadTestData();
+            context.read<HomeViewModel>().loadHomeData();
+          }
+        });
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("daily_goal_completed".tr()),
+            backgroundColor: AppColors.error,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+        context.read<MainViewModel>().changeTab(1);
+      }
+    } catch (e) {
+      if (mounted) Navigator.pop(context);
+      debugPrint("Hızlı başlatma hatası: $e");
+    }
+  }
+
   void _shareProgress(BuildContext context) {
     final viewModel = context.read<HomeViewModel>();
     final shareText = viewModel.generateShareProgressText();
 
     if (shareText != null) {
-      Share.share(shareText, subject: 'Kelime İlerlemem');
+      Share.share(shareText, subject: 'progress_share_subject'.tr());
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('İstatistikler yüklenemedi.'),
-          backgroundColor: Colors.red[400],
+          content: Text('stats_not_loaded'.tr()),
+          backgroundColor: AppColors.error,
           behavior: SnackBarBehavior.floating,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius:
+                BorderRadius.circular(context.responsive.borderRadiusM),
+          ),
         ),
       );
     }
@@ -65,51 +123,57 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _showDifficultWordsDialog(int difficultWordCount) {
     if (!mounted) return;
-    final isSmallScreen = MediaQuery.of(context).size.width < 600;
 
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius:
+              BorderRadius.circular(context.responsive.borderRadiusXL),
+        ),
+        backgroundColor: AppColors.surface,
         title: Column(
           children: [
             Container(
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.all(context.responsive.spacingM),
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Colors.red[400]!, Colors.red[600]!],
-                ),
+                gradient:
+                    LinearGradient(colors: [AppColors.error, Colors.red[700]!]),
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.red.withOpacity(0.3),
+                    color: AppColors.error.withOpacity(0.3),
                     blurRadius: 15,
                     offset: const Offset(0, 5),
                   ),
                 ],
               ),
-              child: const Icon(Icons.warning_amber_rounded,
-                  color: Colors.white, size: 40),
+              child: Icon(
+                Icons.warning_amber_rounded,
+                color: AppColors.surface,
+                size: context.responsive.iconSizeL,
+              ),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: context.responsive.spacingM),
             Text(
-              'Zor Kelimeler Tespit Edildi',
+              'difficult_words_detected'.tr(),
               style: GoogleFonts.poppins(
-                fontSize: isSmallScreen ? 20 : 24,
+                fontSize: context.responsive.fontSizeH3,
                 fontWeight: FontWeight.bold,
-                color: Colors.red[700],
+                color: AppColors.error,
               ),
               textAlign: TextAlign.center,
             ),
           ],
         ),
         content: Text(
-          'Art arda hata yaptığın $difficultWordCount kelime var. Bunları "Test Alanı"ndan tekrar edebilirsin.',
+          'difficult_words_description'
+              .tr()
+              .replaceFirst('{}', difficultWordCount.toString()),
           style: GoogleFonts.poppins(
-            fontSize: isSmallScreen ? 14 : 16,
+            fontSize: context.responsive.fontSizeBody,
             height: 1.5,
-            color: Colors.grey[700],
+            color: AppColors.textSecondary,
           ),
           textAlign: TextAlign.center,
         ),
@@ -117,19 +181,22 @@ class _HomeScreenState extends State<HomeScreen> {
           Center(
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red[600],
+                backgroundColor: AppColors.error,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
+                  borderRadius:
+                      BorderRadius.circular(context.responsive.borderRadiusL),
                 ),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 40, vertical: 14),
-                elevation: 5,
+                padding: EdgeInsets.symmetric(
+                  horizontal: context.responsive.spacingL,
+                  vertical: context.responsive.spacingM,
+                ),
+                elevation: context.responsive.elevationMedium,
               ),
               child: Text(
-                'Anladım',
+                'understood'.tr(),
                 style: GoogleFonts.poppins(
-                  fontSize: isSmallScreen ? 16 : 18,
-                  color: Colors.white,
+                  fontSize: context.responsive.fontSizeBody,
+                  color: AppColors.surface,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -144,166 +211,161 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final viewModel = context.watch<HomeViewModel>();
-    final size = MediaQuery.of(context).size;
-    final isSmallScreen = size.width < 600;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FD),
+      backgroundColor: AppColors.background,
       body: CustomScrollView(
         controller: _scrollController,
         physics: const BouncingScrollPhysics(),
         slivers: [
-          // --- APP BAR ---
           SliverAppBar(
             pinned: true,
             floating: true,
-            backgroundColor: const Color(0xFFF8F9FD),
+            backgroundColor: AppColors.background,
             elevation: 0,
             surfaceTintColor: Colors.transparent,
             title: Text(
               'dashboard_title'.tr(),
               style: GoogleFonts.poppins(
                 fontWeight: FontWeight.bold,
-                fontSize: 24,
-                color: Colors.black87,
+                fontSize: context.responsive.fontSizeH2,
+                color: AppColors.textPrimary,
               ),
             ),
             actions: [
               Container(
-                margin: const EdgeInsets.only(right: 8),
+                margin: EdgeInsets.only(right: context.responsive.spacingS),
                 decoration: BoxDecoration(
-                  color: Colors.blue[50],
-                  borderRadius: BorderRadius.circular(12),
+                  color: AppColors.primary.withOpacity(0.1),
+                  borderRadius:
+                      BorderRadius.circular(context.responsive.borderRadiusM),
                 ),
                 child: IconButton(
-                  icon: Icon(Icons.share_rounded, color: Colors.blue[700]),
+                  icon: Icon(
+                    Icons.share_rounded,
+                    color: AppColors.primary,
+                    size: context.responsive.iconSizeM,
+                  ),
                   onPressed: () => _shareProgress(context),
-                  tooltip: 'Paylaş',
+                  tooltip: 'share'.tr(),
                 ),
               ),
-              // Ayarlar Butonu
               Container(
-                margin: const EdgeInsets.only(right: 16),
+                margin: EdgeInsets.only(right: context.responsive.spacingM),
                 decoration: BoxDecoration(
-                  color: Colors.purple[50],
-                  borderRadius: BorderRadius.circular(12),
+                  color: AppColors.info.withOpacity(0.1),
+                  borderRadius:
+                      BorderRadius.circular(context.responsive.borderRadiusM),
                 ),
                 child: IconButton(
-                  icon: Icon(Icons.settings_rounded, color: Colors.purple[700]),
+                  icon: Icon(
+                    Icons.settings_rounded,
+                    color: AppColors.info,
+                    size: context.responsive.iconSizeM,
+                  ),
                   onPressed: () => Navigator.push(
                     context,
                     MaterialPageRoute(builder: (_) => const SettingsScreen()),
                   ),
-                  tooltip: 'Ayarlar',
+                  tooltip: 'settings'.tr(),
                 ),
               ),
             ],
           ),
-
           SliverPadding(
-            padding: EdgeInsets.symmetric(horizontal: isSmallScreen ? 16 : 24),
+            padding: context.responsive.paddingPage.copyWith(top: 0),
             sliver: SliverList(
               delegate: SliverChildListDelegate([
-                const SizedBox(height: 16),
+                SizedBox(height: context.responsive.spacingM),
                 _buildSectionHeader(
-                  'AI Koç Analizi',
-                  'Beceri ve çalışma hacmi analizi',
-                  const [Color(0xFF667eea), Color(0xFF764ba2)],
+                  'ai_coach_analysis'.tr(),
+                  'skill_volume_analysis'.tr(),
+                  AppColors.gradientPurple,
+                  context,
                 ).animate().fadeIn(delay: 100.ms).slideX(begin: -0.1),
-
-                const SizedBox(height: 16),
-
+                SizedBox(height: context.responsive.spacingM),
                 SkillRadarCard(
                   volumeStats: viewModel.volumeStats,
                   accuracyStats: viewModel.accuracyStats,
                   message: viewModel.coachMessage,
                 ),
-
-                const SizedBox(height: 32),
-
+                SizedBox(height: context.responsive.spacingL),
                 _buildSectionHeader(
-                  'Hızlı İstatistikler',
-                  'Günlük, haftalık ve aylık performansın',
-                  const [Color(0xFF4facfe), Color(0xFF00f2fe)],
+                  'quick_stats'.tr(),
+                  'daily_weekly_monthly_performance'.tr(),
+                  AppColors.gradientBlue,
+                  context,
                 ).animate().fadeIn(delay: 200.ms).slideX(begin: -0.1),
-
-                const SizedBox(height: 16),
-
+                SizedBox(height: context.responsive.spacingM),
                 DashboardStatsGrid(
                   stats: viewModel.stats,
                 ),
-
-                const SizedBox(height: 32),
-
+                SizedBox(height: context.responsive.spacingL),
                 _buildSectionHeader(
-                  'Kelime Seviyeleri',
-                  'Kelimelerinin seviye dağılımı',
-                  const [Color(0xFF11998e), Color(0xFF38ef7d)],
+                  'word_levels'.tr(),
+                  'word_level_distribution'.tr(),
+                  AppColors.gradientGreen,
+                  context,
                 ).animate().fadeIn(delay: 300.ms).slideX(begin: -0.1),
-
-                const SizedBox(height: 16),
-
+                SizedBox(height: context.responsive.spacingM),
                 WordTierPanel(
                   tierDistribution: viewModel.stats?.tierDistribution ?? {},
                 ),
-
-                const SizedBox(height: 32),
-
-                // 4. Detaylı Geçmiş
+                SizedBox(height: context.responsive.spacingL),
                 _buildSectionHeader(
-                  'Detaylı Analiz',
-                  'Aylık ve haftalık aktivite geçmişin',
-                  const [Color(0xFFF093FB), Color(0xFFF5576C)],
+                  'detailed_analysis'.tr(),
+                  'monthly_weekly_activity_history'.tr(),
+                  AppColors.gradientPink,
+                  context,
                 ).animate().fadeIn(delay: 400.ms).slideX(begin: -0.1),
-
-                const SizedBox(height: 16),
-
+                SizedBox(height: context.responsive.spacingM),
                 const ActivityHistoryList(),
-
-                const SizedBox(height: 100), // Alt kısımda boşluk (FAB için)
+                SizedBox(height: context.responsive.fabMarginBottom),
               ]),
             ),
           ),
         ],
       ),
-
-      // --- GÜNCELLENMİŞ HIZLI BAŞLA BUTONU ---
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          // 1. Test verilerini arka planda tazeleyelim ki hazır olsun
-          context.read<TestMenuViewModel>().loadTestData();
-
-          // 2. MainViewModel aracılığıyla sekmeyi "1" (Test Sekmesi) yapalım.
-          // Bu işlem anında Test Ekranını açar.
-          context.read<MainViewModel>().changeTab(1);
-        },
-        backgroundColor: Colors.blue[600],
-        elevation: 6,
-        icon: const Icon(Icons.rocket_launch_rounded, color: Colors.white),
-        label: Text(
-          'Hızlı Başla',
-          style: GoogleFonts.poppins(
-            color: Colors.white,
-            fontWeight: FontWeight.w600,
+      floatingActionButton: Padding(
+        padding: EdgeInsets.only(bottom: context.responsive.fabMarginBottom),
+        child: FloatingActionButton.extended(
+          onPressed: _quickStartTest,
+          backgroundColor: AppColors.primary,
+          elevation: context.responsive.elevationHigh,
+          icon: Icon(
+            Icons.rocket_launch_rounded,
+            color: AppColors.surface,
+            size: context.responsive.iconSizeM,
           ),
-        ),
-      )
-          .animate(onPlay: (c) => c.repeat(reverse: false))
-          .shimmer(duration: 2000.ms, color: Colors.white.withOpacity(0.3)),
+          label: Text(
+            'quick_start'.tr(),
+            style: GoogleFonts.poppins(
+              color: AppColors.surface,
+              fontWeight: FontWeight.w600,
+              fontSize: context.responsive.fontSizeBody,
+            ),
+          ),
+        ).animate(onPlay: (c) => c.repeat(reverse: true)).shimmer(
+            duration: 2000.ms, color: AppColors.surface.withOpacity(0.3)),
+      ),
     );
   }
 
-  // Bölüm Başlığı Yardımcı Widget'ı
   Widget _buildSectionHeader(
     String title,
     String subtitle,
     List<Color> gradientColors,
+    BuildContext context,
   ) {
     return Row(
       children: [
         Container(
           width: 4,
-          height: 36,
+          height: context.responsive.value(
+            mobile: 32,
+            tablet: 36,
+            desktop: 40,
+          ),
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: gradientColors,
@@ -313,7 +375,7 @@ class _HomeScreenState extends State<HomeScreen> {
             borderRadius: BorderRadius.circular(2),
           ),
         ),
-        const SizedBox(width: 12),
+        SizedBox(width: context.responsive.spacingS),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -321,17 +383,17 @@ class _HomeScreenState extends State<HomeScreen> {
               Text(
                 title,
                 style: GoogleFonts.poppins(
-                  fontSize: 20,
+                  fontSize: context.responsive.fontSizeH3,
                   fontWeight: FontWeight.bold,
-                  color: Colors.black87,
+                  color: AppColors.textPrimary,
                   letterSpacing: -0.5,
                 ),
               ),
               Text(
                 subtitle,
                 style: GoogleFonts.poppins(
-                  fontSize: 12,
-                  color: Colors.grey[600],
+                  fontSize: context.responsive.fontSizeCaption,
+                  color: AppColors.textSecondary,
                   fontWeight: FontWeight.w400,
                 ),
               ),

@@ -1,15 +1,16 @@
-// lib/screens/review/multiple_choice_review_screen.dart
-
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:collection/collection.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 import '../../data/models/word_model.dart';
 import '../../viewmodel/review_viewmodel.dart';
 import 'test_result_screen.dart';
+import '../../core/extensions/responsive_extension.dart';
+import '../../core/constants/app_colors.dart';
 
 class MultipleChoiceReviewScreen extends StatefulWidget {
   const MultipleChoiceReviewScreen({super.key});
@@ -122,87 +123,109 @@ class _MultipleChoiceReviewScreenState
     final isSelected = _selectedOptionIndex == index;
     final isCorrect = index == _correctOptionIndex;
 
-    Color bgColor = Colors.white;
-    Color borderColor = Colors.grey.shade200;
-    Color textColor = Colors.grey[800]!;
+    Color bgColor = AppColors.surface;
+    Color borderColor = AppColors.borderLight;
+    Color textColor = AppColors.textPrimary;
     IconData? icon;
     Color? iconColor;
 
     if (_isAnswered) {
       if (isCorrect) {
-        bgColor = Colors.green.shade50;
-        borderColor = Colors.green.shade400;
-        textColor = Colors.green.shade900;
+        bgColor = AppColors.success.withOpacity(0.1);
+        borderColor = AppColors.success;
+        textColor = AppColors.success;
         icon = Icons.check_circle;
-        iconColor = Colors.green.shade600;
+        iconColor = AppColors.success;
       } else if (isSelected && _selectedOptionIndex != -1) {
-        bgColor = Colors.red.shade50;
-        borderColor = Colors.red.shade400;
-        textColor = Colors.red.shade900;
+        bgColor = AppColors.error.withOpacity(0.1);
+        borderColor = AppColors.error;
+        textColor = AppColors.error;
         icon = Icons.cancel;
-        iconColor = Colors.red.shade600;
+        iconColor = AppColors.error;
       } else if (_selectedOptionIndex == -1 && isCorrect) {
         // Pas geçildi
-        bgColor = Colors.amber.shade50;
-        borderColor = Colors.amber.shade500;
-        textColor = Colors.amber.shade900;
+        bgColor = AppColors.warning.withOpacity(0.1);
+        borderColor = AppColors.warning;
+        textColor = AppColors.warning;
         icon = Icons.lightbulb;
-        iconColor = Colors.amber.shade700;
+        iconColor = AppColors.warning;
       }
     }
 
     return AnimatedContainer(
-          duration: 400.ms,
-          curve: Curves.easeOutCubic,
-          margin: const EdgeInsets.only(bottom: 14),
-          height: 68,
-          decoration: BoxDecoration(
-            color: bgColor,
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: borderColor, width: 2.5),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.08),
-                blurRadius: 20,
-                offset: const Offset(0, 8),
-              ),
-            ],
+      duration: 400.ms,
+      curve: Curves.easeOutCubic,
+      margin: EdgeInsets.only(bottom: context.responsive.spacingS),
+      height: context.responsive.value(
+        mobile: 64,
+        tablet: 68,
+        desktop: 72,
+      ),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(context.responsive.borderRadiusL),
+        border: Border.all(
+          color: borderColor,
+          width:
+              context.responsive.value(mobile: 2.0, tablet: 2.5, desktop: 3.0),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
           ),
-          child: Material(
-            color: Colors.transparent,
-            borderRadius: BorderRadius.circular(24),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(24),
-              onTap: _isAnswered ? null : () => _handleAnswer(index),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: Center(
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (icon != null) ...[
-                        Icon(icon, color: iconColor, size: 32),
-                        const SizedBox(width: 16),
-                      ],
-                      Flexible(
-                        child: Text(
-                          option,
-                          style: GoogleFonts.poppins(
-                            fontSize: 19,
-                            fontWeight: FontWeight.w600,
-                            color: textColor,
-                            letterSpacing: 0.3,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(context.responsive.borderRadiusL),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(context.responsive.borderRadiusL),
+          onTap: _isAnswered ? null : () => _handleAnswer(index),
+          child: Container(
+            padding: EdgeInsets.symmetric(
+              horizontal: context.responsive.spacingL,
+            ),
+            child: Center(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (icon != null) ...[
+                    Icon(
+                      icon,
+                      color: iconColor,
+                      size: context.responsive.value(
+                        mobile: 28,
+                        tablet: 32,
+                        desktop: 36,
                       ),
-                    ],
+                    ),
+                    SizedBox(width: context.responsive.spacingM),
+                  ],
+                  Flexible(
+                    child: Text(
+                      option,
+                      style: GoogleFonts.poppins(
+                        fontSize: context.responsive.value(
+                          mobile: 17,
+                          tablet: 19,
+                          desktop: 21,
+                        ),
+                        fontWeight: FontWeight.w600,
+                        color: textColor,
+                        letterSpacing: 0.3,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
                   ),
-                ),
+                ],
               ),
             ),
           ),
-        )
+        ),
+      ),
+    )
         .animate(delay: (120 * index + 100).ms)
         .fadeIn(duration: 500.ms)
         .slide(
@@ -220,14 +243,19 @@ class _MultipleChoiceReviewScreenState
     if (viewModel.isLoading || _currentWord == null) {
       return Scaffold(
         body: Container(
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: [Color(0xFFF0F7FF), Colors.white],
+              colors: [AppColors.primary.withOpacity(0.05), AppColors.surface],
             ),
           ),
-          child: const Center(child: CircularProgressIndicator(strokeWidth: 3)),
+          child: Center(
+            child: CircularProgressIndicator(
+              strokeWidth: 3,
+              color: AppColors.primary,
+            ),
+          ),
         ),
       );
     }
@@ -247,7 +275,7 @@ class _MultipleChoiceReviewScreenState
 
     double progress = viewModel.totalWordsInReview > 0
         ? (viewModel.totalWordsInReview - viewModel.reviewQueue.length) /
-              viewModel.totalWordsInReview
+            viewModel.totalWordsInReview
         : 0;
 
     return Scaffold(
@@ -255,35 +283,47 @@ class _MultipleChoiceReviewScreenState
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        foregroundColor: Colors.black87,
+        foregroundColor: AppColors.textPrimary,
         title: Text(
-          "Kelime Testi",
-          style: GoogleFonts.poppins(fontSize: 22, fontWeight: FontWeight.w700),
+          "multiple_choice_test".tr(),
+          style: GoogleFonts.poppins(
+            fontSize: context.responsive.fontSizeH2,
+            fontWeight: FontWeight.w700,
+          ),
         ),
         centerTitle: true,
         bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(10),
+          preferredSize: Size.fromHeight(
+            context.responsive.value(mobile: 60, tablet: 70, desktop: 80),
+          ),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+            padding: EdgeInsets.symmetric(
+              horizontal: context.responsive.spacingL,
+              vertical: context.responsive.spacingS,
+            ),
             child: Column(
               children: [
                 Text(
                   "${viewModel.totalWordsInReview - viewModel.reviewQueue.length}/${viewModel.totalWordsInReview}",
                   style: GoogleFonts.poppins(
-                    fontSize: 15,
-                    color: Colors.black54,
+                    fontSize: context.responsive.fontSizeBody,
+                    color: AppColors.textSecondary,
                   ),
                 ),
-                const SizedBox(height: 8),
+                SizedBox(height: context.responsive.spacingS),
                 ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius:
+                      BorderRadius.circular(context.responsive.borderRadiusM),
                   child: LinearProgressIndicator(
                     value: progress,
-                    minHeight: 10,
-                    backgroundColor: Colors.grey.shade200,
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      Colors.indigo.shade400,
+                    minHeight: context.responsive.value(
+                      mobile: 8,
+                      tablet: 10,
+                      desktop: 12,
                     ),
+                    backgroundColor: AppColors.borderLight,
+                    valueColor:
+                        AlwaysStoppedAnimation<Color>(AppColors.primary),
                   ),
                 ),
               ],
@@ -292,115 +332,123 @@ class _MultipleChoiceReviewScreenState
         ),
       ),
       body: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0xFFF0F7FF), Colors.white],
+            colors: [AppColors.primary.withOpacity(0.05), AppColors.surface],
           ),
         ),
         child: SafeArea(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(20),
+            padding: context.responsive.paddingPage,
             child: Column(
               children: [
                 // SORU KARTI
                 Container(
-                      padding: const EdgeInsets.all(28),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(32),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.indigo.withOpacity(0.15),
-                            blurRadius: 30,
-                            offset: const Offset(0, 15),
-                          ),
-                        ],
+                  padding: EdgeInsets.all(context.responsive.spacingXL),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(
+                        context.responsive.borderRadiusXL),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.primary.withOpacity(0.15),
+                        blurRadius: 30,
+                        offset: const Offset(0, 15),
                       ),
-                      child: Column(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 8,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.indigo.shade50,
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(color: Colors.indigo.shade200),
-                            ),
-                            child: Text(
-                              word.partOfSpeech.toUpperCase(),
-                              style: GoogleFonts.poppins(
-                                color: Colors.indigo.shade800,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 13,
-                                letterSpacing: 1.2,
-                              ),
-                            ),
+                    ],
+                  ),
+                  child: Column(
+                    children: [
+                      Container(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: context.responsive.spacingM,
+                          vertical: context.responsive.spacingS,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(
+                              context.responsive.borderRadiusL),
+                          border: Border.all(
+                              color: AppColors.primary.withOpacity(0.3)),
+                        ),
+                        child: Text(
+                          word.partOfSpeech.toUpperCase(),
+                          style: GoogleFonts.poppins(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.bold,
+                            fontSize: context.responsive.fontSizeCaption,
+                            letterSpacing: 1.2,
                           ),
-                          const SizedBox(height: 20),
-                          Text(
-                            targetContent['word'] ?? '?',
-                            style: GoogleFonts.poppins(
-                              fontSize: 48,
-                              fontWeight: FontWeight.w800,
-                              color: Colors.grey[900],
-                              height: 1.1,
-                              shadows: [
-                                Shadow(
-                                  color: Colors.indigo.withOpacity(0.2),
-                                  offset: const Offset(0, 4),
-                                  blurRadius: 10,
-                                ),
-                              ],
+                        ),
+                      ),
+                      SizedBox(height: context.responsive.spacingL),
+                      Text(
+                        targetContent['word'] ?? '?',
+                        style: GoogleFonts.poppins(
+                          fontSize: context.responsive.value(
+                            mobile: 40,
+                            tablet: 48,
+                            desktop: 56,
+                          ),
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.textPrimary,
+                          height: 1.1,
+                          shadows: [
+                            Shadow(
+                              color: AppColors.primary.withOpacity(0.2),
+                              offset: const Offset(0, 4),
+                              blurRadius: 10,
                             ),
-                            textAlign: TextAlign.center,
-                          ).animate().scale(
+                          ],
+                        ),
+                        textAlign: TextAlign.center,
+                      ).animate().scale(
                             duration: 600.ms,
                             curve: Curves.easeOutBack,
                           ),
-
-                          if (word.transcription.isNotEmpty) ...[
-                            const SizedBox(height: 8),
-                            Text(
-                              word.transcription,
-                              style: GoogleFonts.roboto(
-                                fontSize: 20,
-                                color: Colors.grey[600],
-                                fontStyle: FontStyle.italic,
-                              ),
-                            ).animate().fade(delay: 200.ms),
-                          ],
-
-                          const SizedBox(height: 20),
-
-                          ElevatedButton(
-                            onPressed: () => viewModel.speakText(
-                              targetContent['word'] ?? '',
-                              viewModel.targetLang,
-                            ),
-                            style: ElevatedButton.styleFrom(
-                              shape: const CircleBorder(),
-                              padding: const EdgeInsets.all(20),
-                              backgroundColor: Colors.indigo.shade500,
-                              foregroundColor: Colors.white,
-                              elevation: 10,
-                              shadowColor: Colors.indigo.withOpacity(0.4),
-                            ),
-                            child: const Icon(
-                              Icons.volume_up_rounded,
-                              size: 36,
-                            ),
-                          ).animate().scale(
+                      if (word.transcription.isNotEmpty) ...[
+                        SizedBox(height: context.responsive.spacingS),
+                        Text(
+                          word.transcription,
+                          style: GoogleFonts.roboto(
+                            fontSize: context.responsive.fontSizeH3,
+                            color: AppColors.textSecondary,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ).animate().fade(delay: 200.ms),
+                      ],
+                      SizedBox(height: context.responsive.spacingL),
+                      ElevatedButton(
+                        onPressed: () => viewModel.speakText(
+                          targetContent['word'] ?? '',
+                          viewModel.targetLang,
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          shape: const CircleBorder(),
+                          padding: EdgeInsets.all(context.responsive.spacingM),
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: AppColors.surface,
+                          elevation: context.responsive.elevationHigh,
+                          shadowColor: AppColors.primary.withOpacity(0.4),
+                        ),
+                        child: Icon(
+                          Icons.volume_up_rounded,
+                          size: context.responsive.value(
+                            mobile: 32,
+                            tablet: 36,
+                            desktop: 40,
+                          ),
+                        ),
+                      ).animate().scale(
                             delay: 300.ms,
                             duration: 800.ms,
                             curve: Curves.elasticOut,
                           ),
-                        ],
-                      ),
-                    )
+                    ],
+                  ),
+                )
                     .animate()
                     .slideY(
                       begin: -0.3,
@@ -409,7 +457,7 @@ class _MultipleChoiceReviewScreenState
                     )
                     .fade(),
 
-                const SizedBox(height: 32),
+                SizedBox(height: context.responsive.spacingXL),
 
                 // ŞIKLAR
                 ..._options.mapIndexed((index, option) {
@@ -419,156 +467,157 @@ class _MultipleChoiceReviewScreenState
                 if (!_isAnswered)
                   TextButton.icon(
                     onPressed: _revealMeaning,
-                    icon: const Icon(
+                    icon: Icon(
                       Icons.lightbulb_outline,
-                      color: Colors.amber,
+                      color: AppColors.warning,
+                      size: context.responsive.iconSizeM,
                     ),
                     label: Text(
-                      "Anlamını Gör (Pas Geç)",
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Colors.amber.shade700,
+                      "reveal_meaning".tr(),
+                      style: GoogleFonts.poppins(
+                        fontSize: context.responsive.fontSizeBody,
+                        color: AppColors.warning,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ).animate(delay: 600.ms).fadeIn().slideY(begin: 0.3),
 
                 // CEVAP SONRASI DETAY KARTI
                 if (_isAnswered) ...[
-                  const SizedBox(height: 32),
-
+                  SizedBox(height: context.responsive.spacingXL),
                   Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(24),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(28),
-                          boxShadow: [
-                            BoxShadow(
-                              color:
-                                  (_selectedOptionIndex == _correctOptionIndex)
-                                  ? Colors.green.withOpacity(0.2)
-                                  : (_selectedOptionIndex == -1
-                                        ? Colors.amber.withOpacity(0.18)
-                                        : Colors.red.withOpacity(0.2)),
-                              blurRadius: 30,
-                              offset: const Offset(0, 10),
-                            ),
-                          ],
+                    width: double.infinity,
+                    padding: EdgeInsets.all(context.responsive.spacingL),
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(
+                          context.responsive.borderRadiusXL),
+                      boxShadow: [
+                        BoxShadow(
+                          color: (_selectedOptionIndex == _correctOptionIndex)
+                              ? AppColors.success.withOpacity(0.2)
+                              : (_selectedOptionIndex == -1
+                                  ? AppColors.warning.withOpacity(0.18)
+                                  : AppColors.error.withOpacity(0.2)),
+                          blurRadius: 30,
+                          offset: const Offset(0, 10),
                         ),
-                        child: Column(
-                          children: [
-                            Align(
-                              alignment: Alignment.topRight,
-                              child: InkWell(
-                                borderRadius: BorderRadius.circular(20),
-                                onTap: () => setState(
-                                  () => _showSourceLanguage =
-                                      !_showSourceLanguage,
-                                ),
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 14,
-                                    vertical: 8,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: Colors.indigo.shade50,
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(
-                                        Icons.swap_horiz_rounded,
-                                        color: Colors.indigo.shade700,
-                                        size: 22,
-                                      ),
-                                      const SizedBox(width: 6),
-                                      Text(
-                                        _showSourceLanguage
-                                            ? viewModel.sourceLang.toUpperCase()
-                                            : viewModel.targetLang
-                                                  .toUpperCase(),
-                                        style: GoogleFonts.poppins(
-                                          fontWeight: FontWeight.w600,
-                                          color: Colors.indigo.shade800,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
+                      ],
+                    ),
+                    child: Column(
+                      children: [
+                        Align(
+                          alignment: Alignment.topRight,
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(
+                                context.responsive.borderRadiusL),
+                            onTap: () => setState(
+                              () => _showSourceLanguage = !_showSourceLanguage,
+                            ),
+                            child: Container(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: context.responsive.spacingM,
+                                vertical: context.responsive.spacingS,
                               ),
-                            ),
-
-                            const SizedBox(height: 12),
-
-                            Text(
-                              translationText,
-                              style: GoogleFonts.poppins(
-                                fontSize: 32,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.grey[900],
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-
-                            const SizedBox(height: 10),
-
-                            Text(
-                              definitionText,
-                              style: GoogleFonts.roboto(
-                                fontSize: 17,
-                                color: Colors.grey[700],
-                                fontStyle: FontStyle.italic,
-                                height: 1.5,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-
-                            Divider(
-                              height: 40,
-                              thickness: 1.2,
-                              color: Colors.grey[300],
-                            ),
-
-                            Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.all(20),
                               decoration: BoxDecoration(
-                                color: Colors.grey[50],
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(color: Colors.grey.shade300),
+                                color: AppColors.primary.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(
+                                    context.responsive.borderRadiusL),
                               ),
-                              child: Column(
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Text(
-                                    '“$displayedSentence”',
-                                    style: GoogleFonts.poppins(
-                                      fontSize: 19,
-                                      height: 1.6,
-                                      color: Colors.grey[800],
-                                    ),
-                                    textAlign: TextAlign.center,
+                                  Icon(
+                                    Icons.swap_horiz_rounded,
+                                    color: AppColors.primary,
+                                    size: context.responsive.iconSizeS,
                                   ),
-                                  const SizedBox(height: 16),
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      _buildLevelPill('beginner', Colors.green),
-                                      const SizedBox(width: 12),
-                                      _buildLevelPill(
-                                        'intermediate',
-                                        Colors.orange,
-                                      ),
-                                      const SizedBox(width: 12),
-                                      _buildLevelPill('advanced', Colors.red),
-                                    ],
+                                  SizedBox(width: context.responsive.spacingXS),
+                                  Text(
+                                    _showSourceLanguage
+                                        ? viewModel.sourceLang.toUpperCase()
+                                        : viewModel.targetLang.toUpperCase(),
+                                    style: GoogleFonts.poppins(
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.primary,
+                                      fontSize:
+                                          context.responsive.fontSizeCaption,
+                                    ),
                                   ),
                                 ],
                               ),
                             ),
-                          ],
+                          ),
                         ),
-                      )
+                        SizedBox(height: context.responsive.spacingM),
+                        Text(
+                          translationText,
+                          style: GoogleFonts.poppins(
+                            fontSize: context.responsive.value(
+                              mobile: 28,
+                              tablet: 32,
+                              desktop: 36,
+                            ),
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.textPrimary,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        SizedBox(height: context.responsive.spacingS),
+                        Text(
+                          definitionText,
+                          style: GoogleFonts.roboto(
+                            fontSize: context.responsive.fontSizeBody,
+                            color: AppColors.textSecondary,
+                            fontStyle: FontStyle.italic,
+                            height: 1.5,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        Divider(
+                          height: context.responsive.spacingXL,
+                          thickness: 1.2,
+                          color: AppColors.borderLight,
+                        ),
+                        Container(
+                          width: double.infinity,
+                          padding: EdgeInsets.all(context.responsive.spacingL),
+                          decoration: BoxDecoration(
+                            color: AppColors.background,
+                            borderRadius: BorderRadius.circular(
+                                context.responsive.borderRadiusL),
+                            border: Border.all(color: AppColors.borderLight),
+                          ),
+                          child: Column(
+                            children: [
+                              Text(
+                                '“$displayedSentence”',
+                                style: GoogleFonts.poppins(
+                                  fontSize: context.responsive.fontSizeBody,
+                                  height: 1.6,
+                                  color: AppColors.textPrimary,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                              SizedBox(height: context.responsive.spacingM),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  _buildLevelPill(
+                                      'beginner', AppColors.success),
+                                  SizedBox(width: context.responsive.spacingS),
+                                  _buildLevelPill(
+                                      'intermediate', AppColors.warning),
+                                  SizedBox(width: context.responsive.spacingS),
+                                  _buildLevelPill('advanced', AppColors.error),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
                       .animate()
                       .slideY(
                         begin: 0.3,
@@ -576,37 +625,40 @@ class _MultipleChoiceReviewScreenState
                         curve: Curves.easeOutCubic,
                       )
                       .fade(),
-
-                  const SizedBox(height: 32),
-
+                  SizedBox(height: context.responsive.spacingXL),
                   SizedBox(
                     width: double.infinity,
-                    height: 64,
+                    height: context.responsive.value(
+                      mobile: 56,
+                      tablet: 64,
+                      desktop: 72,
+                    ),
                     child: ElevatedButton(
                       onPressed: _loadNextWord,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.indigo.shade600,
-                        foregroundColor: Colors.white,
-                        elevation: 12,
-                        shadowColor: Colors.indigo.withOpacity(0.4),
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: AppColors.surface,
+                        elevation: context.responsive.elevationHigh,
+                        shadowColor: AppColors.primary.withOpacity(0.4),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(24),
+                          borderRadius: BorderRadius.circular(
+                              context.responsive.borderRadiusL),
                         ),
                       ),
                       child: Text(
-                        "Devam Et",
+                        "continue".tr(),
                         style: GoogleFonts.poppins(
-                          fontSize: 22,
+                          fontSize: context.responsive.fontSizeH3,
                           fontWeight: FontWeight.bold,
                           letterSpacing: 0.8,
                         ),
                       ),
                     ),
                   ).animate().scale(
-                    delay: 200.ms,
-                    duration: 600.ms,
-                    curve: Curves.elasticOut,
-                  ),
+                        delay: 200.ms,
+                        duration: 600.ms,
+                        curve: Curves.elasticOut,
+                      ),
                 ],
               ],
             ),
@@ -616,7 +668,7 @@ class _MultipleChoiceReviewScreenState
     );
   }
 
-  Widget _buildLevelPill(String level, MaterialColor color) {
+  Widget _buildLevelPill(String level, Color color) {
     final isSelected = _currentSentenceLevel == level;
     return GestureDetector(
       onTap: () => setState(() => _currentSentenceLevel = level),
@@ -624,12 +676,17 @@ class _MultipleChoiceReviewScreenState
         duration: 300.ms,
         curve: Curves.easeOut,
         padding: EdgeInsets.symmetric(
-          horizontal: isSelected ? 20 : 16,
-          vertical: 10,
+          horizontal: context.responsive.value(
+            mobile: isSelected ? 16 : 12,
+            tablet: isSelected ? 20 : 16,
+            desktop: isSelected ? 24 : 20,
+          ),
+          vertical: context.responsive.spacingS,
         ),
         decoration: BoxDecoration(
           color: isSelected ? color : color.withOpacity(0.15),
-          borderRadius: BorderRadius.circular(30),
+          borderRadius:
+              BorderRadius.circular(context.responsive.borderRadiusXL),
           border: Border.all(
             color: isSelected ? color : color.withOpacity(0.4),
             width: isSelected ? 2 : 1.5,
@@ -637,14 +694,14 @@ class _MultipleChoiceReviewScreenState
         ),
         child: Text(
           level == 'beginner'
-              ? 'Kolay'
+              ? 'easy'.tr()
               : level == 'intermediate'
-              ? 'Orta'
-              : 'Zor',
+                  ? 'medium'.tr()
+                  : 'hard'.tr(),
           style: GoogleFonts.poppins(
-            color: isSelected ? Colors.white : color.shade700,
+            color: isSelected ? AppColors.surface : color,
             fontWeight: FontWeight.w600,
-            fontSize: 14,
+            fontSize: context.responsive.fontSizeCaption,
           ),
         ),
       ),

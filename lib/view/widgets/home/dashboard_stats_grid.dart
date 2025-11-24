@@ -1,8 +1,10 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dart:math' as math;
 import '../../../core/extensions/responsive_extension.dart';
+import '../../../core/constants/app_colors.dart';
 import '../../../data/models/dashboard_stats.dart';
 
 class DashboardStatsGrid extends StatefulWidget {
@@ -41,30 +43,43 @@ class _DashboardStatsGridState extends State<DashboardStatsGrid>
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(context.responsive.borderRadiusL),
+        ),
+        backgroundColor: AppColors.surface,
         title: Row(
           children: [
             Icon(Icons.info_outline, color: color),
-            SizedBox(width: context.normalValue),
+            SizedBox(width: context.responsive.spacingS),
             Expanded(
               child: Text(
-                'Ustalaşılan Kelime',
+                'stats_mastered_title'.tr(),
                 style: GoogleFonts.poppins(
-                    fontSize: 18, fontWeight: FontWeight.bold),
+                  fontSize: context.responsive.fontSizeH3,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
           ],
         ),
         content: Text(
-          "Bu sayaç, 'Çırak' seviyesi ve üzerine ulaşan kelimelerin toplamını gösterir.\n\nBir kelime bu seviyeye ulaştığında, onu öğrenmiş varsayılır ve bu haneye yazılır.",
-          style: GoogleFonts.poppins(fontSize: 14, height: 1.5),
+          'stats_mastered_desc'.tr(),
+          style: GoogleFonts.poppins(
+            fontSize: context.responsive.fontSizeBody,
+            height: 1.5,
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: Text('Tamam',
-                style: TextStyle(color: color, fontWeight: FontWeight.bold)),
+            child: Text(
+              'btn_ok'.tr(),
+              style: TextStyle(
+                color: color,
+                fontWeight: FontWeight.bold,
+                fontSize: context.responsive.fontSizeBody,
+              ),
+            ),
           ),
         ],
       ),
@@ -81,35 +96,35 @@ class _DashboardStatsGridState extends State<DashboardStatsGrid>
     // Kart verilerini hazırlıyoruz
     final statsCards = [
       _StatCardData(
-        title: 'Bugün',
+        title: 'stats_today'.tr(),
         value: '${widget.stats?.todayQuestions ?? 0}',
         subtitle: '%${widget.stats?.todaySuccessRate.toStringAsFixed(0) ?? 0}',
-        subtitleLabel: 'Başarı',
-        gradient: const [Color(0xFF4facfe), Color(0xFF00f2fe)], // Mavi Tonlar
+        subtitleLabel: 'success_rate'.tr(),
+        gradient: AppColors.gradientBlue,
         icon: Icons.today,
       ),
       _StatCardData(
-        title: 'Bu Hafta',
+        title: 'stats_week'.tr(),
         value: '${widget.stats?.weekQuestions ?? 0}',
         subtitle: '%${widget.stats?.weekSuccessRate.toStringAsFixed(0) ?? 0}',
-        subtitleLabel: 'Başarı',
-        gradient: const [Color(0xFF11998e), Color(0xFF38ef7d)], // Yeşil Tonlar
+        subtitleLabel: 'success_rate'.tr(),
+        gradient: AppColors.gradientGreen,
         icon: Icons.calendar_view_week,
       ),
       _StatCardData(
-        title: 'Bu Ay',
+        title: 'stats_month'.tr(),
         value: '${widget.stats?.monthQuestions ?? 0}',
         subtitle: '%${widget.stats?.monthSuccessRate.toStringAsFixed(0) ?? 0}',
-        subtitleLabel: 'Başarı',
-        gradient: const [Color(0xFFF093FB), Color(0xFFF5576C)], // Pembe Tonlar
+        subtitleLabel: 'success_rate'.tr(),
+        gradient: AppColors.gradientPink,
         icon: Icons.calendar_month,
       ),
       _StatCardData(
-        title: 'Ustalaşılan',
+        title: 'stats_mastered'.tr(),
         value: '${widget.stats?.masteredWords ?? 0}',
-        subtitle: null, // Bunda yüzde yok
-        subtitleLabel: 'Kelime',
-        gradient: const [Color(0xFF667eea), Color(0xFF764ba2)], // Mor Tonlar
+        subtitle: null,
+        subtitleLabel: 'words'.tr(),
+        gradient: AppColors.gradientPurple,
         icon: Icons.workspace_premium,
         hasInfo: true,
       ),
@@ -117,10 +132,10 @@ class _DashboardStatsGridState extends State<DashboardStatsGrid>
 
     return GridView.builder(
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: context.value(mobile: 2, tablet: 4),
-        childAspectRatio: context.value(mobile: 1.4, tablet: 1.6),
-        mainAxisSpacing: context.mediumValue,
-        crossAxisSpacing: context.mediumValue,
+        crossAxisCount: context.responsive.value(mobile: 2, tablet: 4),
+        childAspectRatio: context.responsive.value(mobile: 1.4, tablet: 1.6),
+        mainAxisSpacing: context.responsive.spacingM,
+        crossAxisSpacing: context.responsive.spacingM,
       ),
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -134,10 +149,10 @@ class _DashboardStatsGridState extends State<DashboardStatsGrid>
   Widget _buildLoadingState() {
     return GridView.builder(
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: context.value(mobile: 2, tablet: 4),
-        childAspectRatio: context.value(mobile: 1.4, tablet: 1.6),
-        mainAxisSpacing: context.mediumValue,
-        crossAxisSpacing: context.mediumValue,
+        crossAxisCount: context.responsive.value(mobile: 2, tablet: 4),
+        childAspectRatio: context.responsive.value(mobile: 1.4, tablet: 1.6),
+        mainAxisSpacing: context.responsive.spacingM,
+        crossAxisSpacing: context.responsive.spacingM,
       ),
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -145,12 +160,12 @@ class _DashboardStatsGridState extends State<DashboardStatsGrid>
       itemBuilder: (context, index) {
         return Container(
           decoration: BoxDecoration(
-            color: Colors.grey[200],
-            borderRadius: BorderRadius.circular(24),
+            color: AppColors.borderLight,
+            borderRadius:
+                BorderRadius.circular(context.responsive.borderRadiusL),
           ),
-        )
-            .animate(onPlay: (c) => c.repeat())
-            .shimmer(duration: 1500.ms, color: Colors.white54);
+        ).animate(onPlay: (c) => c.repeat()).shimmer(
+            duration: 1500.ms, color: AppColors.surface.withOpacity(0.3));
       },
     );
   }
@@ -169,17 +184,17 @@ class _DashboardStatsGridState extends State<DashboardStatsGrid>
         curve: Curves.easeOut,
         transform: Matrix4.identity()..scale(isSelected ? 0.95 : 1.0),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(context.responsive.borderRadiusL),
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [Colors.white, data.gradient[0].withOpacity(0.05)],
+            colors: [AppColors.surface, data.gradient[0].withOpacity(0.05)],
           ),
           boxShadow: [
             BoxShadow(
               color: data.gradient[0].withOpacity(0.15),
-              blurRadius: context.normalValue + 3,
-              offset: Offset(0, context.normalValue / 2),
+              blurRadius: context.responsive.spacingM + 3,
+              offset: Offset(0, context.responsive.spacingS),
             ),
           ],
           border: Border.all(
@@ -215,7 +230,7 @@ class _DashboardStatsGridState extends State<DashboardStatsGrid>
             ),
 
             Padding(
-              padding: context.paddingMedium,
+              padding: EdgeInsets.all(context.responsive.spacingM),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -223,10 +238,11 @@ class _DashboardStatsGridState extends State<DashboardStatsGrid>
                   Row(
                     children: [
                       Container(
-                        padding: context.paddingLow,
+                        padding: EdgeInsets.all(context.responsive.spacingXS),
                         decoration: BoxDecoration(
                           gradient: LinearGradient(colors: data.gradient),
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(
+                              context.responsive.borderRadiusM),
                           boxShadow: [
                             BoxShadow(
                               color: data.gradient[0].withOpacity(0.3),
@@ -235,23 +251,28 @@ class _DashboardStatsGridState extends State<DashboardStatsGrid>
                             )
                           ],
                         ),
-                        child: Icon(data.icon, color: Colors.white, size: 18),
+                        child: Icon(data.icon,
+                            color: AppColors.surface,
+                            size: context.responsive.iconSizeS),
                       ),
-                      const SizedBox(width: 10),
+                      SizedBox(width: context.responsive.spacingS),
                       Expanded(
                         child: Text(
                           data.title,
                           style: GoogleFonts.poppins(
-                            fontSize: context.fontNormal,
+                            fontSize: context.responsive.fontSizeBody,
                             fontWeight: FontWeight.w600,
-                            color: Colors.grey[700],
+                            color: AppColors.textSecondary,
                           ),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
                       if (data.hasInfo)
-                        Icon(Icons.info_outline,
-                            size: 16, color: Colors.grey[400]),
+                        Icon(
+                          Icons.info_outline,
+                          size: context.responsive.iconSizeS,
+                          color: AppColors.textDisabled,
+                        ),
                     ],
                   ),
 
@@ -261,9 +282,9 @@ class _DashboardStatsGridState extends State<DashboardStatsGrid>
                   Text(
                     data.value,
                     style: GoogleFonts.poppins(
-                      fontSize: context.fontXLarge,
+                      fontSize: context.responsive.fontSizeH1,
                       fontWeight: FontWeight.bold,
-                      color: data.gradient[0], // Ana renk
+                      color: data.gradient[0],
                     ),
                   ),
 
@@ -274,21 +295,25 @@ class _DashboardStatsGridState extends State<DashboardStatsGrid>
                         Text(
                           data.subtitleLabel,
                           style: GoogleFonts.poppins(
-                              fontSize: context.fontSmall,
-                              color: Colors.grey[500]),
+                            fontSize: context.responsive.fontSizeCaption,
+                            color: AppColors.textSecondary,
+                          ),
                         ),
-                        const SizedBox(width: 4),
+                        SizedBox(width: context.responsive.spacingXS),
                         Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 6, vertical: 2),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: context.responsive.spacingXS,
+                            vertical: 2,
+                          ),
                           decoration: BoxDecoration(
                             color: data.gradient[0].withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(6),
+                            borderRadius: BorderRadius.circular(
+                                context.responsive.borderRadiusS),
                           ),
                           child: Text(
                             data.subtitle!,
                             style: GoogleFonts.poppins(
-                              fontSize: context.fontSmall,
+                              fontSize: context.responsive.fontSizeCaption,
                               fontWeight: FontWeight.bold,
                               color: data.gradient[1],
                             ),
@@ -309,7 +334,6 @@ class _DashboardStatsGridState extends State<DashboardStatsGrid>
   }
 }
 
-// Veri sınıfını widget içinde private olarak tutuyoruz
 class _StatCardData {
   final String title;
   final String value;

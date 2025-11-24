@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_tts/flutter_tts.dart';
+import 'package:easy_localization/easy_localization.dart';
 import '../../data/models/word_model.dart';
 import '../../viewmodel/home_viewmodel.dart';
 import '../../viewmodel/review_viewmodel.dart';
 import '../../viewmodel/settings_viewmodel.dart';
 import '../../viewmodel/test_menu_viewmodel.dart';
 import 'multiple_choice_review_screen.dart';
+import '../../core/extensions/responsive_extension.dart';
+import '../../core/constants/app_colors.dart';
 
 class TestResultScreen extends StatefulWidget {
   final int correctCount;
@@ -72,7 +76,8 @@ class _TestResultScreenState extends State<TestResultScreen> {
 
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (context) => MultipleChoiceReviewScreen()),
+      MaterialPageRoute(
+          builder: (context) => const MultipleChoiceReviewScreen()),
     );
   }
 
@@ -84,7 +89,10 @@ class _TestResultScreenState extends State<TestResultScreen> {
 
     if (viewModel.reviewQueue.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Tüm günlük kelimeler tamamlandı!')),
+        SnackBar(
+          content: Text('test_result_daily_complete'.tr()),
+          backgroundColor: AppColors.info,
+        ),
       );
     } else {
       Navigator.pushReplacement(
@@ -98,12 +106,6 @@ class _TestResultScreenState extends State<TestResultScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
-    final isSmallScreen = size.width < 600;
-    final iconSize = isSmallScreen ? 80.0 : 120.0;
-    final titleFontSize = isSmallScreen ? 24.0 : 32.0;
-    final bodyFontSize = isSmallScreen ? 16.0 : 20.0;
-
     // Ayarları al (Dil gösterimi için)
     final settings = context.watch<SettingsViewModel>();
 
@@ -112,137 +114,175 @@ class _TestResultScreenState extends State<TestResultScreen> {
     final int total = correct + incorrect;
     final double successRate = (total == 0) ? 0 : (correct / total) * 100;
 
-    String dialogTitle;
-    IconData dialogIcon;
-    Color dialogColor;
+    String resultTitle;
+    IconData resultIcon;
+    Color resultColor;
 
     if (successRate >= 80) {
-      dialogTitle = 'Harika İş!';
-      dialogIcon = Icons.emoji_events;
-      dialogColor = Colors.green[600]!;
+      resultTitle = 'test_result_excellent'.tr();
+      resultIcon = Icons.emoji_events;
+      resultColor = AppColors.success;
     } else if (successRate >= 50) {
-      dialogTitle = 'İyi Gidiyorsun!';
-      dialogIcon = Icons.thumb_up_alt;
-      dialogColor = Colors.blue[700]!;
+      resultTitle = 'test_result_good'.tr();
+      resultIcon = Icons.thumb_up_alt;
+      resultColor = AppColors.info;
     } else {
-      dialogTitle = 'Test Bitti';
-      dialogIcon = Icons.check_circle_outline;
-      dialogColor = Colors.orange[600]!;
+      resultTitle = 'test_result_completed'.tr();
+      resultIcon = Icons.check_circle_outline;
+      resultColor = AppColors.warning;
     }
 
     final wrongWords = widget.wrongWords;
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Test Sonucu', style: TextStyle(fontSize: titleFontSize)),
+        title: Text(
+          'test_result_title'.tr(),
+          style: GoogleFonts.poppins(
+            fontSize: context.responsive.fontSizeH2,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
         automaticallyImplyLeading: false,
-        backgroundColor: dialogColor.withOpacity(0.8),
+        backgroundColor: resultColor.withOpacity(0.8),
+        foregroundColor: AppColors.surface,
       ),
       body: SingleChildScrollView(
-        padding: EdgeInsets.all(isSmallScreen ? 16.0 : 24.0),
+        padding: context.responsive.paddingPage,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            // BAŞLIK VE İKON
             Icon(
-              dialogIcon,
-              size: iconSize,
-              color: dialogColor,
+              resultIcon,
+              size: context.responsive.value(
+                mobile: 80,
+                tablet: 100,
+                desktop: 120,
+              ),
+              color: resultColor,
             ).animate().scale(duration: 600.ms, curve: Curves.bounceOut),
-            SizedBox(height: 20),
+
+            SizedBox(height: context.responsive.spacingL),
+
             Text(
-              dialogTitle,
-              style: TextStyle(
-                fontSize: titleFontSize,
-                color: dialogColor,
+              resultTitle,
+              style: GoogleFonts.poppins(
+                fontSize: context.responsive.fontSizeH1,
+                color: resultColor,
                 fontWeight: FontWeight.bold,
               ),
               textAlign: TextAlign.center,
             ).animate().fadeIn(delay: 200.ms),
-            SizedBox(height: 10),
+
+            SizedBox(height: context.responsive.spacingS),
+
             Text(
-              'Skorun kaydedildi.',
-              style: TextStyle(fontSize: bodyFontSize),
+              'test_result_saved'.tr(),
+              style: GoogleFonts.poppins(
+                fontSize: context.responsive.fontSizeBody,
+                color: AppColors.textSecondary,
+              ),
               textAlign: TextAlign.center,
             ).animate().fadeIn(delay: 300.ms),
-            SizedBox(height: 30),
 
-            // İstatistik Kartları
-            Card(
-              elevation: 6,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
+            SizedBox(height: context.responsive.spacingXL),
+
+            // İSTATİSTİK KARTLARI
+            Container(
+              padding: EdgeInsets.all(context.responsive.spacingL),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius:
+                    BorderRadius.circular(context.responsive.borderRadiusXL),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 20,
+                    offset: const Offset(0, 10),
+                  ),
+                ],
               ),
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    _buildStatColumn('Doğru', '$correct', Colors.green[600]!),
-                    _buildStatColumn('Yanlış', '$incorrect', Colors.red[600]!),
-                    _buildStatColumn(
-                      'Başarı',
-                      '%${successRate.toStringAsFixed(0)}',
-                      Colors.blue[700]!,
-                    ),
-                  ],
-                ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _buildStatColumn(
+                      'correct'.tr(), '$correct', AppColors.success),
+                  _buildStatColumn(
+                      'incorrect'.tr(), '$incorrect', AppColors.error),
+                  _buildStatColumn(
+                    'success_rate'.tr(),
+                    '%${successRate.toStringAsFixed(0)}',
+                    AppColors.primary,
+                  ),
+                ],
               ),
             ).animate().slideY(begin: 0.3, duration: 500.ms),
 
-            SizedBox(height: 30),
+            SizedBox(height: context.responsive.spacingXL),
 
-            // Yanlış Kelimeler Listesi
-            if (wrongWords.isNotEmpty)
+            // YANLIŞ KELİMELER LİSTESİ
+            if (wrongWords.isNotEmpty) ...[
               Text(
-                'Tekrar Gereken Kelimeler',
-                style: TextStyle(
-                  fontSize: titleFontSize - 4,
+                'test_result_wrong_words'.tr(),
+                style: GoogleFonts.poppins(
+                  fontSize: context.responsive.fontSizeH2,
                   fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary,
                 ),
               ).animate().fadeIn(delay: 400.ms),
-
-            if (wrongWords.isNotEmpty)
+              SizedBox(height: context.responsive.spacingM),
               ListView.builder(
                 shrinkWrap: true,
-                physics: NeverScrollableScrollPhysics(),
+                physics: const NeverScrollableScrollPhysics(),
                 itemCount: wrongWords.length,
                 itemBuilder: (context, index) {
                   final word = wrongWords[index];
-                  // Yeni Model Metodlarını Kullanarak Dili Çekiyoruz
-                  final targetContent = word.getLocalizedContent(
-                    settings.targetLang,
-                  );
-                  final sourceContent = word.getLocalizedContent(
-                    settings.sourceLang,
-                  );
+                  final targetContent =
+                      word.getLocalizedContent(settings.targetLang);
+                  final sourceContent =
+                      word.getLocalizedContent(settings.sourceLang);
 
-                  return Card(
-                    margin: EdgeInsets.symmetric(vertical: 8),
-                    elevation: 4,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
+                  return Container(
+                    margin: EdgeInsets.symmetric(
+                        vertical: context.responsive.spacingXS),
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(
+                          context.responsive.borderRadiusL),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
                     ),
                     child: ListTile(
                       contentPadding: EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: isSmallScreen ? 8 : 12,
+                        horizontal: context.responsive.spacingM,
+                        vertical: context.responsive.spacingS,
                       ),
                       title: Text(
-                        targetContent['word']!, // Hedef Dil (Örn: İngilizce)
-                        style: TextStyle(
-                          fontSize: bodyFontSize,
+                        targetContent['word']!,
+                        style: GoogleFonts.poppins(
+                          fontSize: context.responsive.fontSizeBody,
                           fontWeight: FontWeight.bold,
+                          color: AppColors.textPrimary,
                         ),
                       ),
                       subtitle: Text(
-                        sourceContent['meaning']!, // Ana Dil (Örn: Türkçe)
-                        style: TextStyle(fontSize: bodyFontSize - 2),
+                        sourceContent['meaning']!,
+                        style: GoogleFonts.poppins(
+                          fontSize: context.responsive.fontSizeCaption,
+                          color: AppColors.textSecondary,
+                        ),
                       ),
                       trailing: IconButton(
                         icon: Icon(
                           Icons.volume_up,
-                          color: Colors.blue[700],
-                          size: isSmallScreen ? 24 : 32,
+                          color: AppColors.primary,
+                          size: context.responsive.iconSizeM,
                         ),
                         onPressed: () => _speak(targetContent['word']!),
                       ),
@@ -250,59 +290,86 @@ class _TestResultScreenState extends State<TestResultScreen> {
                   ).animate(delay: (index * 150).ms).fadeIn();
                 },
               ),
+              SizedBox(height: context.responsive.spacingXL),
+            ],
 
-            SizedBox(height: 40),
-
-            // Butonlar
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: dialogColor,
-                foregroundColor: Colors.white,
-                padding: EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(30),
-                ),
-              ),
-              child: Text(
-                'Ana Ekrana Dön',
-                style: TextStyle(fontSize: bodyFontSize),
-              ),
-              onPressed: () {
-                Navigator.of(context).popUntil((route) => route.isFirst);
-              },
-            ).animate().scale(delay: 500.ms),
-
-            SizedBox(height: 12),
-
-            if (wrongWords.isNotEmpty)
-              OutlinedButton.icon(
-                icon: Icon(Icons.replay, size: 24),
-                label: Text('Yanlışları Tekrar Et'),
-                style: OutlinedButton.styleFrom(
-                  padding: EdgeInsets.symmetric(vertical: 16),
-                  side: BorderSide(color: dialogColor, width: 2),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(30),
+            // BUTONLAR
+            Column(
+              children: [
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: resultColor,
+                      foregroundColor: AppColors.surface,
+                      padding: EdgeInsets.symmetric(
+                          vertical: context.responsive.spacingM),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(
+                            context.responsive.borderRadiusXL),
+                      ),
+                      elevation: context.responsive.elevationMedium,
+                    ),
+                    child: Text(
+                      'btn_home'.tr(),
+                      style: GoogleFonts.poppins(
+                        fontSize: context.responsive.fontSizeH3,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    onPressed: () {
+                      Navigator.of(context).popUntil((route) => route.isFirst);
+                    },
                   ),
-                ),
-                onPressed: _repeatWrongWords,
-              ).animate().scale(delay: 600.ms),
-
-            SizedBox(height: 12),
-
-            ElevatedButton.icon(
-              icon: Icon(Icons.refresh),
-              label: Text('Yeni Test Başlat'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue[700],
-                foregroundColor: Colors.white,
-                padding: EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(30),
-                ),
-              ),
-              onPressed: _startNewDailyTest,
-            ).animate().scale(delay: 700.ms),
+                ).animate().scale(delay: 500.ms),
+                if (wrongWords.isNotEmpty) ...[
+                  SizedBox(height: context.responsive.spacingS),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      icon: Icon(
+                        Icons.replay,
+                        size: context.responsive.iconSizeM,
+                      ),
+                      label: Text('test_result_repeat_wrong'.tr()),
+                      style: OutlinedButton.styleFrom(
+                        padding: EdgeInsets.symmetric(
+                            vertical: context.responsive.spacingM),
+                        side: BorderSide(color: resultColor, width: 2),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(
+                              context.responsive.borderRadiusXL),
+                        ),
+                      ),
+                      onPressed: _repeatWrongWords,
+                    ),
+                  ).animate().scale(delay: 600.ms),
+                ],
+                SizedBox(height: context.responsive.spacingS),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    icon: Icon(
+                      Icons.refresh,
+                      size: context.responsive.iconSizeM,
+                    ),
+                    label: Text('test_result_new_test'.tr()),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: AppColors.surface,
+                      padding: EdgeInsets.symmetric(
+                          vertical: context.responsive.spacingM),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(
+                            context.responsive.borderRadiusXL),
+                      ),
+                      elevation: context.responsive.elevationMedium,
+                    ),
+                    onPressed: _startNewDailyTest,
+                  ),
+                ).animate().scale(delay: 700.ms),
+              ],
+            ),
           ],
         ),
       ),
@@ -314,14 +381,25 @@ class _TestResultScreenState extends State<TestResultScreen> {
       children: [
         Text(
           value,
-          style: TextStyle(
-            fontSize: 28,
+          style: GoogleFonts.poppins(
+            fontSize: context.responsive.value(
+              mobile: 24,
+              tablet: 28,
+              desktop: 32,
+            ),
             color: color,
             fontWeight: FontWeight.bold,
           ),
         ),
-        SizedBox(height: 4),
-        Text(title, style: TextStyle(fontSize: 18)),
+        SizedBox(height: context.responsive.spacingXS),
+        Text(
+          title,
+          style: GoogleFonts.poppins(
+            fontSize: context.responsive.fontSizeCaption,
+            color: AppColors.textSecondary,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
       ],
     );
   }

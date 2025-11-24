@@ -3,9 +3,12 @@ import 'package:provider/provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:easy_localization/easy_localization.dart';
 import '../../data/models/word_model.dart';
 import '../../viewmodel/review_viewmodel.dart';
 import 'test_result_screen.dart';
+import '../../core/extensions/responsive_extension.dart';
+import '../../core/constants/app_colors.dart';
 
 class SpeakingReviewScreen extends StatefulWidget {
   const SpeakingReviewScreen({super.key});
@@ -70,7 +73,10 @@ class _SpeakingReviewScreenState extends State<SpeakingReviewScreen> {
 
     if (spoken.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Ses algılanamadı, tekrar deneyin.')),
+        SnackBar(
+          content: Text('speaking_no_audio'.tr()),
+          backgroundColor: AppColors.error,
+        ),
       );
       return;
     }
@@ -115,15 +121,18 @@ class _SpeakingReviewScreenState extends State<SpeakingReviewScreen> {
     if (viewModel.isLoading || _currentWord == null) {
       return Scaffold(
         body: Container(
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: [Color(0xFFF0F7FF), Colors.white],
+              colors: [AppColors.primary.withOpacity(0.05), AppColors.surface],
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
             ),
           ),
-          child: const Center(
-            child: CircularProgressIndicator(strokeWidth: 3),
+          child: Center(
+            child: CircularProgressIndicator(
+              strokeWidth: 3,
+              color: AppColors.primary,
+            ),
           ),
         ),
       );
@@ -136,11 +145,11 @@ class _SpeakingReviewScreenState extends State<SpeakingReviewScreen> {
       extendBodyBehindAppBar: true,
       appBar: AppBar(
         title: Text(
-          "Konuşma Testi",
+          "speaking_test".tr(),
           style: GoogleFonts.poppins(
             fontWeight: FontWeight.w700,
-            fontSize: 22,
-            color: Colors.grey[900],
+            fontSize: context.responsive.fontSizeH2,
+            color: AppColors.textPrimary,
           ),
         ),
         centerTitle: true,
@@ -148,28 +157,29 @@ class _SpeakingReviewScreenState extends State<SpeakingReviewScreen> {
         elevation: 0,
       ),
       body: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [Color(0xFFF0F7FF), Colors.white],
+            colors: [AppColors.primary.withOpacity(0.05), AppColors.surface],
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
           ),
         ),
         child: SafeArea(
           child: Padding(
-            padding: const EdgeInsets.all(22.0),
+            padding: context.responsive.paddingPage,
             child: Column(
               children: [
                 // KELİME KARTI
                 Container(
-                  padding: const EdgeInsets.all(32),
+                  padding: EdgeInsets.all(context.responsive.spacingXL),
                   width: double.infinity,
                   decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(32),
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(
+                        context.responsive.borderRadiusXL),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.indigo.withOpacity(0.15),
+                        color: AppColors.primary.withOpacity(0.15),
                         blurRadius: 30,
                         offset: const Offset(0, 15),
                       ),
@@ -180,9 +190,13 @@ class _SpeakingReviewScreenState extends State<SpeakingReviewScreen> {
                       Text(
                         targetContent['word'] ?? '',
                         style: GoogleFonts.poppins(
-                          fontSize: 48,
+                          fontSize: context.responsive.value(
+                            mobile: 40,
+                            tablet: 48,
+                            desktop: 56,
+                          ),
                           fontWeight: FontWeight.w800,
-                          color: Colors.grey[900],
+                          color: AppColors.textPrimary,
                           height: 1.1,
                         ),
                         textAlign: TextAlign.center,
@@ -190,7 +204,7 @@ class _SpeakingReviewScreenState extends State<SpeakingReviewScreen> {
                             duration: 600.ms,
                             curve: Curves.easeOutBack,
                           ),
-                      const SizedBox(height: 12),
+                      SizedBox(height: context.responsive.spacingM),
                       ElevatedButton(
                         onPressed: () => viewModel.speakText(
                           targetContent['word'] ?? '',
@@ -198,12 +212,19 @@ class _SpeakingReviewScreenState extends State<SpeakingReviewScreen> {
                         ),
                         style: ElevatedButton.styleFrom(
                           shape: const CircleBorder(),
-                          padding: const EdgeInsets.all(20),
-                          backgroundColor: Colors.indigo.shade500,
-                          foregroundColor: Colors.white,
-                          elevation: 10,
+                          padding: EdgeInsets.all(context.responsive.spacingM),
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: AppColors.surface,
+                          elevation: context.responsive.elevationHigh,
                         ),
-                        child: const Icon(Icons.volume_up, size: 32),
+                        child: Icon(
+                          Icons.volume_up,
+                          size: context.responsive.value(
+                            mobile: 28,
+                            tablet: 32,
+                            desktop: 36,
+                          ),
+                        ),
                       ).animate().scale(
                             delay: 200.ms,
                             duration: 800.ms,
@@ -218,24 +239,26 @@ class _SpeakingReviewScreenState extends State<SpeakingReviewScreen> {
                 // Algılanan metin balonu
                 if (viewModel.spokenText.isNotEmpty)
                   Container(
-                    padding: const EdgeInsets.all(18),
+                    padding: EdgeInsets.all(context.responsive.spacingM),
                     decoration: BoxDecoration(
-                      color: Colors.blue.shade50,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: Colors.blue.shade200),
+                      color: AppColors.primary.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(
+                          context.responsive.borderRadiusL),
+                      border:
+                          Border.all(color: AppColors.primary.withOpacity(0.3)),
                     ),
                     child: Text(
                       "“${viewModel.spokenText}”",
                       style: GoogleFonts.poppins(
-                        fontSize: 18,
-                        color: Colors.blue.shade800,
+                        fontSize: context.responsive.fontSizeH3,
+                        color: AppColors.primary,
                         fontStyle: FontStyle.italic,
                       ),
                       textAlign: TextAlign.center,
                     ),
                   ).animate().fadeIn().slideY(begin: 0.2),
 
-                const SizedBox(height: 20),
+                SizedBox(height: context.responsive.spacingL),
 
                 // DOĞRU/YANLIŞ geri bildirimi
                 if (_isAnswered) _buildFeedbackCard(),
@@ -257,37 +280,42 @@ class _SpeakingReviewScreenState extends State<SpeakingReviewScreen> {
                     child: _buildMicButton(viewModel),
                   ),
 
-                const SizedBox(height: 16),
+                SizedBox(height: context.responsive.spacingM),
 
                 if (!_isAnswered)
                   Text(
                     viewModel.isListening
-                        ? "Dinleniyor..."
-                        : "Basılı Tut ve Konuş",
+                        ? "speaking_listening".tr()
+                        : "speaking_hold_to_talk".tr(),
                     style: GoogleFonts.poppins(
-                      color: Colors.grey[600],
-                      fontSize: 15,
+                      color: AppColors.textSecondary,
+                      fontSize: context.responsive.fontSizeBody,
                     ),
                   ),
 
                 if (_isAnswered)
                   SizedBox(
                     width: double.infinity,
-                    height: 64,
+                    height: context.responsive.value(
+                      mobile: 56,
+                      tablet: 64,
+                      desktop: 72,
+                    ),
                     child: ElevatedButton(
                       onPressed: _loadNextWord,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.indigo.shade600,
-                        foregroundColor: Colors.white,
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: AppColors.surface,
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(24),
+                          borderRadius: BorderRadius.circular(
+                              context.responsive.borderRadiusL),
                         ),
-                        elevation: 10,
+                        elevation: context.responsive.elevationHigh,
                       ),
                       child: Text(
-                        "Devam Et",
+                        "btn_continue".tr(),
                         style: GoogleFonts.poppins(
-                          fontSize: 22,
+                          fontSize: context.responsive.fontSizeH3,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -310,56 +338,86 @@ class _SpeakingReviewScreenState extends State<SpeakingReviewScreen> {
 
     return AnimatedContainer(
       duration: 300.ms,
-      width: isListening ? 110 : 90,
-      height: isListening ? 110 : 90,
+      width: context.responsive.value(
+        mobile: isListening ? 100 : 80,
+        tablet: isListening ? 110 : 90,
+        desktop: isListening ? 120 : 100,
+      ),
+      height: context.responsive.value(
+        mobile: isListening ? 100 : 80,
+        tablet: isListening ? 110 : 90,
+        desktop: isListening ? 120 : 100,
+      ),
       decoration: BoxDecoration(
-        color: isListening ? Colors.red : Colors.indigo.shade500,
+        color: isListening ? AppColors.error : AppColors.primary,
         shape: BoxShape.circle,
         boxShadow: [
           BoxShadow(
-            color: (isListening ? Colors.red : Colors.indigo).withOpacity(0.4),
-            blurRadius: 25,
-            spreadRadius: 8,
+            color: (isListening ? AppColors.error : AppColors.primary)
+                .withOpacity(0.4),
+            blurRadius: context.responsive.value(
+              mobile: 20,
+              tablet: 25,
+              desktop: 30,
+            ),
+            spreadRadius: context.responsive.value(
+              mobile: 6,
+              tablet: 8,
+              desktop: 10,
+            ),
           ),
         ],
       ),
       child: Icon(
         isListening ? Icons.mic : Icons.mic_none,
-        color: Colors.white,
-        size: isListening ? 46 : 40,
+        color: AppColors.surface,
+        size: context.responsive.value(
+          mobile: isListening ? 40 : 34,
+          tablet: isListening ? 46 : 40,
+          desktop: isListening ? 52 : 46,
+        ),
       ),
     ).animate().scale(duration: 400.ms, curve: Curves.easeOutBack);
   }
 
   Widget _buildFeedbackCard() {
     return Container(
-      padding: const EdgeInsets.all(20),
-      margin: const EdgeInsets.only(top: 10),
+      padding: EdgeInsets.all(context.responsive.spacingL),
+      margin: EdgeInsets.only(top: context.responsive.spacingS),
       width: double.infinity,
       decoration: BoxDecoration(
-        color: _isCorrect ? Colors.green.shade50 : Colors.red.shade50,
-        borderRadius: BorderRadius.circular(24),
+        color: _isCorrect
+            ? AppColors.success.withOpacity(0.1)
+            : AppColors.error.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(context.responsive.borderRadiusL),
         boxShadow: [
           BoxShadow(
-            color: (_isCorrect ? Colors.green : Colors.red).withOpacity(0.18),
+            color: (_isCorrect ? AppColors.success : AppColors.error)
+                .withOpacity(0.18),
             blurRadius: 25,
           ),
         ],
+        border: Border.all(
+          color: _isCorrect
+              ? AppColors.success.withOpacity(0.3)
+              : AppColors.error.withOpacity(0.3),
+          width: 1.5,
+        ),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(
             _isCorrect ? Icons.check_circle : Icons.cancel,
-            size: 32,
-            color: _isCorrect ? Colors.green.shade700 : Colors.red.shade700,
+            size: context.responsive.iconSizeL,
+            color: _isCorrect ? AppColors.success : AppColors.error,
           ),
-          const SizedBox(width: 12),
+          SizedBox(width: context.responsive.spacingM),
           Text(
-            _isCorrect ? "Mükemmel Telaffuz!" : "Tekrar Dene",
+            _isCorrect ? "speaking_perfect".tr() : "speaking_try_again".tr(),
             style: GoogleFonts.poppins(
-              fontSize: 18,
-              color: _isCorrect ? Colors.green.shade800 : Colors.red.shade800,
+              fontSize: context.responsive.fontSizeH3,
+              color: _isCorrect ? AppColors.success : AppColors.error,
               fontWeight: FontWeight.w600,
             ),
           ),

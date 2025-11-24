@@ -34,5 +34,14 @@
     "level_advanced_desc": "Expressões acadêmicas ou profissionais.",
     "btn_back": "Voltar",
     "btn_next": "Próximo",
-    "btn_start": "Começar"
+    "btn_start": "Começar",
+    "speaking_test": "Teste de Fala",
+    "speaking_no_audio": "Nenhum áudio detectado, por favor tente novamente.",
+    "speaking_listening": "Ouvindo...",
+    "speaking_hold_to_talk": "Mantenha Pressionado e Fale",
+    "speaking_perfect": "Pronúncia Perfeita!",
+    "speaking_try_again": "Tentar Novamente",
+    "error_general": "Ocorreu um erro",
+    "test_history_title": "Testes Recentes",
+    "test_history_desc": "Apenas testes dos últimos 3 dias são mostrados aqui. Verifique a tela 'Progresso' para os mais antigos."
 }

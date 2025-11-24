@@ -1,20 +1,21 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:intl/intl.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../../data/models/test_result.dart';
+import '../../../core/extensions/responsive_extension.dart';
+import '../../../core/constants/app_colors.dart';
 
 class HistoryCardWidget extends StatelessWidget {
   final TestResult result;
 
   const HistoryCardWidget({super.key, required this.result});
 
-  // KISALTILMIŞ FORMAT (2g 16s gibi)
   String _getCompactTime(DateTime testDate) {
     final expiryDate = testDate.add(const Duration(days: 3));
     final remaining = expiryDate.difference(DateTime.now());
 
-    if (remaining.isNegative) return "Arşiv...";
+    if (remaining.isNegative) return "archive".tr();
 
     final days = remaining.inDays;
     final hours = remaining.inHours % 24;
@@ -26,79 +27,83 @@ class HistoryCardWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
-    final rateColor = result.successRate >= 80
-        ? Colors.green
-        : result.successRate >= 60
-            ? Colors.orange
-            : Colors.red;
-
+    final rateColor = AppColors.getSuccessColor(result.successRate);
     final compactTime = _getCompactTime(result.date);
 
     return Container(
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      padding: EdgeInsets.all(size.width * 0.04), // Padding'i biraz kıstım
+      margin: EdgeInsets.symmetric(vertical: context.responsive.spacingXS),
+      padding: context.responsive.paddingCard,
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(context.responsive.borderRadiusL),
         boxShadow: [
           BoxShadow(
-              color: Colors.grey.withOpacity(0.15),
-              blurRadius: 12,
-              offset: const Offset(0, 6))
+            color: Colors.grey.withOpacity(0.15),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
+          ),
         ],
       ),
       child: Row(
         children: [
-          // Sol: Puan
           CircleAvatar(
-            radius: 24, // Biraz küçülttüm
+            radius: context.responsive.value(
+              mobile: 22,
+              tablet: 24,
+              desktop: 26,
+            ),
             backgroundColor: rateColor.withOpacity(0.15),
-            child: Text('${result.successRate.toInt()}%',
-                style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: rateColor,
-                    fontSize: 14)),
+            child: Text(
+              '${result.successRate.toInt()}%',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: rateColor,
+                fontSize: context.responsive.fontSizeCaption,
+              ),
+            ),
           ),
-          const SizedBox(width: 12),
-
-          // Orta: Bilgiler
+          SizedBox(width: context.responsive.spacingM),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Üst Satır: Tarih ve Silinme Sayacı
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
                       DateFormat('dd MMM - HH:mm').format(result.date),
                       style: GoogleFonts.poppins(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: const Color(0xFF475569)),
+                        fontSize: context.responsive.fontSizeBody,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textPrimary,
+                      ),
                     ),
-
-                    // YENİ KISA SAYAÇ VE İKON
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 2),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: context.responsive.spacingS,
+                        vertical: context.responsive.spacingXS,
+                      ),
                       decoration: BoxDecoration(
-                        color: Colors.red[50],
-                        borderRadius: BorderRadius.circular(8),
+                        color: AppColors.error.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(
+                          context.responsive.borderRadiusS,
+                        ),
                       ),
                       child: Row(
                         children: [
-                          Icon(Icons.delete_outline,
-                              size: 14, color: Colors.red[300]),
-                          const SizedBox(width: 4),
+                          Icon(
+                            Icons.delete_outline,
+                            size: context.responsive.fontSizeSmall,
+                            color: AppColors.error,
+                          ),
+                          SizedBox(width: context.responsive.spacingXS),
                           Text(
                             compactTime,
                             style: GoogleFonts.poppins(
-                              fontSize: 11,
+                              fontSize: context.responsive.fontSizeSmall,
                               fontWeight: FontWeight.w600,
-                              color: Colors.red[300],
+                              color: AppColors.error,
                             ),
                           ),
                         ],
@@ -106,27 +111,43 @@ class HistoryCardWidget extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 6),
-
-                // Alt Satır: Doğru/Yanlış/Soru
+                SizedBox(height: context.responsive.spacingS),
                 Row(
                   children: [
-                    const Icon(Icons.check_circle,
-                        size: 16, color: Colors.green),
-                    const SizedBox(width: 4),
-                    Text('${result.correct}',
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w600, fontSize: 13)),
-                    const SizedBox(width: 12),
-                    const Icon(Icons.cancel, size: 16, color: Colors.red),
-                    const SizedBox(width: 4),
-                    Text('${result.wrong}',
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w600, fontSize: 13)),
+                    Icon(
+                      Icons.check_circle,
+                      size: context.responsive.iconSizeS,
+                      color: AppColors.success,
+                    ),
+                    SizedBox(width: context.responsive.spacingXS),
+                    Text(
+                      '${result.correct}',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: context.responsive.fontSizeCaption,
+                      ),
+                    ),
+                    SizedBox(width: context.responsive.spacingM),
+                    Icon(
+                      Icons.cancel,
+                      size: context.responsive.iconSizeS,
+                      color: AppColors.error,
+                    ),
+                    SizedBox(width: context.responsive.spacingXS),
+                    Text(
+                      '${result.wrong}',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: context.responsive.fontSizeCaption,
+                      ),
+                    ),
                     const Spacer(),
                     Text(
-                      '${result.questions} Soru',
-                      style: TextStyle(color: Colors.grey[500], fontSize: 12),
+                      '${result.questions} ${'questions'.tr()}',
+                      style: TextStyle(
+                        color: AppColors.textDisabled,
+                        fontSize: context.responsive.fontSizeSmall,
+                      ),
                     ),
                   ],
                 ),

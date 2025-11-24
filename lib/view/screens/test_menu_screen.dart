@@ -14,6 +14,8 @@ import '../widgets/test/history_card_widget.dart';
 import 'multiple_choice_review_screen.dart';
 import 'listening_review_screen.dart';
 import 'speaking_review_screen.dart';
+import '../../core/extensions/responsive_extension.dart';
+import '../../core/constants/app_colors.dart';
 
 class TestMenuScreen extends StatefulWidget {
   const TestMenuScreen({super.key});
@@ -31,7 +33,9 @@ class _TestMenuScreenState extends State<TestMenuScreen> {
     if (mode == 'custom' && !menuVM.canStartTest) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-            content: Text('filter_no_match'.tr()), backgroundColor: Colors.red),
+          content: Text('filter_no_match'.tr()),
+          backgroundColor: AppColors.error,
+        ),
       );
       return;
     }
@@ -39,7 +43,11 @@ class _TestMenuScreenState extends State<TestMenuScreen> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => const Center(child: CircularProgressIndicator()),
+      builder: (_) => Center(
+        child: CircularProgressIndicator(
+          color: AppColors.primary,
+        ),
+      ),
     );
 
     final status = await reviewVM.startReview(
@@ -72,10 +80,11 @@ class _TestMenuScreenState extends State<TestMenuScreen> {
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-            content: Text(status == ReviewStatus.empty
-                ? 'filter_no_match'.tr()
-                : 'Error'),
-            backgroundColor: Colors.red),
+          content: Text(status == ReviewStatus.empty
+              ? 'filter_no_match'.tr()
+              : 'error_general'.tr()),
+          backgroundColor: AppColors.error,
+        ),
       );
     }
   }
@@ -83,39 +92,42 @@ class _TestMenuScreenState extends State<TestMenuScreen> {
   @override
   Widget build(BuildContext context) {
     final vm = context.watch<TestMenuViewModel>();
-    final size = MediaQuery.of(context).size;
 
     final categories = ['all', ...vm.allCategories];
     final grammars = ['all', ...vm.allPartsOfSpeech];
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F6F8),
-      // DÜZELTME 1: SafeArea kaldırıldı, doğrudan CustomScrollView kullanılıyor.
-      // Böylece içerik ekranın en altına kadar uzanabilecek.
+      backgroundColor: AppColors.background,
       body: CustomScrollView(
         slivers: [
           // Üst boşluk (Status bar çakışmasını önlemek için)
           SliverToBoxAdapter(
-              child: SizedBox(height: MediaQuery.of(context).padding.top)),
+            child: SizedBox(height: MediaQuery.of(context).padding.top),
+          ),
 
           _buildDailyGoalHeader(vm, context),
 
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20.0),
+              padding: context.responsive.paddingPage.copyWith(bottom: 0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     children: [
-                      Icon(Icons.science_rounded, color: Colors.purple[700]),
-                      const SizedBox(width: 8),
+                      Icon(
+                        Icons.science_rounded,
+                        color: AppColors.gradientPurple[0],
+                        size: context.responsive.iconSizeM,
+                      ),
+                      SizedBox(width: context.responsive.spacingS),
                       Text(
                         'custom_test_title'.tr(),
                         style: GoogleFonts.poppins(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.grey[900]),
+                          fontSize: context.responsive.fontSizeH2,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textPrimary,
+                        ),
                       ),
                     ],
                   ),
@@ -123,14 +135,17 @@ class _TestMenuScreenState extends State<TestMenuScreen> {
               ),
             ),
           ),
-          const SliverToBoxAdapter(child: SizedBox(height: 16)),
+
+          SliverToBoxAdapter(
+            child: SizedBox(height: context.responsive.spacingM),
+          ),
 
           FilterRow(
             title: 'filter_category'.tr(),
             items: categories,
             selected: vm.selectedCategories,
             onTap: vm.toggleCategory,
-            accentColor: const Color(0xFF7C3AED),
+            accentColor: AppColors.gradientPurple[0],
           ),
 
           FilterRow(
@@ -138,12 +153,13 @@ class _TestMenuScreenState extends State<TestMenuScreen> {
             items: grammars,
             selected: vm.selectedGrammar,
             onTap: vm.toggleGrammar,
-            accentColor: const Color(0xFFEC4899),
+            accentColor: AppColors.gradientPink[0],
           ),
 
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 24.0),
+              padding:
+                  EdgeInsets.symmetric(vertical: context.responsive.spacingL),
               child: Center(
                 child: AnimatedSwitcher(
                   duration: const Duration(milliseconds: 300),
@@ -151,11 +167,10 @@ class _TestMenuScreenState extends State<TestMenuScreen> {
                     '${vm.filteredWordCount} ${'lab_match_count'.tr()}',
                     key: ValueKey(vm.filteredWordCount),
                     style: GoogleFonts.poppins(
-                      fontSize: 18,
+                      fontSize: context.responsive.fontSizeH3,
                       fontWeight: FontWeight.bold,
-                      color: vm.canStartTest
-                          ? const Color(0xFF059669)
-                          : const Color(0xFFDC2626),
+                      color:
+                          vm.canStartTest ? AppColors.success : AppColors.error,
                     ),
                   ),
                 ),
@@ -164,36 +179,41 @@ class _TestMenuScreenState extends State<TestMenuScreen> {
           ),
 
           SliverPadding(
-            padding: EdgeInsets.symmetric(horizontal: size.width * 0.06),
+            padding: context.responsive.paddingPage.copyWith(top: 0),
             sliver: SliverGrid(
               gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: size.width > 600 ? 3 : 1,
-                childAspectRatio: size.width > 600 ? 1.7 : 3.8,
-                mainAxisSpacing: 16,
-                crossAxisSpacing: 20,
+                crossAxisCount: context.responsive.value(
+                  mobile: 1,
+                  tablet: 2,
+                  desktop: 3,
+                ),
+                childAspectRatio: context.responsive.value(
+                  mobile: 3.8,
+                  tablet: 2.0,
+                  desktop: 1.7,
+                ),
+                mainAxisSpacing: context.responsive.spacingM,
+                crossAxisSpacing: context.responsive.spacingL,
               ),
               delegate: SliverChildListDelegate.fixed([
                 ModeCard(
                   title: 'mode_quiz'.tr(),
                   icon: Icons.format_list_bulleted_rounded,
-                  gradient: const LinearGradient(
-                      colors: [Color(0xFF7C3AED), Color(0xFF6D28D9)]),
+                  gradient: LinearGradient(colors: AppColors.gradientPurple),
                   enabled: vm.canStartTest,
                   onTap: () => _startTest(context, 'custom', 'quiz'),
                 ),
                 ModeCard(
                   title: 'mode_listening'.tr(),
                   icon: Icons.headphones_rounded,
-                  gradient: const LinearGradient(
-                      colors: [Color(0xFFEC4899), Color(0xFFDB2777)]),
+                  gradient: LinearGradient(colors: AppColors.gradientPink),
                   enabled: vm.canStartTest,
                   onTap: () => _startTest(context, 'custom', 'listening'),
                 ),
                 ModeCard(
                   title: 'mode_speaking'.tr(),
                   icon: Icons.mic_rounded,
-                  gradient: const LinearGradient(
-                      colors: [Color(0xFF14B8A6), Color(0xFF0D9488)]),
+                  gradient: LinearGradient(colors: AppColors.gradientGreen),
                   enabled: vm.canStartTest,
                   onTap: () => _startTest(context, 'custom', 'speaking'),
                 ),
@@ -201,25 +221,30 @@ class _TestMenuScreenState extends State<TestMenuScreen> {
             ),
           ),
 
-          const SliverToBoxAdapter(child: SizedBox(height: 48)),
+          SliverToBoxAdapter(
+            child: SizedBox(height: context.responsive.spacingXL),
+          ),
 
           SliverToBoxAdapter(
             child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: size.width * 0.06),
+              padding: context.responsive.paddingPage.copyWith(top: 0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Son Testler',
-                      style: GoogleFonts.poppins(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: const Color(0xFF1F2937))),
-                  const SizedBox(height: 4),
                   Text(
-                    'Burada sadece son 3 günün testleri görünür. Daha eskiler için "İlerleme" ekranına bakın.',
+                    'test_history_title'.tr(),
                     style: GoogleFonts.poppins(
-                      fontSize: 12,
-                      color: Colors.grey[500],
+                      fontSize: context.responsive.fontSizeH2,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  SizedBox(height: context.responsive.spacingXS),
+                  Text(
+                    'test_history_desc'.tr(),
+                    style: GoogleFonts.poppins(
+                      fontSize: context.responsive.fontSizeCaption,
+                      color: AppColors.textSecondary,
                       fontStyle: FontStyle.italic,
                     ),
                   ),
@@ -228,20 +253,33 @@ class _TestMenuScreenState extends State<TestMenuScreen> {
             ),
           ),
 
-          const SliverToBoxAdapter(child: SizedBox(height: 16)),
+          SliverToBoxAdapter(
+            child: SizedBox(height: context.responsive.spacingM),
+          ),
 
           SliverList(
             delegate: SliverChildBuilderDelegate(
               (context, i) => Padding(
                 padding: EdgeInsets.symmetric(
-                    horizontal: size.width * 0.06, vertical: 8),
+                  horizontal: context.responsive.value(
+                    mobile: 20,
+                    tablet: 24,
+                    desktop: 32,
+                  ),
+                  vertical: context.responsive.spacingS,
+                ),
                 child: HistoryCardWidget(result: vm.testHistory[i]),
               ),
               childCount: vm.testHistory.length,
             ),
           ),
-          // DÜZELTME 2: BottomNavigationBar'ın üzerine binmemesi için ekstra boşluk
-          const SliverToBoxAdapter(child: SizedBox(height: 120)),
+
+          // BottomNavigationBar'ın üzerine binmemesi için ekstra boşluk
+          SliverToBoxAdapter(
+            child: SizedBox(
+                height: context.responsive.bottomNavHeight +
+                    context.responsive.spacingXL),
+          ),
         ],
       ),
     );
@@ -250,18 +288,19 @@ class _TestMenuScreenState extends State<TestMenuScreen> {
   Widget _buildDailyGoalHeader(TestMenuViewModel vm, BuildContext context) {
     return SliverToBoxAdapter(
       child: Container(
-        margin: const EdgeInsets.all(20),
-        padding: const EdgeInsets.all(24),
+        margin: context.responsive.paddingPage,
+        padding: EdgeInsets.all(context.responsive.spacingL),
         decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFF2563EB), Color(0xFF1D4ED8)],
+          gradient: LinearGradient(
+            colors: [AppColors.primary, AppColors.primaryDark],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
-          borderRadius: BorderRadius.circular(28),
+          borderRadius:
+              BorderRadius.circular(context.responsive.borderRadiusXL),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFF2563EB).withOpacity(0.4),
+              color: AppColors.primary.withOpacity(0.4),
               blurRadius: 20,
               offset: const Offset(0, 10),
             ),
@@ -279,60 +318,76 @@ class _TestMenuScreenState extends State<TestMenuScreen> {
                     Text(
                       'daily_test'.tr(),
                       style: GoogleFonts.poppins(
-                          color: Colors.white.withOpacity(0.9),
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500),
+                        color: AppColors.surface.withOpacity(0.9),
+                        fontSize: context.responsive.fontSizeBody,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
-                    const SizedBox(height: 4),
+                    SizedBox(height: context.responsive.spacingXS),
                     Text(
                       "${vm.dailyReviewCount}/${vm.dailyTarget}",
                       style: GoogleFonts.poppins(
-                          color: Colors.white,
-                          fontSize: 32,
-                          fontWeight: FontWeight.bold),
+                        color: AppColors.surface,
+                        fontSize: context.responsive.fontSizeH1,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ],
                 ),
                 Container(
-                  padding: const EdgeInsets.all(12),
+                  padding: EdgeInsets.all(context.responsive.spacingM),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
+                    color: AppColors.surface.withOpacity(0.2),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.flag_rounded,
-                      color: Colors.white, size: 32),
+                  child: Icon(
+                    Icons.flag_rounded,
+                    color: AppColors.surface,
+                    size: context.responsive.iconSizeL,
+                  ),
                 ),
               ],
             ),
-            const SizedBox(height: 20),
+            SizedBox(height: context.responsive.spacingL),
             ClipRRect(
-              borderRadius: BorderRadius.circular(10),
+              borderRadius:
+                  BorderRadius.circular(context.responsive.borderRadiusM),
               child: LinearProgressIndicator(
                 value: vm.dailyTarget > 0
                     ? (vm.dailyReviewCount / vm.dailyTarget).clamp(0.0, 1.0)
                     : 0,
-                minHeight: 10,
+                minHeight: context.responsive.value(
+                  mobile: 8,
+                  tablet: 10,
+                  desktop: 12,
+                ),
                 backgroundColor: Colors.black.withOpacity(0.2),
-                valueColor: const AlwaysStoppedAnimation(Color(0xFF4ADE80)),
+                valueColor: AlwaysStoppedAnimation(AppColors.success),
               ),
             ),
-            const SizedBox(height: 20),
+            SizedBox(height: context.responsive.spacingL),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: () => _startTest(context, 'daily', 'quiz'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  foregroundColor: const Color(0xFF1D4ED8),
+                  backgroundColor: AppColors.surface,
+                  foregroundColor: AppColors.primary,
                   elevation: 0,
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14)),
-                  padding: const EdgeInsets.symmetric(vertical: 16),
+                    borderRadius:
+                        BorderRadius.circular(context.responsive.borderRadiusL),
+                  ),
+                  padding: EdgeInsets.symmetric(
+                      vertical: context.responsive.spacingM),
                 ),
                 child: Text(
                   'btn_start'.tr().toUpperCase(),
                   style: GoogleFonts.poppins(
-                      fontWeight: FontWeight.bold, letterSpacing: 1),
+                    fontWeight: FontWeight.bold,
+                    fontSize: context.responsive.fontSizeBody,
+                    letterSpacing: 1,
+                  ),
                 ),
               ),
             ),

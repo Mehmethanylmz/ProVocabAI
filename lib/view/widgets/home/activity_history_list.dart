@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:easy_localization/easy_localization.dart';
 import '../../../viewmodel/home_viewmodel.dart';
 import '../../../../core/extensions/responsive_extension.dart';
+import '../../../../core/constants/app_colors.dart';
 
 class ActivityHistoryList extends StatefulWidget {
   const ActivityHistoryList({super.key});
@@ -32,7 +34,7 @@ class _ActivityHistoryListState extends State<ActivityHistoryList> {
     return Column(
       children: [
         _buildMonthSelector(monthlyActivity, context),
-        SizedBox(height: context.mediumValue),
+        SizedBox(height: context.responsive.spacingM),
         if (_selectedMonth != null)
           _buildMonthDetail(context, provider, _selectedMonth!),
       ],
@@ -41,49 +43,61 @@ class _ActivityHistoryListState extends State<ActivityHistoryList> {
 
   Widget _buildLoadingState(BuildContext context) {
     return Container(
-      height: context.value(mobile: 200, tablet: 250),
+      height: context.responsive.value(mobile: 200, tablet: 250, desktop: 300),
       decoration: BoxDecoration(
-        gradient:
-            LinearGradient(colors: [Colors.blue[50]!, Colors.purple[50]!]),
-        borderRadius: BorderRadius.circular(24),
+        gradient: LinearGradient(colors: [
+          AppColors.primary.withOpacity(0.05),
+          AppColors.info.withOpacity(0.05)
+        ]),
+        borderRadius: BorderRadius.circular(context.responsive.borderRadiusXL),
       ),
-      child: const Center(child: CircularProgressIndicator()),
+      child: Center(
+        child: CircularProgressIndicator(color: AppColors.primary),
+      ),
     ).animate().fadeIn();
   }
 
   Widget _buildEmptyState(BuildContext context) {
     return Container(
-      padding: context.paddingHigh,
+      padding:
+          EdgeInsets.all(context.responsive.spacingXL), // paddingHigh yerine
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(32),
-        border: Border.all(color: Colors.grey.shade200),
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(context.responsive.borderRadiusXL),
+        border: Border.all(color: AppColors.borderLight),
         boxShadow: [
           BoxShadow(
-              color: Colors.grey.withOpacity(0.1),
-              blurRadius: 20,
-              offset: const Offset(0, 10))
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
         ],
       ),
       child: Column(
         children: [
-          Icon(Icons.history_toggle_off,
-              size: context.value(mobile: 60, tablet: 80),
-              color: Colors.grey[300]),
-          SizedBox(height: context.mediumValue),
-          Text(
-            'Henüz Aktivite Yok',
-            style: GoogleFonts.poppins(
-                fontSize: context.fontMedium,
-                fontWeight: FontWeight.bold,
-                color: Colors.grey[800]),
+          Icon(
+            Icons.history_toggle_off,
+            size:
+                context.responsive.value(mobile: 60, tablet: 80, desktop: 100),
+            color: AppColors.textDisabled,
           ),
-          SizedBox(height: context.normalValue),
+          SizedBox(height: context.responsive.spacingM),
           Text(
-            'Test çözdükçe geçmişin burada görünecek.',
+            'activity_empty_title'.tr(),
+            style: GoogleFonts.poppins(
+              fontSize: context.responsive.fontSizeH3,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          SizedBox(height: context.responsive.spacingS),
+          Text(
+            'activity_empty_desc'.tr(),
             textAlign: TextAlign.center,
             style: GoogleFonts.poppins(
-                color: Colors.grey[600], fontSize: context.fontNormal),
+              color: AppColors.textSecondary,
+              fontSize: context.responsive.fontSizeBody,
+            ),
           ),
         ],
       ),
@@ -97,11 +111,11 @@ class _ActivityHistoryListState extends State<ActivityHistoryList> {
     }
 
     return SizedBox(
-      height: context.value(mobile: 110, tablet: 140),
+      height: context.responsive.value(mobile: 110, tablet: 140, desktop: 160),
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         itemCount: monthlyActivity.length,
-        padding: context.paddingHorizontalMedium,
+        padding: context.responsive.paddingPage.copyWith(top: 0, bottom: 0),
         itemBuilder: (context, index) {
           final monthData = monthlyActivity[index];
           final isSelected = _selectedMonth == monthData['monthYear'];
@@ -121,64 +135,80 @@ class _ActivityHistoryListState extends State<ActivityHistoryList> {
     final successRate = total > 0 ? (correct / total * 100) : 0.0;
 
     final gradients = [
-      [const Color(0xFF667eea), const Color(0xFF764ba2)],
-      [const Color(0xFF11998e), const Color(0xFF38ef7d)],
-      [const Color(0xFFF093FB), const Color(0xFFF5576C)],
-      [const Color(0xFF4facfe), const Color(0xFF00f2fe)],
+      AppColors.gradientPurple,
+      AppColors.gradientGreen,
+      AppColors.gradientPink,
+      AppColors.gradientBlue,
     ];
     final gradient = gradients[int.parse(parts[1]) % gradients.length];
 
     return Padding(
-      padding: EdgeInsets.symmetric(horizontal: context.lowValue),
+      padding: EdgeInsets.symmetric(horizontal: context.responsive.spacingS),
       child: InkWell(
         onTap: () => setState(() {
           _selectedMonth = monthData['monthYear'];
           _selectedWeek = null;
         }),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(context.responsive.borderRadiusL),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 300),
-          width: context.value(mobile: 130, tablet: 160),
-          padding: context.paddingMedium,
+          width:
+              context.responsive.value(mobile: 130, tablet: 160, desktop: 180),
+          padding: EdgeInsets.all(
+              context.responsive.spacingM), // paddingMedium yerine
           decoration: BoxDecoration(
             gradient: isSelected
                 ? LinearGradient(colors: gradient)
-                : LinearGradient(colors: [Colors.white, Colors.grey[50]!]),
-            borderRadius: BorderRadius.circular(20),
+                : LinearGradient(
+                    colors: [AppColors.surface, AppColors.background]),
+            borderRadius:
+                BorderRadius.circular(context.responsive.borderRadiusL),
             border: Border.all(
-                color: isSelected
-                    ? Colors.transparent
-                    : gradient[0].withOpacity(0.3),
-                width: 2),
+              color: isSelected
+                  ? Colors.transparent
+                  : gradient[0].withOpacity(0.3),
+              width: 2,
+            ),
             boxShadow: isSelected
                 ? [
                     BoxShadow(
-                        color: gradient[0].withOpacity(0.4),
-                        blurRadius: 12,
-                        offset: const Offset(0, 6))
+                      color: gradient[0].withOpacity(0.4),
+                      blurRadius: context.responsive
+                          .value(mobile: 8, tablet: 12, desktop: 16),
+                      offset: const Offset(0, 6),
+                    ),
                   ]
                 : null,
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text(monthName,
-                  style: GoogleFonts.poppins(
-                      fontSize: context.fontNormal,
-                      fontWeight: FontWeight.bold,
-                      color: isSelected ? Colors.white : gradient[0])),
-              Text(year,
-                  style: GoogleFonts.poppins(
-                      fontSize: context.fontSmall,
-                      color: isSelected
-                          ? Colors.white.withOpacity(0.9)
-                          : Colors.grey[600])),
-              SizedBox(height: context.normalValue),
-              Text('%${successRate.toStringAsFixed(0)}',
-                  style: GoogleFonts.poppins(
-                      fontSize: context.fontLarge,
-                      fontWeight: FontWeight.bold,
-                      color: isSelected ? Colors.white : gradient[0])),
+              Text(
+                monthName,
+                style: GoogleFonts.poppins(
+                  fontSize: context.responsive.fontSizeBody,
+                  fontWeight: FontWeight.bold,
+                  color: isSelected ? AppColors.surface : gradient[0],
+                ),
+              ),
+              Text(
+                year,
+                style: GoogleFonts.poppins(
+                  fontSize: context.responsive.fontSizeCaption,
+                  color: isSelected
+                      ? AppColors.surface.withOpacity(0.9)
+                      : AppColors.textSecondary,
+                ),
+              ),
+              SizedBox(height: context.responsive.spacingS),
+              Text(
+                '%${successRate.toStringAsFixed(0)}',
+                style: GoogleFonts.poppins(
+                  fontSize: context.responsive.fontSizeH2,
+                  fontWeight: FontWeight.bold,
+                  color: isSelected ? AppColors.surface : gradient[0],
+                ),
+              ),
             ],
           ),
         ),
@@ -203,35 +233,42 @@ class _ActivityHistoryListState extends State<ActivityHistoryList> {
     return Column(
       children: [
         Container(
-          padding: context.paddingMedium,
+          padding: EdgeInsets.all(
+              context.responsive.spacingM), // paddingMedium yerine
           decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(24),
+            color: AppColors.surface,
+            borderRadius:
+                BorderRadius.circular(context.responsive.borderRadiusL),
             boxShadow: [
               BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 20,
-                  offset: const Offset(0, 8))
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 20,
+                offset: const Offset(0, 8),
+              ),
             ],
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               _buildStatItem(
-                  "Toplam", "$total", Icons.quiz, Colors.blue, context),
-              _buildStatItem("Doğru", "$correct", Icons.check_circle,
-                  Colors.green, context),
+                  "total".tr(), "$total", Icons.quiz, AppColors.info, context),
+              _buildStatItem("correct".tr(), "$correct", Icons.check_circle,
+                  AppColors.success, context),
+              _buildStatItem("incorrect".tr(), "$wrong", Icons.cancel,
+                  AppColors.error, context),
               _buildStatItem(
-                  "Yanlış", "$wrong", Icons.cancel, Colors.red, context),
-              _buildStatItem("Oran", "%${successRate.toStringAsFixed(0)}",
-                  Icons.percent, Colors.purple, context),
+                  "success_rate".tr(),
+                  "%${successRate.toStringAsFixed(0)}",
+                  Icons.percent,
+                  AppColors.primary,
+                  context),
             ],
           ),
         ),
-        SizedBox(height: context.mediumValue),
+        SizedBox(height: context.responsive.spacingM),
         if (weeklyData.isNotEmpty)
           _buildWeekSelector(weeklyData, monthYear, context),
-        SizedBox(height: context.mediumValue),
+        SizedBox(height: context.responsive.spacingM),
         if (_selectedWeek != null)
           _buildWeekDetail(context, provider, _selectedWeek!, monthYear),
       ],
@@ -242,12 +279,12 @@ class _ActivityHistoryListState extends State<ActivityHistoryList> {
       BuildContext context) {
     return Column(
       children: [
-        Icon(icon, color: color, size: context.iconNormal),
-        SizedBox(height: context.lowValue),
+        Icon(icon, color: color, size: context.responsive.iconSizeM),
+        SizedBox(height: context.responsive.spacingXS),
         Text(
           value,
           style: GoogleFonts.poppins(
-            fontSize: context.fontMedium,
+            fontSize: context.responsive.fontSizeH3,
             fontWeight: FontWeight.bold,
             color: color,
           ),
@@ -255,7 +292,9 @@ class _ActivityHistoryListState extends State<ActivityHistoryList> {
         Text(
           label,
           style: GoogleFonts.poppins(
-              fontSize: context.fontSmall, color: Colors.grey[600]),
+            fontSize: context.responsive.fontSizeCaption,
+            color: AppColors.textSecondary,
+          ),
         ),
       ],
     );
@@ -272,21 +311,25 @@ class _ActivityHistoryListState extends State<ActivityHistoryList> {
       children: [
         Padding(
           padding: EdgeInsets.only(
-              left: context.lowValue, bottom: context.normalValue),
+            left: context.responsive.spacingS,
+            bottom: context.responsive.spacingS,
+          ),
           child: Text(
-            'Haftalık Performans',
+            'activity_weekly_performance'.tr(),
             style: GoogleFonts.poppins(
-                fontSize: context.fontMedium,
-                fontWeight: FontWeight.bold,
-                color: Colors.grey[800]),
+              fontSize: context.responsive.fontSizeH3,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textPrimary,
+            ),
           ),
         ),
         SizedBox(
-          height: context.value(mobile: 90, tablet: 110),
+          height:
+              context.responsive.value(mobile: 90, tablet: 110, desktop: 130),
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             itemCount: weeklyData.length,
-            padding: context.paddingHorizontalMedium,
+            padding: context.responsive.paddingPage.copyWith(top: 0, bottom: 0),
             itemBuilder: (context, index) {
               final weekData = weeklyData[index];
               final isSelected = _selectedWeek == weekData['weekOfYear'];
@@ -307,43 +350,54 @@ class _ActivityHistoryListState extends State<ActivityHistoryList> {
     final weekNumber = (weekStartDate.day / 7).ceil();
 
     return Padding(
-      padding: EdgeInsets.symmetric(horizontal: context.lowValue),
+      padding: EdgeInsets.symmetric(horizontal: context.responsive.spacingS),
       child: InkWell(
         onTap: () => setState(() => _selectedWeek = weekOfYear),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(context.responsive.borderRadiusM),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 300),
-          width: context.value(mobile: 90, tablet: 110),
-          padding: context.paddingNormal,
+          width:
+              context.responsive.value(mobile: 90, tablet: 110, desktop: 130),
+          padding: EdgeInsets.all(
+              context.responsive.spacingS), // paddingNormal yerine spacingS
           decoration: BoxDecoration(
-            color: isSelected ? Colors.blue[600] : Colors.white,
-            borderRadius: BorderRadius.circular(16),
+            color: isSelected ? AppColors.primary : AppColors.surface,
+            borderRadius:
+                BorderRadius.circular(context.responsive.borderRadiusM),
             boxShadow: isSelected
                 ? [
                     BoxShadow(
-                        color: Colors.blue.withOpacity(0.4),
-                        blurRadius: 8,
-                        offset: const Offset(0, 4))
+                      color: AppColors.primary.withOpacity(0.4),
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
+                    ),
                   ]
                 : null,
             border: Border.all(
-                color: isSelected ? Colors.transparent : Colors.grey[300]!),
+              color: isSelected ? Colors.transparent : AppColors.borderLight,
+            ),
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text('Hafta $weekNumber',
-                  style: GoogleFonts.poppins(
-                      fontSize: context.fontSmall,
-                      fontWeight: FontWeight.bold,
-                      color: isSelected ? Colors.white : Colors.grey[800])),
-              SizedBox(height: context.lowValue),
-              Text('$total Soru',
-                  style: GoogleFonts.poppins(
-                      fontSize: context.fontSmall - 1,
-                      color: isSelected
-                          ? Colors.white.withOpacity(0.9)
-                          : Colors.grey[600])),
+              Text(
+                '${'week'.tr()} $weekNumber',
+                style: GoogleFonts.poppins(
+                  fontSize: context.responsive.fontSizeBody,
+                  fontWeight: FontWeight.bold,
+                  color: isSelected ? AppColors.surface : AppColors.textPrimary,
+                ),
+              ),
+              SizedBox(height: context.responsive.spacingXS),
+              Text(
+                '$total ${'questions'.tr()}',
+                style: GoogleFonts.poppins(
+                  fontSize: context.responsive.fontSizeCaption,
+                  color: isSelected
+                      ? AppColors.surface.withOpacity(0.9)
+                      : AppColors.textSecondary,
+                ),
+              ),
             ],
           ),
         ),
@@ -358,9 +412,12 @@ class _ActivityHistoryListState extends State<ActivityHistoryList> {
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return Center(
-              child: Padding(
-                  padding: context.paddingMedium,
-                  child: CircularProgressIndicator()));
+            child: Padding(
+              padding: EdgeInsets.all(
+                  context.responsive.spacingM), // paddingMedium yerine
+              child: CircularProgressIndicator(color: AppColors.primary),
+            ),
+          );
         }
 
         if (!snapshot.hasData || snapshot.data!.isEmpty) {
@@ -379,46 +436,54 @@ class _ActivityHistoryListState extends State<ActivityHistoryList> {
             weekTotal > 0 ? (weekCorrect / weekTotal * 100) : 0.0;
 
         return Container(
-          padding: context.paddingMedium,
+          padding: EdgeInsets.all(
+              context.responsive.spacingM), // paddingMedium yerine
           decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: Colors.grey[100]!),
+            color: AppColors.surface,
+            borderRadius:
+                BorderRadius.circular(context.responsive.borderRadiusL),
+            border: Border.all(color: AppColors.borderLight),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                padding: context.paddingMedium,
-                margin: EdgeInsets.only(bottom: context.mediumValue),
+                padding: EdgeInsets.all(
+                    context.responsive.spacingM), // paddingMedium yerine
+                margin: EdgeInsets.only(bottom: context.responsive.spacingM),
                 decoration: BoxDecoration(
-                  color: Colors.grey[50],
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.grey[200]!),
+                  color: AppColors.background,
+                  borderRadius:
+                      BorderRadius.circular(context.responsive.borderRadiusM),
+                  border: Border.all(color: AppColors.borderLight),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    _buildStatItem("Toplam", "$weekTotal", Icons.quiz,
-                        Colors.blue, context),
-                    _buildStatItem("Doğru", "$weekCorrect", Icons.check_circle,
-                        Colors.green, context),
-                    _buildStatItem("Yanlış", "$weekWrong", Icons.cancel,
-                        Colors.red, context),
+                    _buildStatItem("total".tr(), "$weekTotal", Icons.quiz,
+                        AppColors.info, context),
+                    _buildStatItem("correct".tr(), "$weekCorrect",
+                        Icons.check_circle, AppColors.success, context),
+                    _buildStatItem("incorrect".tr(), "$weekWrong", Icons.cancel,
+                        AppColors.error, context),
                     _buildStatItem(
-                        "Oran",
+                        "success_rate".tr(),
                         "%${weekSuccessRate.toStringAsFixed(0)}",
                         Icons.percent,
-                        Colors.purple,
+                        AppColors.primary,
                         context),
                   ],
                 ),
               ),
-              Text('Günlük Detay',
-                  style: GoogleFonts.poppins(
-                      fontSize: context.fontMedium,
-                      fontWeight: FontWeight.bold)),
-              SizedBox(height: context.mediumValue),
+              Text(
+                'activity_daily_detail'.tr(),
+                style: GoogleFonts.poppins(
+                  fontSize: context.responsive.fontSizeH3,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              SizedBox(height: context.responsive.spacingM),
               ...dailyStats.map((dayData) => _buildDayRow(dayData, context)),
             ],
           ),
@@ -436,120 +501,150 @@ class _ActivityHistoryListState extends State<ActivityHistoryList> {
     final successRate = total > 0 ? (correct / total * 100) : 0.0;
 
     return Padding(
-      padding: EdgeInsets.only(bottom: context.normalValue),
+      padding: EdgeInsets.only(bottom: context.responsive.spacingS),
       child: Row(
         children: [
           Container(
-            width: context.value(mobile: 40, tablet: 48),
-            height: context.value(mobile: 40, tablet: 48),
+            width:
+                context.responsive.value(mobile: 40, tablet: 48, desktop: 56),
+            height:
+                context.responsive.value(mobile: 40, tablet: 48, desktop: 56),
             decoration: BoxDecoration(
-              color: _getSuccessColor(successRate).withOpacity(0.1),
-              borderRadius: BorderRadius.circular(10),
+              color: AppColors.getSuccessColor(successRate).withOpacity(0.1),
+              borderRadius:
+                  BorderRadius.circular(context.responsive.borderRadiusM),
             ),
             child: Center(
-              child: Text("${date.day}",
-                  style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: _getSuccessColor(successRate))),
+              child: Text(
+                "${date.day}",
+                style: GoogleFonts.poppins(
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.getSuccessColor(successRate),
+                  fontSize: context.responsive.fontSizeBody,
+                ),
+              ),
             ),
           ),
-          SizedBox(width: context.normalValue),
+          SizedBox(width: context.responsive.spacingS),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(_getDayName(date.weekday),
-                    style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: context.fontNormal)),
-                SizedBox(height: context.lowValue),
+                Text(
+                  _getDayName(date.weekday),
+                  style: GoogleFonts.poppins(
+                    fontWeight: FontWeight.bold,
+                    fontSize: context.responsive.fontSizeBody,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                SizedBox(height: context.responsive.spacingXS),
                 Row(
                   children: [
                     Container(
                       padding: EdgeInsets.symmetric(
-                          horizontal: context.lowValue, vertical: 2),
+                        horizontal: context.responsive.spacingXS,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
-                          color: Colors.blue[50],
-                          borderRadius: BorderRadius.circular(4)),
+                        color: AppColors.info.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(
+                            context.responsive.borderRadiusS),
+                      ),
                       child: Row(
                         children: [
-                          Icon(Icons.quiz,
-                              size: context.fontSmall, color: Colors.blue),
-                          const SizedBox(width: 4),
-                          Text("$total",
-                              style: TextStyle(
-                                  fontSize: context.fontSmall - 1,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.blue)),
+                          Icon(
+                            Icons.quiz,
+                            size: context.responsive.fontSizeCaption,
+                            color: AppColors.info,
+                          ),
+                          SizedBox(width: context.responsive.spacingXS),
+                          Text(
+                            "$total",
+                            style: GoogleFonts.poppins(
+                              fontSize: context.responsive.fontSizeCaption,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.info,
+                            ),
+                          ),
                         ],
                       ),
                     ),
-                    SizedBox(width: context.normalValue),
-                    Icon(Icons.check_circle,
-                        size: context.fontSmall, color: Colors.green),
-                    const SizedBox(width: 2),
-                    Text("$correct",
-                        style: TextStyle(
-                            color: Colors.green,
-                            fontSize: context.fontSmall,
-                            fontWeight: FontWeight.bold)),
-                    SizedBox(width: context.normalValue),
-                    Icon(Icons.cancel,
-                        size: context.fontSmall, color: Colors.red),
-                    const SizedBox(width: 2),
-                    Text("$wrong",
-                        style: TextStyle(
-                            color: Colors.red,
-                            fontSize: context.fontSmall,
-                            fontWeight: FontWeight.bold)),
+                    SizedBox(width: context.responsive.spacingS),
+                    Icon(
+                      Icons.check_circle,
+                      size: context.responsive.fontSizeCaption,
+                      color: AppColors.success,
+                    ),
+                    SizedBox(width: 2),
+                    Text(
+                      "$correct",
+                      style: GoogleFonts.poppins(
+                        color: AppColors.success,
+                        fontSize: context.responsive.fontSizeCaption,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    SizedBox(width: context.responsive.spacingS),
+                    Icon(
+                      Icons.cancel,
+                      size: context.responsive.fontSizeCaption,
+                      color: AppColors.error,
+                    ),
+                    SizedBox(width: 2),
+                    Text(
+                      "$wrong",
+                      style: GoogleFonts.poppins(
+                        color: AppColors.error,
+                        fontSize: context.responsive.fontSizeCaption,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ],
                 ),
               ],
             ),
           ),
-          Text("%${successRate.toStringAsFixed(0)}",
-              style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: context.fontMedium,
-                  color: _getSuccessColor(successRate))),
+          Text(
+            "%${successRate.toStringAsFixed(0)}",
+            style: GoogleFonts.poppins(
+              fontWeight: FontWeight.bold,
+              fontSize: context.responsive.fontSizeH3,
+              color: AppColors.getSuccessColor(successRate),
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Color _getSuccessColor(double rate) {
-    if (rate >= 80) return Colors.green;
-    if (rate >= 60) return Colors.orange;
-    return Colors.red;
-  }
-
   String _getMonthName(String monthNum) {
     const monthNames = {
-      '01': 'Ocak',
-      '02': 'Şubat',
-      '03': 'Mart',
-      '04': 'Nisan',
-      '05': 'Mayıs',
-      '06': 'Haziran',
-      '07': 'Temmuz',
-      '08': 'Ağustos',
-      '09': 'Eylül',
-      '10': 'Ekim',
-      '11': 'Kasım',
-      '12': 'Aralık'
+      '01': 'Jan',
+      '02': 'Feb',
+      '03': 'Mar',
+      '04': 'Apr',
+      '05': 'May',
+      '06': 'Jun',
+      '07': 'Jul',
+      '08': 'Aug',
+      '09': 'Sep',
+      '10': 'Oct',
+      '11': 'Nov',
+      '12': 'Dec'
     };
     return monthNames[monthNum] ?? monthNum;
   }
 
   String _getDayName(int weekday) {
     const dayNames = {
-      1: 'Pazartesi',
-      2: 'Salı',
-      3: 'Çarşamba',
-      4: 'Perşembe',
-      5: 'Cuma',
-      6: 'Cumartesi',
-      7: 'Pazar'
+      1: 'Mon',
+      2: 'Tue',
+      3: 'Wed',
+      4: 'Thu',
+      5: 'Fri',
+      6: 'Sat',
+      7: 'Sun'
     };
     return dayNames[weekday] ?? '';
   }
