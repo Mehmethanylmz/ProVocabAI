@@ -1,0 +1,19 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Geliştirme Modu (Development)",
+            "request": "launch",
+            "type": "dart",
+            "program": "lib/main_development.dart",
+            "flutterMode": "debug"
+        },
+        {
+            "name": "Canlı Mod (Production)",
+            "request": "launch",
+            "type": "dart",
+            "program": "lib/main_production.dart",
+            "flutterMode": "release"
+        }
+    ]
+}

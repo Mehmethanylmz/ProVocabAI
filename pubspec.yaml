@@ -10,45 +10,55 @@ dependencies:
   flutter:
     sdk: flutter
 
-  # Local DB
+  # --- CORE & ARCHITECTURE ---
+  get_it: ^7.6.0          # Dependency Injection
+  provider: ^6.1.2        # State Management
+  equatable: ^2.0.5       # Object comparison (Model eşitliği için standart)
+  
+  # --- NETWORK ---
+  dio: ^5.4.0             # Http Client
+  retrofit: ^4.1.0        # API Generator Interface
+  json_annotation: ^4.8.1 # JSON serileştirme (Model için şart)
+  logger: ^2.0.2          # Renkli loglama
+
+  # --- LOCAL STORAGE ---
   sqflite: ^2.3.3+1
   path: ^1.9.0
   shared_preferences: ^2.2.3
-  provider: ^6.1.2
 
-  # UI & Icons
+  # --- UI & ANIMATION ---
   cupertino_icons: ^1.0.8
   google_fonts: ^6.2.1
   flutter_animate: ^4.5.0
   appinio_swiper: ^2.1.1
+  fl_chart: ^1.1.1
 
-  # Ses & Medya
+  # --- MEDIA & NOTIFICATIONS ---
   flutter_tts: ^4.2.3
   audioplayers: ^6.5.1
-
-  # Araçlar
-  fl_chart: ^1.1.1
-  collection: ^1.19.1
   flutter_local_notifications: ^19.5.0
   timezone: ^0.10.1
-
-  # --- intl ÇAKIŞMASI DÜZELTİLDİ ---
-  intl: 0.20.2
-
-  share_plus: ^12.0.1
-
-  # Konuşma
+  
+  # --- SPEECH ---
   speech_to_text: ^7.1.0 
   permission_handler: ^11.3.1
 
-  # Lokalizasyon (YENİ)
+  # --- UTILS ---
+  collection: ^1.19.0
+  intl: 0.20.2
+  share_plus: ^12.0.1
   easy_localization: ^3.0.8
+  dartz: ^0.10.1
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
 
+  # --- CODE GENERATION (Sihirli Kısım) ---
+  build_runner: ^2.4.8        # Kod üretim motoru
+  retrofit_generator: ^7.0.8  # Retrofit kodlarını yazar
+  json_serializable: ^6.7.1   # fromJson/toJson kodlarını yazar
 flutter:
   uses-material-design: true
 
