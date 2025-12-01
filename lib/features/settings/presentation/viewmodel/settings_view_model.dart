@@ -1,25 +1,24 @@
+import 'dart:io';
+import 'package:easy_localization/easy_localization.dart'; // EKLENDİ
 import 'package:flutter/material.dart';
 import '../../../../../core/base/base_view_model.dart';
 import '../../domain/repositories/i_settings_repository.dart';
+import '../../../study_zone/domain/repositories/i_word_repository.dart';
+import '../../../../core/init/lang/language_manager.dart';
 
 class SettingsViewModel extends BaseViewModel {
   final ISettingsRepository _repository;
+  final IWordRepository _wordRepo;
 
-  SettingsViewModel(this._repository) {
-    // Constructor'da çağırmak yerine View'dan (onModelReady) çağıracağız.
-    // Ancak view yüklenmeden veri olsun istersen burada da kalabilir.
-    // loadSettings();
-  }
+  SettingsViewModel(this._repository, this._wordRepo);
 
-  // State Değişkenleri
-  String _sourceLang = 'tr';
-  String _targetLang = 'en';
+  String _sourceLang = 'en-US';
+  String _targetLang = 'tr-TR';
   String _proficiencyLevel = 'beginner';
   int _batchSize = 10;
   bool _autoPlaySound = true;
-  ThemeMode _themeMode = ThemeMode.system; // Varsayılan
+  ThemeMode _themeMode = ThemeMode.system;
 
-  // Getterlar
   String get sourceLang => _sourceLang;
   String get targetLang => _targetLang;
   String get proficiencyLevel => _proficiencyLevel;
@@ -27,40 +26,108 @@ class SettingsViewModel extends BaseViewModel {
   bool get autoPlaySound => _autoPlaySound;
   ThemeMode get themeMode => _themeMode;
 
-  // --- METHOT İSMİ DÜZELTİLDİ (loadSettings) ---
   Future<void> loadSettings() async {
-    // Loading sadece ilk girişte hoş olabilir ama her seferinde ekrana spinner girmesin diye
-    // changeLoading yapmıyorum, sadece notifyListeners yeterli.
-
-    // 1. Dil Ayarları
     final langResult = await _repository.getLanguageSettings();
-    langResult.fold((l) {}, (r) {
-      _sourceLang = r['source'] ?? 'tr';
-      _targetLang = r['target'] ?? 'en';
-      _proficiencyLevel = r['level'] ?? 'beginner';
+
+    langResult.fold((failure) {
+      _initializeWithDeviceSettings();
+    }, (settings) {
+      final savedSource = settings['source'];
+      final savedTarget = settings['target'];
+
+      if (savedSource == null || savedSource.isEmpty) {
+        _initializeWithDeviceSettings();
+      } else {
+        _sourceLang = _ensureLongLocale(savedSource);
+        _targetLang = _ensureLongLocale(savedTarget ?? 'en-US');
+
+        if (_sourceLang == _targetLang) {
+          _targetLang = _pickAlternativeLanguage(_sourceLang);
+        }
+      }
+
+      _proficiencyLevel = settings['level'] ?? 'beginner';
     });
 
-    // 2. Batch Size
-    final batchResult = await _repository.getBatchSize();
-    batchResult.fold((l) {}, (r) => _batchSize = r);
-
-    // 3. Ses Ayarı
-    final soundResult = await _repository.getAutoPlaySound();
-    soundResult.fold((l) {}, (r) => _autoPlaySound = r);
-
-    // 4. Tema Ayarı
-    final themeResult = await _repository.getThemeMode();
-    themeResult.fold((l) {}, (r) => _themeMode = r);
+    (await _repository.getBatchSize()).fold((l) {}, (r) => _batchSize = r);
+    (await _repository.getAutoPlaySound())
+        .fold((l) {}, (r) => _autoPlaySound = r);
+    (await _repository.getThemeMode()).fold((l) {}, (r) => _themeMode = r);
 
     notifyListeners();
   }
 
+  void _initializeWithDeviceSettings() {
+    try {
+      final deviceLocale = Platform.localeName;
+      _sourceLang =
+          LanguageManager.instance.normalizeDeviceLocale(deviceLocale);
+
+      if (_sourceLang.startsWith('en')) {
+        _targetLang = 'es-ES';
+      } else {
+        _targetLang = 'en-US';
+      }
+    } catch (e) {
+      _sourceLang = 'en-US';
+      _targetLang = 'tr-TR';
+    }
+  }
+
+  String _pickAlternativeLanguage(String currentSource) {
+    final supported = LanguageManager.instance.supportedLocales;
+    for (var locale in supported) {
+      final localeString = LanguageManager.instance.getLocaleString(locale);
+      if (localeString != currentSource) {
+        return localeString;
+      }
+    }
+    return 'en-US';
+  }
+
+  String _ensureLongLocale(String code) {
+    if (code.contains('-') || code.contains('_')) {
+      return code.replaceAll('_', '-');
+    }
+    final supported = LanguageManager.instance.supportedLocales;
+    try {
+      final match = supported.firstWhere((l) => l.languageCode == code);
+      return LanguageManager.instance.getLocaleString(match);
+    } catch (e) {
+      return 'en-US';
+    }
+  }
+
   Future<void> updateLanguages(String source, String target) async {
     if (_sourceLang == source && _targetLang == target) return;
+
     _sourceLang = source;
     _targetLang = target;
-    notifyListeners();
-    await _repository.saveLanguageSettings(source, target);
+
+    if (_sourceLang == _targetLang) {
+      _targetLang = _pickAlternativeLanguage(_sourceLang);
+    }
+
+    notifyListeners(); // UI güncellensin (Dropdown vs)
+
+    // 1. EasyLocalization'a dili değiştir emri veriyoruz (ANLIK DEĞİŞİM İÇİN ŞART)
+    if (context != null) {
+      final parts = _sourceLang.split('-'); // tr-TR -> ['tr', 'TR']
+      if (parts.length == 2) {
+        await context!.setLocale(Locale(parts[0], parts[1]));
+      }
+    }
+
+    // 2. Ayarları kaydet
+    final dbSource =
+        LanguageManager.instance.getShortCodeFromString(_sourceLang);
+    final dbTarget =
+        LanguageManager.instance.getShortCodeFromString(_targetLang);
+
+    await _repository.saveLanguageSettings(dbSource, dbTarget);
+
+    // 3. Yeni verileri indir
+    await _wordRepo.downloadInitialContent(dbSource, dbTarget);
   }
 
   Future<void> updateLevel(String level) async {
@@ -84,11 +151,10 @@ class SettingsViewModel extends BaseViewModel {
     await _repository.saveAutoPlaySound(newValue);
   }
 
-  // --- TEMA DEĞİŞTİRME ---
   Future<void> updateThemeMode(ThemeMode mode) async {
     if (_themeMode == mode) return;
     _themeMode = mode;
-    notifyListeners(); // App.dart bunu dinleyip temayı güncelleyecek
+    notifyListeners(); // Singleton olduğu için App.dart bunu duyacak ve temayı değiştirecek
     await _repository.saveThemeMode(mode);
   }
 }

@@ -1,15 +1,15 @@
+import 'package:flutter/foundation.dart';
+
 import '../../../../core/base/base_view_model.dart';
 import '../../../settings/domain/repositories/i_settings_repository.dart';
 import '../../domain/entities/dashboard_stats_entity.dart';
 import '../../domain/repositories/i_dashboard_repository.dart';
-import '../../../study_zone/domain/repositories/i_word_repository.dart';
 
 class DashboardViewModel extends BaseViewModel {
   final IDashboardRepository _statsRepo;
-  final IWordRepository _wordRepo;
   final ISettingsRepository _settingsRepo;
 
-  DashboardViewModel(this._statsRepo, this._wordRepo, this._settingsRepo) {
+  DashboardViewModel(this._statsRepo, this._settingsRepo) {
     loadHomeData();
   }
 
@@ -56,13 +56,13 @@ class DashboardViewModel extends BaseViewModel {
 
   Future<void> fetchDashboardStats(String targetLang) async {
     final result = await _statsRepo.getDashboardStats(targetLang);
-    result.fold((l) => print("Stats hatası: ${l.message}"), (r) => _stats = r);
+    result.fold((l) => kDebugMode, (r) => _stats = r);
     notifyListeners();
   }
 
   Future<void> fetchAllActivityStats() async {
     final result = await _statsRepo.getMonthlyActivityStats();
-    result.fold((l) => print("Monthly Activity hatası: ${l.message}"), (r) {
+    result.fold((l) => kDebugMode, (r) {
       _monthlyActivity = r;
     });
 

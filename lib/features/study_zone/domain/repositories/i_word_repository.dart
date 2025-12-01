@@ -11,6 +11,9 @@ abstract class IWordRepository {
     required int batchSize,
   });
 
+  Future<Either<Failure, void>> downloadInitialContent(
+      String nativeLang, String targetLang);
+
   Future<Either<Failure, int>> getFilteredReviewCount({
     required String targetLang,
     required List<String> categories,

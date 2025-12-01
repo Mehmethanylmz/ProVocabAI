@@ -14,16 +14,15 @@ class SplashView extends StatelessWidget {
       viewModel: locator<SplashViewModel>(),
       onModelReady: (model) {
         model.setContext(context);
-        // init zaten constructor'da çağrıldı ama burada da tetiklenebilir
+        model.initializeApp(context);
       },
       builder: (context, viewModel, child) {
         return Scaffold(
-          backgroundColor: context.colors.primary, // Marka rengin
+          backgroundColor: context.colors.primary,
           body: Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // Logo Alanı
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
@@ -38,21 +37,16 @@ class SplashView extends StatelessWidget {
                     ],
                   ),
                   child: Icon(
-                    Icons.school_rounded, // Kendi ikonunu koyabilirsin
+                    Icons.school_rounded,
                     size: 64,
                     color: context.colors.primary,
                   ),
                 )
                     .animate()
-                    .scale(
-                        duration: 600.ms,
-                        curve: Curves.easeOutBack) // Büyüme efekti
+                    .scale(duration: 600.ms, curve: Curves.easeOutBack)
                     .then()
-                    .shimmer(duration: 1500.ms), // Parlama efekti
-
+                    .shimmer(duration: 1500.ms),
                 const SizedBox(height: 24),
-
-                // Uygulama Adı
                 Text(
                   "Global Kelime",
                   style: context.textTheme.headlineMedium?.copyWith(
@@ -61,10 +55,7 @@ class SplashView extends StatelessWidget {
                     letterSpacing: 1.5,
                   ),
                 ).animate().fadeIn(delay: 300.ms).slideY(begin: 0.2),
-
                 const SizedBox(height: 48),
-
-                // Loading İndikatörü (Opsiyonel)
                 const CircularProgressIndicator(
                   color: Colors.white,
                 ).animate().fadeIn(delay: 500.ms),

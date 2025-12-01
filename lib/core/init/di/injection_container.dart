@@ -8,74 +8,73 @@ import '../../../features/settings/data/repositories/settings_repository_impl.da
 import '../../../features/settings/domain/repositories/i_settings_repository.dart';
 import '../../../features/settings/presentation/viewmodel/settings_view_model.dart';
 import '../../../features/splash/presentation/viewmodel/splash_view_model.dart';
-import '../../../features/study_zone/data/datasources/word_local_source.dart';
 import '../../../features/study_zone/data/repositories/test_repository_impl.dart';
 import '../../../features/study_zone/data/repositories/word_repository_impl.dart';
 import '../../../features/study_zone/domain/repositories/i_test_repository.dart';
 import '../../../features/study_zone/domain/repositories/i_word_repository.dart';
 import '../../../features/study_zone/presentation/view_model/menu_view_model.dart';
 import '../../../features/study_zone/presentation/view_model/study_view_model.dart';
-import '../../../product/init/database/ProductDatabaseManager';
 import '../../../features/main/presentation/view_model/main_view_model.dart';
 import '../../../features/onboarding/presentation/view_model/onboarding_view_model.dart';
+import '../../../product/init/database/ProductDatabaseManager.dart';
+import '../../../product/service/mock_api_service.dart';
 import '../../services/speech_service.dart';
 import '../../services/tts_service.dart';
 import '../config/dio_manager.dart';
 import '../../../product/service/api_service.dart';
 
-// Global locator nesnesi
 final locator = GetIt.instance;
 
 Future<void> setupLocator() async {
-  /// 1. EXTERNAL (Harici Kütüphaneler)
   final sharedPreferences = await SharedPreferences.getInstance();
   locator.registerLazySingleton(() => sharedPreferences);
   locator.registerLazySingleton(() => TtsService());
   locator.registerLazySingleton(() => SpeechService());
 
-  // Dio (Network Motoru)
   locator.registerLazySingleton<Dio>(() => DioManager.instance.dio);
 
-  /// 2. CORE / SERVICE
-  locator.registerLazySingleton<ApiService>(() => ApiService(locator<Dio>()));
+  // --- API SERVICE SEÇİMİ ---
+  // Gerçek API hazır olduğunda aşağıdaki Mock satırını yorumlayıp alttakini açman yeterli.
 
-  // 3. REPOSITORIES & DATA SOURCES
+  // 1. MOCK KULLANIMI (Şu an aktif):
+  locator.registerLazySingleton<ApiService>(() => MockApiService());
+
+  // 2. GERÇEK API KULLANIMI (İleride açılacak):
+  // locator.registerLazySingleton<ApiService>(() => ApiService(locator<Dio>()));
+
+  // -------------------------
+
   locator.registerLazySingleton(() => ProductDatabaseManager.instance);
 
-  // WordLocalDataSource şu an kullanılmıyor ama eski yapıdan kaldıysa:
-  locator.registerLazySingleton<WordLocalDataSource>(
-    () => WordLocalDataSourceImpl(locator<ProductDatabaseManager>()),
-  );
-
-  // --- SETTINGS ---
   locator.registerLazySingleton<ISettingsRepository>(
       () => SettingsRepositoryImpl(locator<SharedPreferences>()));
-  locator
-      .registerFactory(() => SettingsViewModel(locator<ISettingsRepository>()));
 
-  // --- DASHBOARD ---
   locator.registerLazySingleton<IDashboardRepository>(
       () => DashboardRepositoryImpl(locator<ProductDatabaseManager>()));
 
-  // --- STUDY ZONE REPOSITORIES ---
-  locator.registerLazySingleton<IWordRepository>(
-      () => WordRepositoryImpl(locator<ProductDatabaseManager>()));
+  locator.registerLazySingleton<IWordRepository>(() => WordRepositoryImpl(
+        locator<ProductDatabaseManager>(),
+        locator<ApiService>(), // Buraya artık MockApiService nesnesi gelecek
+      ));
+
   locator.registerLazySingleton<ITestRepository>(
       () => TestRepositoryImpl(locator<ProductDatabaseManager>()));
 
-  // Splash ViewModel
-  locator.registerFactory(() => SplashViewModel(
+  // VIEW MODELS
+  locator.registerLazySingleton(() => SettingsViewModel(
         locator<ISettingsRepository>(),
-        // İleride: locator<IAuthRepository>(),
-      ));
-  // Dashboard ViewModel
-  locator.registerFactory(() => DashboardViewModel(
-        locator<IDashboardRepository>(),
         locator<IWordRepository>(),
+      ));
+
+  locator.registerFactory(() => SplashViewModel(
         locator<ISettingsRepository>(),
       ));
 
-  // Study ViewModel
+  locator.registerFactory(() => DashboardViewModel(
+        locator<IDashboardRepository>(),
+        locator<ISettingsRepository>(),
+      ));
+
   locator.registerFactory(() => StudyViewModel(
         locator<IWordRepository>(),
         locator<ITestRepository>(),
@@ -84,12 +83,13 @@ Future<void> setupLocator() async {
         locator<SpeechService>(),
       ));
 
-  // Onboarding & Main
-  locator.registerFactory(
-      () => OnboardingViewModel(locator<ISettingsRepository>()));
+  locator.registerFactory(() => OnboardingViewModel(
+        locator<ISettingsRepository>(),
+        locator<IWordRepository>(),
+      ));
+
   locator.registerFactory(() => MainViewModel());
 
-  // Menu ViewModel
   locator.registerFactory(() => MenuViewModel(
         locator<IWordRepository>(),
         locator<ITestRepository>(),

@@ -3,6 +3,7 @@ import 'dart:math';
 import '../../../../core/base/base_view_model.dart';
 import '../../../../core/services/speech_service.dart';
 import '../../../../core/services/tts_service.dart';
+import '../../../../core/init/lang/language_manager.dart';
 import '../../domain/entities/word_entity.dart';
 import '../../domain/entities/test_result_entity.dart';
 import '../../domain/repositories/i_word_repository.dart';
@@ -28,7 +29,6 @@ class StudyViewModel extends BaseViewModel {
     _loadSettings();
   }
 
-  // State
   StudyStatus _status = StudyStatus.initial;
   StudyStatus get status => _status;
 
@@ -70,9 +70,9 @@ class StudyViewModel extends BaseViewModel {
   Future<void> _loadSettings() async {
     final result = await _settingsRepo.getLanguageSettings();
     result.fold((l) {}, (r) {
-      _sourceLang = r['source']!;
-      _targetLang = r['target']!;
-      _proficiencyLevel = r['level']!;
+      _sourceLang = r['source'] ?? 'tr';
+      _targetLang = r['target'] ?? 'en';
+      _proficiencyLevel = r['level'] ?? 'beginner';
     });
 
     final soundResult = await _settingsRepo.getAutoPlaySound();
@@ -85,7 +85,7 @@ class StudyViewModel extends BaseViewModel {
     List<String>? categoryFilter,
     List<String>? grammarFilter,
   }) async {
-    changeLoading(); // BaseViewModel
+    changeLoading();
     _status = StudyStatus.loading;
     _errorMessage = null;
     _reviewQueue = [];
@@ -118,7 +118,6 @@ class StudyViewModel extends BaseViewModel {
       },
       (words) {
         _reviewQueue = List.from(words);
-        // Boş içerik temizliği
         _reviewQueue.removeWhere((word) {
           final content = word.getLocalizedContent(_targetLang);
           return (content['word'] ?? '').trim().isEmpty;
@@ -134,29 +133,6 @@ class StudyViewModel extends BaseViewModel {
         }
       },
     );
-
-    changeLoading(); // Loading false
-    notifyListeners();
-  }
-
-  Future<void> startReviewWithWords(List<WordEntity> words) async {
-    changeLoading();
-    await _loadSettings();
-
-    _reviewQueue = List.from(words);
-    _reviewQueue.removeWhere((word) {
-      final content = word.getLocalizedContent(_targetLang);
-      return (content['word'] ?? '').trim().isEmpty;
-    });
-
-    _reviewQueue.shuffle(Random());
-    _wrongAnswersInSession.clear();
-    _totalReviewCount = _reviewQueue.length;
-    _correctCount = 0;
-    _incorrectCount = 0;
-    _testStartTime = DateTime.now();
-
-    _status = StudyStatus.success;
 
     changeLoading();
     notifyListeners();
@@ -217,7 +193,6 @@ class StudyViewModel extends BaseViewModel {
     await _testRepo.saveTestResult(result);
   }
 
-  // --- TTS & Speech Helpers ---
   Future<void> speakCurrentWord() async {
     final word = currentReviewWord;
     if (word != null) {
@@ -245,28 +220,7 @@ class StudyViewModel extends BaseViewModel {
       return;
     }
 
-    // Locale mapping
-    String localeId = _targetLang;
-    switch (_targetLang) {
-      case 'en':
-        localeId = 'en-US';
-        break;
-      case 'tr':
-        localeId = 'tr-TR';
-        break;
-      case 'es':
-        localeId = 'es-ES';
-        break;
-      case 'de':
-        localeId = 'de-DE';
-        break;
-      case 'fr':
-        localeId = 'fr-FR';
-        break;
-      case 'pt':
-        localeId = 'pt-BR';
-        break;
-    }
+    String localeId = LanguageManager.instance.getTtsLocale(_targetLang);
 
     _isListening = true;
     _spokenText = "";

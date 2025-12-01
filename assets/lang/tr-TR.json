@@ -154,5 +154,9 @@
     "radar_vocabulary": "KELİME",
     "radar_accuracy": "Doğruluk",
     "radar_volume": "Hacim",
-    "radar_analysis": "ANALİZ"
+    "radar_analysis": "ANALİZ",
+    "nav_home": "Ana Ekran",
+    "nav_study": "Atölye",
+    "nav_hub": "Hub",
+    "nav_profile": "Profil"
 }

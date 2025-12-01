@@ -5,6 +5,7 @@ import '../../../../core/base/base_view.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/extensions/responsive_extension.dart';
 import '../../../../core/init/di/injection_container.dart';
+import '../../../../core/init/lang/language_manager.dart';
 import '../viewmodel/settings_view_model.dart';
 
 class SettingsView extends StatelessWidget {
@@ -134,14 +135,7 @@ class SettingsView extends StatelessWidget {
     required Function(String?) onChanged,
     bool enabled = true,
   }) {
-    final languages = {
-      'tr': 'Türkçe',
-      'en': 'English',
-      'es': 'Español',
-      'de': 'Deutsch',
-      'fr': 'Français',
-      'pt': 'Português'
-    };
+    final supportedLocales = LanguageManager.instance.supportedLocales;
 
     return Container(
       margin: EdgeInsets.symmetric(vertical: context.responsive.spacingXS),
@@ -162,10 +156,13 @@ class SettingsView extends StatelessWidget {
           value: currentValue,
           underline: const SizedBox(),
           onChanged: enabled ? onChanged : null,
-          items: languages.entries.map((e) {
+          items: supportedLocales.map((locale) {
+            final value = LanguageManager.instance.getLocaleString(locale);
+            final label =
+                LanguageManager.instance.getLanguageName(locale.languageCode);
             return DropdownMenuItem(
-              value: e.key,
-              child: Text(e.value, style: context.textTheme.bodyMedium),
+              value: value,
+              child: Text(label, style: context.textTheme.bodyMedium),
             );
           }).toList(),
         ),

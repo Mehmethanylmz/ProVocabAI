@@ -6,26 +6,16 @@ import 'package:provider/provider.dart';
 import '../../../../core/constants/navigation/navigation_constants.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/extensions/responsive_extension.dart';
-import '../../../../core/init/lang/language_manager.dart'; // LanguageManager eklendi
+import '../../../../core/init/lang/language_manager.dart';
 import '../../../../core/init/navigation/navigation_service.dart';
 import '../view_model/onboarding_view_model.dart';
 
 class OnboardingView extends StatelessWidget {
   const OnboardingView({super.key});
 
-  // Dillerin kendi dillerindeki isimleri (Çevrilmemeli)
-  final Map<String, String> _languageNames = const {
-    'tr': 'Türkçe',
-    'en': 'English',
-    'es': 'Español',
-    'de': 'Deutsch',
-    'fr': 'Français',
-    'pt': 'Português',
-  };
-
   @override
   Widget build(BuildContext context) {
-    // ViewModel'i Context üzerinden alıyoruz (Provider)
+    // ViewModel'i Context üzerinden alıyoruz
     final viewModel = context.watch<OnboardingViewModel>();
 
     return Scaffold(
@@ -44,7 +34,8 @@ class OnboardingView extends StatelessWidget {
                       context,
                       title: 'onboard_lang_source_title'.tr(),
                       subtitle: 'onboard_lang_source_desc'.tr(),
-                      selectedValue: viewModel.selectedSourceLang,
+                      // DÜZELTME: selectedSourceLang -> uiSourceLang
+                      selectedValue: viewModel.uiSourceLang,
                       onSelect: (code) => viewModel.setSourceLang(code),
                     ),
                     // Sayfa 1: Hedef Dil Seçimi
@@ -52,9 +43,11 @@ class OnboardingView extends StatelessWidget {
                       context,
                       title: 'onboard_lang_target_title'.tr(),
                       subtitle: 'onboard_lang_target_desc'.tr(),
-                      selectedValue: viewModel.selectedTargetLang,
+                      // DÜZELTME: selectedTargetLang -> uiTargetLang
+                      selectedValue: viewModel.uiTargetLang,
                       onSelect: (code) => viewModel.setTargetLang(code),
-                      excludeCode: viewModel.selectedSourceLang,
+                      // DÜZELTME: selectedSourceLang -> uiSourceLang
+                      excludeCode: viewModel.uiSourceLang,
                     ),
                     // Sayfa 2: Seviye Seçimi
                     _buildLevelSelection(context, viewModel),
@@ -79,7 +72,7 @@ class OnboardingView extends StatelessWidget {
   }) {
     // ViewModel'deki desteklenen diller listesini kullanıyoruz
     final viewModel = context.read<OnboardingViewModel>();
-    final languages = viewModel.supportedLanguages
+    final languages = viewModel.supportedUiLanguages
         .where((code) => code != excludeCode)
         .toList();
 
@@ -108,6 +101,10 @@ class OnboardingView extends StatelessWidget {
             itemBuilder: (context, index) {
               final code = languages[index];
               final isSelected = code == selectedValue;
+
+              // LanguageManager'dan dil ismini alıyoruz
+              final langName = LanguageManager.instance.getLanguageName(code);
+
               return Padding(
                 padding:
                     EdgeInsets.symmetric(vertical: context.responsive.spacingS),
@@ -142,7 +139,7 @@ class OnboardingView extends StatelessWidget {
                         SizedBox(width: context.responsive.spacingM),
                         Expanded(
                           child: Text(
-                            _languageNames[code] ?? code.toUpperCase(),
+                            langName, // Dinamik isim
                             style: GoogleFonts.poppins(
                               fontSize: context.responsive.fontSizeH3,
                               fontWeight: isSelected
@@ -200,7 +197,6 @@ class OnboardingView extends StatelessWidget {
               final levelKey = viewModel.difficultyLevels[index];
               final isSelected = levelKey == viewModel.selectedLevel;
 
-              // JSON'dan dinamik çeviri: 'level_beginner', 'level_beginner_desc' vb.
               final title = 'level_$levelKey'.tr();
               final desc = 'level_${levelKey}_desc'.tr();
 
@@ -296,28 +292,13 @@ class OnboardingView extends StatelessWidget {
               if (viewModel.currentPage < 2) {
                 viewModel.nextPage();
               } else {
-                // --- KRİTİK DÜZELTME: Locale Değişimi ---
-
-                // 1. Seçilen dil kodunu al (örn: 'en')
-                final selectedCode = viewModel.selectedSourceLang;
-
-                // 2. LanguageManager listesinden bu koda sahip GERÇEK Locale nesnesini bul
-                final targetLocale =
-                    LanguageManager.instance.supportedLocales.firstWhere(
-                  (locale) => locale.languageCode == selectedCode,
-                  orElse: () => LanguageManager
-                      .instance.supportedLocales.first, // Varsayılan
-                );
-
-                // 3. EasyLocalization'a bu geçerli nesneyi ver
-                await context.setLocale(targetLocale);
-
-                // 4. Tamamlama işlemleri
-                await viewModel.completeOnboarding();
+                // ViewModel içindeki completeOnboarding metodunu çağırıyoruz.
+                // Bu metot artık context alıp dil değişimini kendi içinde yönetiyor.
+                await viewModel.completeOnboarding(context);
 
                 if (!context.mounted) return;
 
-                // 5. Ana Sayfaya Git
+                // Ana Sayfaya Yönlendirme
                 NavigationService.instance
                     .navigateToPageClear(path: NavigationConstants.MAIN);
               }
@@ -348,7 +329,11 @@ class OnboardingView extends StatelessWidget {
   }
 
   String _getFlag(String langCode) {
-    switch (langCode) {
+    // Dil kodunun başındaki kısma bakarak bayrağı döndürür
+    // Örn: tr-TR -> tr
+    final shortCode = langCode.split('-')[0];
+
+    switch (shortCode) {
       case 'tr':
         return '🇹🇷';
       case 'en':

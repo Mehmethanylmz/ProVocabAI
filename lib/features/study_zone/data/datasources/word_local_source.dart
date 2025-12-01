@@ -1,4 +1,4 @@
-import '../../../../product/init/database/ProductDatabaseManager';
+import '../../../../product/init/database/ProductDatabaseManager.dart';
 import '../models/word_model.dart';
 
 abstract class WordLocalDataSource {

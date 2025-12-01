@@ -12,21 +12,14 @@ import '../../features/dashboard/presentation/view_model/dashboard_view_model.da
 import '../../features/study_zone/presentation/view_model/study_view_model.dart';
 import '../../features/study_zone/presentation/view_model/menu_view_model.dart';
 import '../../features/onboarding/presentation/view_model/onboarding_view_model.dart';
-import 'database/ProductDatabaseManager';
 
 class ProductInit {
-  // 1. Uygulama Başlamadan Önceki Hazırlıklar
   static Future<void> init() async {
     WidgetsFlutterBinding.ensureInitialized();
     await EasyLocalization.ensureInitialized();
 
-    // Dependency Injection
     await setupLocator();
 
-    // Database
-    await ProductDatabaseManager.instance.populateDatabase();
-
-    // UI Kısıtlamaları
     await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
     await SystemChrome.setPreferredOrientations([
       DeviceOrientation.portraitUp,
@@ -34,7 +27,6 @@ class ProductInit {
     ]);
   }
 
-  // 2. Global Provider Listesi (App.dart'ı temiz tutmak için)
   static List<SingleChildWidget> get providers => [
         ChangeNotifierProvider(create: (_) => locator<SettingsViewModel>()),
         ChangeNotifierProvider(create: (_) => locator<MainViewModel>()),
@@ -44,15 +36,11 @@ class ProductInit {
         ChangeNotifierProvider(create: (_) => locator<OnboardingViewModel>()),
       ];
 
-  // 3. Localization Konfigürasyonu
   static EasyLocalization get localization => EasyLocalization(
         supportedLocales: LanguageManager.instance.supportedLocales,
         path: LanguageManager.instance.assetPath,
-        fallbackLocale:
-            LanguageManager.instance.supportedLocales.first, // en-US
-        startLocale:
-            LanguageManager.instance.supportedLocales[1], // tr-TR (Opsiyonel)
-        // ignore: missing_required_param
-        child: const SizedBox(), // Bu child App.dart içinde ezilecek
+        fallbackLocale: LanguageManager.instance.supportedLocales.first,
+        startLocale: LanguageManager.instance.supportedLocales[1],
+        child: const SizedBox(),
       );
 }

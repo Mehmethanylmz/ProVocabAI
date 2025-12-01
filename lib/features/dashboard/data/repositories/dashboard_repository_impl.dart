@@ -1,7 +1,7 @@
 import 'package:dartz/dartz.dart';
 import 'package:sqflite/sqflite.dart';
 import '../../../../core/error/failures.dart';
-import '../../../../product/init/database/ProductDatabaseManager';
+import '../../../../product/init/database/ProductDatabaseManager.dart';
 import '../../domain/entities/dashboard_stats_entity.dart';
 import '../../domain/repositories/i_dashboard_repository.dart';
 import '../models/dashboard_stats_model.dart';

@@ -1,76 +1,78 @@
+import 'dart:io';
+import 'package:flutter/material.dart';
+import 'package:easy_localization/easy_localization.dart';
 import '../../../../core/base/base_view_model.dart';
 import '../../../settings/domain/repositories/i_settings_repository.dart';
+import '../../../study_zone/domain/repositories/i_word_repository.dart';
+import '../../../../core/init/lang/language_manager.dart';
 
 class OnboardingViewModel extends BaseViewModel {
   final ISettingsRepository _settingsRepo;
+  final IWordRepository _wordRepo;
 
-  OnboardingViewModel(this._settingsRepo) {
+  OnboardingViewModel(this._settingsRepo, this._wordRepo) {
     _init();
   }
 
-  // Sayfa Yönetimi
   int _currentPage = 0;
   int get currentPage => _currentPage;
 
-  // Dil ve Seviye Seçimleri
-  String _selectedSourceLang = 'en';
-  String _selectedTargetLang = 'tr';
+  String _uiSourceLang = 'en-US';
+  String _uiTargetLang = 'tr-TR';
   String _selectedLevel = 'beginner';
 
-  String get selectedSourceLang => _selectedSourceLang;
-  String get selectedTargetLang => _selectedTargetLang;
+  String get uiSourceLang => _uiSourceLang;
+  String get uiTargetLang => _uiTargetLang;
   String get selectedLevel => _selectedLevel;
 
-  // DİKKAT: Burada sadece KEY'leri (Kodları) tutuyoruz.
-  // UI tarafında 'tr', 'en' kodlarına göre bayrak veya isim gösterilecek.
-  final List<String> supportedLanguages = [
-    'tr-TR',
-    'en-US',
-    'es-ES',
-    'de-DE',
-    'fr-FR',
-    'pt-PT',
-  ];
+  List<String> get supportedUiLanguages =>
+      LanguageManager.instance.supportedLocales
+          .map((e) => LanguageManager.instance.getLocaleString(e))
+          .toList();
 
-  // Seviyeler için de JSON anahtarlarını tutuyoruz.
-  // UI tarafında "level_beginner".tr() diyerek çevirisini alacağız.
   final List<String> difficultyLevels = [
     'beginner',
     'intermediate',
-    'advanced',
+    'advanced'
   ];
 
   Future<void> _init() async {
-    // Repository'den kayıtlı dil ayarlarını çekmeye çalışıyoruz (Eğer varsa)
-    final result = await _settingsRepo.getLanguageSettings();
+    try {
+      final String systemLocale = Platform.localeName;
+      final String normalizedLocale =
+          LanguageManager.instance.normalizeDeviceLocale(systemLocale);
 
-    result.fold((failure) {
-      // Hata durumunda veya kayıt yoksa varsayılanlar kalır (en -> tr)
-    }, (settings) {
-      if (settings['source'] != null) _selectedSourceLang = settings['source']!;
-      if (settings['target'] != null) _selectedTargetLang = settings['target']!;
+      _uiSourceLang = normalizedLocale;
 
-      // Kayıtlı bir seviye varsa onu da çekebiliriz (İsteğe bağlı)
-      // if (settings['level'] != null) _selectedLevel = settings['level']!;
+      if (_uiSourceLang.startsWith('en')) {
+        _uiTargetLang = 'es-ES';
+      } else {
+        _uiTargetLang = 'en-US';
+      }
 
       notifyListeners();
-    });
+    } catch (e) {
+      _uiSourceLang = 'en-US';
+      _uiTargetLang = 'tr-TR';
+    }
   }
 
-  void setSourceLang(String code) {
-    if (_selectedSourceLang == code) return;
-    _selectedSourceLang = code;
+  void setSourceLang(String longCode) {
+    if (_uiSourceLang == longCode) return;
+    _uiSourceLang = longCode;
 
-    // Eğer kaynak ve hedef aynı olursa, hedefi değiştir (Çakışma önleme)
-    if (_selectedTargetLang == code) {
-      _selectedTargetLang = (code == 'en') ? 'tr' : 'en';
+    if (_uiTargetLang == longCode) {
+      _uiTargetLang = supportedUiLanguages.firstWhere(
+        (lang) => lang != longCode,
+        orElse: () => 'en-US',
+      );
     }
     notifyListeners();
   }
 
-  void setTargetLang(String code) {
-    if (code == _selectedSourceLang) return; // Kaynak ile aynı olamaz
-    _selectedTargetLang = code;
+  void setTargetLang(String longCode) {
+    if (longCode == _uiSourceLang) return;
+    _uiTargetLang = longCode;
     notifyListeners();
   }
 
@@ -93,14 +95,27 @@ class OnboardingViewModel extends BaseViewModel {
     }
   }
 
-  Future<void> completeOnboarding() async {
-    changeLoading(); // Loading başlat
+  Future<void> completeOnboarding(BuildContext context) async {
+    changeLoading();
 
-    await _settingsRepo.saveLanguageSettings(
-        _selectedSourceLang, _selectedTargetLang);
+    final dbSource =
+        LanguageManager.instance.getShortCodeFromString(_uiSourceLang);
+    final dbTarget =
+        LanguageManager.instance.getShortCodeFromString(_uiTargetLang);
+
+    await _settingsRepo.saveLanguageSettings(dbSource, dbTarget);
     await _settingsRepo.saveProficiencyLevel(_selectedLevel);
-    await _settingsRepo.completeOnboarding();
 
-    changeLoading(); // Loading bitir
+    await _wordRepo.downloadInitialContent(dbSource, dbTarget);
+
+    final parts = _uiSourceLang.split('-');
+    final targetLocale = Locale(parts[0], parts.length > 1 ? parts[1] : '');
+
+    if (context.mounted) {
+      await context.setLocale(targetLocale);
+    }
+
+    await _settingsRepo.completeOnboarding();
+    changeLoading();
   }
 }

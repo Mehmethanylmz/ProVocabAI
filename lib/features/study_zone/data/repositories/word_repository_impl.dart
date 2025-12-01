@@ -4,15 +4,17 @@ import 'package:dartz/dartz.dart';
 import 'package:sqflite/sqflite.dart';
 import '../../../../core/error/failures.dart';
 import '../../../../core/utils/spaced_repetition.dart';
-import '../../../../product/init/database/ProductDatabaseManager';
+import '../../../../product/init/database/ProductDatabaseManager.dart';
+import '../../../../product/service/api_service.dart';
 import '../../domain/entities/word_entity.dart';
 import '../../domain/repositories/i_word_repository.dart';
 import '../models/word_model.dart';
 
 class WordRepositoryImpl implements IWordRepository {
   final ProductDatabaseManager _dbManager;
+  final ApiService _apiService;
 
-  WordRepositoryImpl(this._dbManager);
+  WordRepositoryImpl(this._dbManager, this._apiService);
 
   @override
   Future<Either<Failure, List<WordEntity>>> getFilteredWords({
@@ -74,6 +76,31 @@ class WordRepositoryImpl implements IWordRepository {
       return Right(entities);
     } catch (e) {
       return Left(DatabaseFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> downloadInitialContent(
+      String nativeLang, String targetLang) async {
+    try {
+      final remoteWords =
+          await _apiService.getInitialWords(nativeLang, targetLang);
+
+      final db = await _dbManager.database;
+      final batch = db.batch();
+
+      for (var word in remoteWords) {
+        batch.insert(
+          'words',
+          word.toSqlMap(),
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+      }
+
+      await batch.commit(noResult: true);
+      return const Right(null);
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
     }
   }
 

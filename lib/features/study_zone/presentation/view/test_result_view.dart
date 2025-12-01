@@ -6,7 +6,7 @@ import '../../../../core/base/base_view.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/extensions/responsive_extension.dart';
 import '../../../../core/init/di/injection_container.dart';
-import '../../../dashboard/presentation/view/main_view.dart';
+import '../../../main/presentation/view/main_view.dart';
 import '../view_model/study_view_model.dart';
 
 class TestResultView extends StatelessWidget {

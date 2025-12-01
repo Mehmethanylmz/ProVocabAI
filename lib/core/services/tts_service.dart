@@ -1,4 +1,5 @@
 import 'package:flutter_tts/flutter_tts.dart';
+import '../init/lang/language_manager.dart';
 
 class TtsService {
   static final TtsService _instance = TtsService._internal();
@@ -15,17 +16,12 @@ class TtsService {
     await _flutterTts.setPitch(1.0);
   }
 
-  Future<void> speak(String text, String languageCode) async {
+  Future<void> speak(String text, String shortLangCode) async {
     if (text.isEmpty) return;
 
-    String locale = languageCode;
-    if (languageCode == 'en') locale = 'en-US';
-    if (languageCode == 'tr') locale = 'tr-TR';
-    if (languageCode == 'es') locale = 'es-ES';
-    if (languageCode == 'de') locale = 'de-DE';
-    if (languageCode == 'fr') locale = 'fr-FR';
+    String ttsLocale = LanguageManager.instance.getTtsLocale(shortLangCode);
 
-    await _flutterTts.setLanguage(locale);
+    await _flutterTts.setLanguage(ttsLocale);
     await _flutterTts.speak(text);
   }
 

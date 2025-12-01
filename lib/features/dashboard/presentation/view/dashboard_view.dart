@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:easy_localization/easy_localization.dart';
 
 import '../../../../core/base/base_view.dart';
@@ -13,9 +12,7 @@ import '../widgets/skill_radar_card.dart';
 import '../widgets/dashboard_stats_grid.dart';
 import '../widgets/word_tier_panel.dart';
 import '../widgets/activity_history_list.dart';
-import '../../../settings/presentation/view/settings_view.dart';
 
-// Study Zone Entegrasyonu
 import '../../../study_zone/presentation/view_model/study_view_model.dart';
 import '../../../study_zone/presentation/view_model/menu_view_model.dart';
 import '../../../study_zone/presentation/view/quiz_view.dart';
@@ -134,44 +131,8 @@ class DashboardView extends StatelessWidget {
           color: context.colors.onSurface,
         ),
       ),
-      actions: [
-        _buildActionButton(
-          context,
-          icon: Icons.share_rounded,
-          color: context.colors.primary,
-          onTap: () {
-            final text = viewModel.generateShareProgressText();
-            if (text != null) Share.share(text);
-          },
-        ),
-        _buildActionButton(
-          context,
-          icon: Icons.settings_rounded,
-          color: context.ext.info,
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const SettingsView()),
-          ),
-        ),
-        SizedBox(width: context.responsive.spacingM),
-      ],
-    );
-  }
-
-  Widget _buildActionButton(BuildContext context,
-      {required IconData icon,
-      required Color color,
-      required VoidCallback onTap}) {
-    return Container(
-      margin: EdgeInsets.only(right: context.responsive.spacingS),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(context.responsive.borderRadiusM),
-      ),
-      child: IconButton(
-        icon: Icon(icon, color: color, size: context.responsive.iconSizeM),
-        onPressed: onTap,
-      ),
+      // BUTONLAR KALDIRILDI
+      actions: const [],
     );
   }
 
@@ -238,7 +199,6 @@ class DashboardView extends StatelessWidget {
         MaterialPageRoute(builder: (_) => const QuizView()),
       );
 
-      // Testten dönünce dashboard'u yenile
       if (context.mounted) {
         locator<DashboardViewModel>().loadHomeData();
         menuVM.loadMenuData();

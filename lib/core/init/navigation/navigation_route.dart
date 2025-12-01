@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../features/splash/presentation/view/splash_view.dart';
 import '../../constants/navigation/navigation_constants.dart';
-import '../../../features/dashboard/presentation/view/main_view.dart';
+import '../../../features/main/presentation/view/main_view.dart';
 import '../../../features/onboarding/presentation/view/onboarding_view.dart';
 import '../../../features/settings/presentation/view/settings_view.dart';
 import '../../../features/study_zone/presentation/view/test_menu_view.dart';
