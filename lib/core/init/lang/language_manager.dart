@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 
+import '../../constants/app_constants.dart';
+
 class LanguageManager {
   static final LanguageManager _instance = LanguageManager._init();
   static LanguageManager get instance => _instance;
 
   LanguageManager._init();
 
-  final String assetPath = 'assets/lang';
-
+  final String assetPath = AppConstants.langAssetPath;
   final List<Locale> supportedLocales = const [
     Locale('tr', 'TR'),
     Locale('en', 'US'),
@@ -42,6 +43,21 @@ class LanguageManager {
   String getLanguageName(String code) {
     final shortCode = getShortCodeFromString(code);
     return _nativeLanguageNames[shortCode] ?? code;
+  }
+
+  Locale getLocaleFromString(String code) {
+    // 1. Önce standartlaştır
+    final normalized = code.replaceAll('_', '-');
+
+    // 2. Parçala
+    final parts = normalized.split('-');
+
+    // 3. Locale üret
+    if (parts.length == 2) {
+      return Locale(parts[0], parts[1]);
+    } else {
+      return Locale(parts[0]); // Sadece 'tr' geldiyse
+    }
   }
 
   String getShortCodeFromString(String longCode) {

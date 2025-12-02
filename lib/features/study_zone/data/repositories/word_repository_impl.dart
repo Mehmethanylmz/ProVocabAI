@@ -2,19 +2,57 @@ import 'dart:convert';
 import 'dart:math';
 import 'package:dartz/dartz.dart';
 import 'package:sqflite/sqflite.dart';
+
+import '../../../../core/base/service_helper.dart';
+import '../../../../core/constants/enum/app_enums.dart';
 import '../../../../core/error/failures.dart';
+import '../../../../core/init/network/network_manager.dart';
 import '../../../../core/utils/spaced_repetition.dart';
 import '../../../../product/init/database/ProductDatabaseManager.dart';
-import '../../../../product/service/api_service.dart';
 import '../../domain/entities/word_entity.dart';
 import '../../domain/repositories/i_word_repository.dart';
 import '../models/word_model.dart';
 
-class WordRepositoryImpl implements IWordRepository {
+class WordRepositoryImpl with ServiceHelper implements IWordRepository {
   final ProductDatabaseManager _dbManager;
-  final ApiService _apiService;
+  final NetworkManager _networkManager = NetworkManager.instance;
 
-  WordRepositoryImpl(this._dbManager, this._apiService);
+  WordRepositoryImpl(this._dbManager);
+
+  @override
+  Future<Either<Failure, void>> downloadInitialContent(
+      String nativeLang, String targetLang) async {
+    return await serve<void>(() async {
+      final remoteWords = await _networkManager.send<List<WordModel>>(
+        '/words/sync',
+        type: HttpTypes.GET,
+        queryParameters: {
+          'native_lang': nativeLang,
+          'target_lang': targetLang,
+        },
+        parseModel: (json) {
+          if (json is List) {
+            return json.map((e) => WordModel.fromJson(e)).toList();
+          }
+          return [];
+        },
+      );
+
+      if (remoteWords != null) {
+        final db = await _dbManager.database;
+        final batch = db.batch();
+
+        for (var word in remoteWords) {
+          batch.insert(
+            'words',
+            word.toSqlMap(),
+            conflictAlgorithm: ConflictAlgorithm.replace,
+          );
+        }
+        await batch.commit(noResult: true);
+      }
+    });
+  }
 
   @override
   Future<Either<Failure, List<WordEntity>>> getFilteredWords({
@@ -76,31 +114,6 @@ class WordRepositoryImpl implements IWordRepository {
       return Right(entities);
     } catch (e) {
       return Left(DatabaseFailure(e.toString()));
-    }
-  }
-
-  @override
-  Future<Either<Failure, void>> downloadInitialContent(
-      String nativeLang, String targetLang) async {
-    try {
-      final remoteWords =
-          await _apiService.getInitialWords(nativeLang, targetLang);
-
-      final db = await _dbManager.database;
-      final batch = db.batch();
-
-      for (var word in remoteWords) {
-        batch.insert(
-          'words',
-          word.toSqlMap(),
-          conflictAlgorithm: ConflictAlgorithm.replace,
-        );
-      }
-
-      await batch.commit(noResult: true);
-      return const Right(null);
-    } catch (e) {
-      return Left(ServerFailure(e.toString()));
     }
   }
 

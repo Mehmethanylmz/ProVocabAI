@@ -1,8 +1,9 @@
 import 'package:dio/dio.dart';
 import '../../constants/app_constants.dart';
+import '../network/mock_interceptor.dart'; // EKLENDİ
+import 'app_environment.dart';
 
 class DioManager {
-  // Singleton Pattern (Tek bir kopya olsun)
   static final DioManager _instance = DioManager._init();
   static DioManager get instance => _instance;
 
@@ -11,10 +12,12 @@ class DioManager {
   DioManager._init() {
     dio = Dio(
       BaseOptions(
-        baseUrl: AppConstants.baseUrl,
-        connectTimeout: const Duration(seconds: 10),
-        receiveTimeout: const Duration(seconds: 10),
-        sendTimeout: const Duration(seconds: 10),
+        baseUrl: AppEnvironment.baseUrl,
+        connectTimeout:
+            const Duration(milliseconds: AppConstants.connectTimeout),
+        receiveTimeout:
+            const Duration(milliseconds: AppConstants.receiveTimeout),
+        sendTimeout: const Duration(milliseconds: AppConstants.connectTimeout),
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
@@ -22,14 +25,17 @@ class DioManager {
       ),
     );
 
-    // İstekleri ve hataları konsolda renkli görmek için
-    dio.interceptors.add(LogInterceptor(
-      request: true,
-      requestBody: true,
-      responseBody: true,
-      error: true,
-    ));
+    if (AppEnvironment.useMockApi) {
+      dio.interceptors.add(MockInterceptor());
+    }
 
-    // İleride buraya "AuthInterceptor" ekleyeceğiz (Token eklemek için)
+    if (!AppEnvironment.isProduction) {
+      dio.interceptors.add(LogInterceptor(
+        request: true,
+        requestBody: true,
+        responseBody: true,
+        error: true,
+      ));
+    }
   }
 }

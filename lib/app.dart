@@ -44,7 +44,7 @@ class _MaterialAppContent extends StatelessWidget {
       // --- TEMA KONFİGÜRASYONU ---
       theme: LightTheme.instance.themeData,
       darkTheme: DarkTheme.instance.themeData,
-      themeMode: themeMode, // Dinamik tema
+      themeMode: themeMode,
     );
   }
 }

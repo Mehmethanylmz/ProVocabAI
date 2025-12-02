@@ -1,6 +1,8 @@
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
 
+import '../../../core/constants/app_constants.dart';
+
 class ProductDatabaseManager {
   static final ProductDatabaseManager _instance =
       ProductDatabaseManager._init();
@@ -12,7 +14,7 @@ class ProductDatabaseManager {
 
   Future<Database> get database async {
     if (_database != null) return _database!;
-    _database = await _initDB('vocab_app_v2.db');
+    _database = await _initDB(AppConstants.dbName);
     return _database!;
   }
 
@@ -21,7 +23,7 @@ class ProductDatabaseManager {
     final path = join(dbPath, filePath);
     return await openDatabase(
       path,
-      version: 1,
+      version: AppConstants.dbVersion,
       onCreate: _createDB,
       onUpgrade: _onUpgrade,
     );

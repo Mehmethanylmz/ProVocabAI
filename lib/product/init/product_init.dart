@@ -6,12 +6,12 @@ import 'package:provider/single_child_widget.dart';
 
 import '../../core/init/di/injection_container.dart';
 import '../../core/init/lang/language_manager.dart';
-import '../../features/main/presentation/view_model/main_view_model.dart';
-import '../../features/settings/presentation/viewmodel/settings_view_model.dart';
 import '../../features/dashboard/presentation/view_model/dashboard_view_model.dart';
-import '../../features/study_zone/presentation/view_model/study_view_model.dart';
-import '../../features/study_zone/presentation/view_model/menu_view_model.dart';
+import '../../features/main/presentation/view_model/main_view_model.dart';
 import '../../features/onboarding/presentation/view_model/onboarding_view_model.dart';
+import '../../features/settings/presentation/viewmodel/settings_view_model.dart';
+import '../../features/study_zone/presentation/view_model/menu_view_model.dart';
+import '../../features/study_zone/presentation/view_model/study_view_model.dart';
 
 class ProductInit {
   static Future<void> init() async {

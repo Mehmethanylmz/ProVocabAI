@@ -1,5 +1,5 @@
 import 'dart:io';
-import 'package:easy_localization/easy_localization.dart'; // EKLENDİ
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import '../../../../../core/base/base_view_model.dart';
 import '../../domain/repositories/i_settings_repository.dart';
@@ -108,17 +108,12 @@ class SettingsViewModel extends BaseViewModel {
       _targetLang = _pickAlternativeLanguage(_sourceLang);
     }
 
-    notifyListeners(); // UI güncellensin (Dropdown vs)
+    notifyListeners();
 
-    // 1. EasyLocalization'a dili değiştir emri veriyoruz (ANLIK DEĞİŞİM İÇİN ŞART)
     if (context != null) {
-      final parts = _sourceLang.split('-'); // tr-TR -> ['tr', 'TR']
-      if (parts.length == 2) {
-        await context!.setLocale(Locale(parts[0], parts[1]));
-      }
+      final locale = LanguageManager.instance.getLocaleFromString(_sourceLang);
+      await context!.setLocale(locale);
     }
-
-    // 2. Ayarları kaydet
     final dbSource =
         LanguageManager.instance.getShortCodeFromString(_sourceLang);
     final dbTarget =
@@ -126,7 +121,6 @@ class SettingsViewModel extends BaseViewModel {
 
     await _repository.saveLanguageSettings(dbSource, dbTarget);
 
-    // 3. Yeni verileri indir
     await _wordRepo.downloadInitialContent(dbSource, dbTarget);
   }
 
@@ -154,7 +148,7 @@ class SettingsViewModel extends BaseViewModel {
   Future<void> updateThemeMode(ThemeMode mode) async {
     if (_themeMode == mode) return;
     _themeMode = mode;
-    notifyListeners(); // Singleton olduğu için App.dart bunu duyacak ve temayı değiştirecek
+    notifyListeners();
     await _repository.saveThemeMode(mode);
   }
 }

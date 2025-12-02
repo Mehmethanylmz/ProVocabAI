@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import '../../../features/auth/presentation/view/email_verification_view.dart';
+import '../../../features/auth/presentation/view/forgot_password_view.dart';
+import '../../../features/auth/presentation/view/login_view.dart';
+import '../../../features/auth/presentation/view/register_view.dart';
 import '../../../features/splash/presentation/view/splash_view.dart';
 import '../../constants/navigation/navigation_constants.dart';
 import '../../../features/main/presentation/view/main_view.dart';
@@ -27,6 +31,18 @@ class NavigationRoute {
 
       case NavigationConstants.TEST_MENU:
         return normalNavigate(const TestMenuView());
+
+      case NavigationConstants.LOGIN:
+        return normalNavigate(const LoginView());
+
+      case NavigationConstants.REGISTER:
+        return normalNavigate(const RegisterView());
+
+      case NavigationConstants.FORGOT_PASSWORD:
+        return normalNavigate(const ForgotPasswordView());
+
+      case NavigationConstants.EMAIL_VERIFICATION:
+        return normalNavigate(const EmailVerificationView());
 
       default:
         return MaterialPageRoute(

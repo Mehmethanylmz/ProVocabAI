@@ -15,7 +15,6 @@ class OnboardingView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // ViewModel'i Context üzerinden alıyoruz
     final viewModel = context.watch<OnboardingViewModel>();
 
     return Scaffold(
@@ -29,27 +28,21 @@ class OnboardingView extends StatelessWidget {
                 child: IndexedStack(
                   index: viewModel.currentPage,
                   children: [
-                    // Sayfa 0: Kaynak Dil Seçimi
                     _buildLanguageSelection(
                       context,
                       title: 'onboard_lang_source_title'.tr(),
                       subtitle: 'onboard_lang_source_desc'.tr(),
-                      // DÜZELTME: selectedSourceLang -> uiSourceLang
                       selectedValue: viewModel.uiSourceLang,
                       onSelect: (code) => viewModel.setSourceLang(code),
                     ),
-                    // Sayfa 1: Hedef Dil Seçimi
                     _buildLanguageSelection(
                       context,
                       title: 'onboard_lang_target_title'.tr(),
                       subtitle: 'onboard_lang_target_desc'.tr(),
-                      // DÜZELTME: selectedTargetLang -> uiTargetLang
                       selectedValue: viewModel.uiTargetLang,
                       onSelect: (code) => viewModel.setTargetLang(code),
-                      // DÜZELTME: selectedSourceLang -> uiSourceLang
                       excludeCode: viewModel.uiSourceLang,
                     ),
-                    // Sayfa 2: Seviye Seçimi
                     _buildLevelSelection(context, viewModel),
                   ],
                 ),
@@ -101,8 +94,6 @@ class OnboardingView extends StatelessWidget {
             itemBuilder: (context, index) {
               final code = languages[index];
               final isSelected = code == selectedValue;
-
-              // LanguageManager'dan dil ismini alıyoruz
               final langName = LanguageManager.instance.getLanguageName(code);
 
               return Padding(
@@ -139,7 +130,7 @@ class OnboardingView extends StatelessWidget {
                         SizedBox(width: context.responsive.spacingM),
                         Expanded(
                           child: Text(
-                            langName, // Dinamik isim
+                            langName,
                             style: GoogleFonts.poppins(
                               fontSize: context.responsive.fontSizeH3,
                               fontWeight: isSelected
@@ -292,15 +283,12 @@ class OnboardingView extends StatelessWidget {
               if (viewModel.currentPage < 2) {
                 viewModel.nextPage();
               } else {
-                // ViewModel içindeki completeOnboarding metodunu çağırıyoruz.
-                // Bu metot artık context alıp dil değişimini kendi içinde yönetiyor.
                 await viewModel.completeOnboarding(context);
 
                 if (!context.mounted) return;
 
-                // Ana Sayfaya Yönlendirme
                 NavigationService.instance
-                    .navigateToPageClear(path: NavigationConstants.MAIN);
+                    .navigateToPageClear(path: NavigationConstants.LOGIN);
               }
             },
             style: ElevatedButton.styleFrom(
@@ -329,10 +317,7 @@ class OnboardingView extends StatelessWidget {
   }
 
   String _getFlag(String langCode) {
-    // Dil kodunun başındaki kısma bakarak bayrağı döndürür
-    // Örn: tr-TR -> tr
     final shortCode = langCode.split('-')[0];
-
     switch (shortCode) {
       case 'tr':
         return '🇹🇷';

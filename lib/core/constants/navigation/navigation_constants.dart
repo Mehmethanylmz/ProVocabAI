@@ -6,4 +6,9 @@ class NavigationConstants {
   static const SETTINGS = '/settings';
   static const ONBOARDING = '/onboarding';
   static const MAIN = '/main';
+  // Auth Routes
+  static const LOGIN = '/login';
+  static const REGISTER = '/register';
+  static const FORGOT_PASSWORD = '/forgot-password';
+  static const EMAIL_VERIFICATION = '/email-verification';
 }
