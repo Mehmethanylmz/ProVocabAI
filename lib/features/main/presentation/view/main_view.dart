@@ -10,8 +10,6 @@ import '../../../../core/init/di/injection_container.dart';
 // Viewlar
 import '../../../dashboard/presentation/view/dashboard_view.dart';
 import '../../../study_zone/presentation/view/test_menu_view.dart';
-// YENİ EKLENEN VIEW'LAR (Import yollarını kendi projene göre ayarla)
-import '../../../social/presentation/view/social_view.dart';
 import '../../../profile/presentation/view/profile_view.dart';
 
 import '../view_model/main_view_model.dart';
@@ -35,8 +33,7 @@ class MainView extends StatelessWidget {
             children: [
               const DashboardView(), // 0: Ana Ekran
               const TestMenuView(), // 1: Atölye
-              const SocialView(), // 2: Hub (Sosyal)
-              const ProfileView(), // 3: Profil
+              const ProfileView(), // 2: Profil
             ],
           ),
           bottomNavigationBar: _ModernBottomNav(
@@ -109,17 +106,9 @@ class _ModernBottomNav extends StatelessWidget {
             activeColor: context.ext.gradientPurple.first, // Mor
           ),
           _NavItem(
-            icon: Icons.hub_rounded, // Veya groups_rounded
-            label: 'nav_hub'.tr(),
-            index: 2,
-            selectedIndex: selectedIndex,
-            onTap: onTap,
-            activeColor: context.ext.gradientBlue.last, // Mavi
-          ),
-          _NavItem(
             icon: Icons.person_rounded,
             label: 'nav_profile'.tr(),
-            index: 3,
+            index: 2,
             selectedIndex: selectedIndex,
             onTap: onTap,
             activeColor: context.ext.warning, // Turuncu/Sarı

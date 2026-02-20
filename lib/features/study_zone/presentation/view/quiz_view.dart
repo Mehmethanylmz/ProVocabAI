@@ -100,7 +100,6 @@ class _QuizViewState extends State<QuizView> {
 
   Future<void> _finishTestAndNavigate() async {
     if (!mounted) return;
-    final viewModel = locator<StudyViewModel>();
     Navigator.pushReplacement(
       context,
       PageRouteBuilder(

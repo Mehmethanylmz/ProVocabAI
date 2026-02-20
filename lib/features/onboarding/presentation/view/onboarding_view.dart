@@ -288,7 +288,7 @@ class OnboardingView extends StatelessWidget {
                 if (!context.mounted) return;
 
                 NavigationService.instance
-                    .navigateToPageClear(path: NavigationConstants.LOGIN);
+                    .navigateToPageClear(path: NavigationConstants.MAIN);
               }
             },
             style: ElevatedButton.styleFrom(

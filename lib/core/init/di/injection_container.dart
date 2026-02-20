@@ -9,12 +9,6 @@ import '../../services/tts_service.dart';
 // --- DATABASE ---
 import '../../../product/init/database/ProductDatabaseManager.dart';
 
-// --- AUTH FEATURE ---
-import '../../../features/auth/data/datasources/auth_local_datasource.dart';
-import '../../../features/auth/data/repositories/auth_repository_impl.dart';
-import '../../../features/auth/domain/repositories/i_auth_repository.dart';
-import '../../../features/auth/presentation/view_model/auth_view_model.dart';
-
 // --- DASHBOARD FEATURE ---
 import '../../../features/dashboard/data/repositories/dashboard_repository_impl.dart';
 import '../../../features/dashboard/domain/repositories/i_dashboard_repository.dart';
@@ -55,12 +49,6 @@ Future<void> setupLocator() async {
   // Database Manager
   locator.registerLazySingleton(() => ProductDatabaseManager.instance);
 
-  // --- DATA SOURCES ---
-
-  // Auth Local (Token ve kullanıcı bilgilerini yerel hafızada tutar)
-  locator.registerLazySingleton<AuthLocalDataSource>(
-      () => AuthLocalDataSourceImpl(locator<SharedPreferences>()));
-
   // --- REPOSITORIES ---
 
   // Settings Repository
@@ -71,17 +59,13 @@ Future<void> setupLocator() async {
   locator.registerLazySingleton<IDashboardRepository>(
       () => DashboardRepositoryImpl(locator<ProductDatabaseManager>()));
 
-  // Word Repository (NetworkManager dahili kullanılıyor, sadece DB veriyoruz)
+  // Word Repository
   locator.registerLazySingleton<IWordRepository>(
       () => WordRepositoryImpl(locator<ProductDatabaseManager>()));
 
   // Test Repository
   locator.registerLazySingleton<ITestRepository>(
       () => TestRepositoryImpl(locator<ProductDatabaseManager>()));
-
-  // Auth Repository (RemoteDataSource kalktı, direkt NetworkManager kullanıyor)
-  locator.registerLazySingleton<IAuthRepository>(
-      () => AuthRepositoryImpl(locator<AuthLocalDataSource>()));
 
   // --- VIEW MODELS ---
 
@@ -92,7 +76,6 @@ Future<void> setupLocator() async {
 
   locator.registerFactory(() => SplashViewModel(
         locator<ISettingsRepository>(),
-        locator<IAuthRepository>(),
       ));
 
   locator.registerFactory(() => DashboardViewModel(
@@ -120,6 +103,4 @@ Future<void> setupLocator() async {
         locator<ITestRepository>(),
         locator<ISettingsRepository>(),
       ));
-
-  locator.registerFactory(() => AuthViewModel(locator<IAuthRepository>()));
 }

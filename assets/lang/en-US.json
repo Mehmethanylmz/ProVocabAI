@@ -124,7 +124,6 @@
     "history": "History",
     "statistics": "Statistics",
     "settings": "Settings",
-    "logout": "Logout",
     "daily_goal_completed": "Daily goal completed! You can select new tests from the study menu.",
     "progress_share_subject": "My Word Progress",
     "stats_not_loaded": "Statistics could not be loaded.",
@@ -157,6 +156,5 @@
     "hard": "Hard",
     "nav_home": "Home Screen",
     "nav_study": "Workshop",
-    "nav_hub": "Hub",
     "nav_profile": "Profile"
 }

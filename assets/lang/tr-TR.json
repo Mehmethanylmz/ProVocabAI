@@ -114,7 +114,6 @@
     "history": "Geçmiş",
     "statistics": "İstatistikler",
     "settings": "Ayarlar",
-    "logout": "Çıkış",
     "daily_goal_completed": "Günlük hedef tamamlandı! Çalışma menüsünden yeni test seçebilirsin.",
     "progress_share_subject": "Kelime İlerlemem",
     "stats_not_loaded": "İstatistikler yüklenemedi.",
@@ -157,6 +156,5 @@
     "radar_analysis": "ANALİZ",
     "nav_home": "Ana Ekran",
     "nav_study": "Atölye",
-    "nav_hub": "Hub",
     "nav_profile": "Profil"
 }
