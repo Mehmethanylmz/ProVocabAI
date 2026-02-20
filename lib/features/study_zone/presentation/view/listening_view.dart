@@ -2,11 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:provider/provider.dart';
 
-import '../../../../core/base/base_view.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/extensions/responsive_extension.dart';
-import '../../../../core/init/di/injection_container.dart';
 import '../../domain/entities/word_entity.dart';
 import '../view_model/study_view_model.dart';
 import 'test_result_view.dart';
@@ -39,8 +38,9 @@ class _ListeningViewState extends State<ListeningView> {
   }
 
   Future<void> _loadNextWord() async {
-    final viewModel = locator<StudyViewModel>();
+    final viewModel = context.read<StudyViewModel>();
     if (viewModel.reviewQueue.isEmpty) {
+      if (!mounted) return;
       Navigator.pushReplacement(
           context, MaterialPageRoute(builder: (_) => const TestResultView()));
       return;
@@ -58,7 +58,7 @@ class _ListeningViewState extends State<ListeningView> {
 
   void _checkAnswer() {
     if (_isAnswered) return;
-    final viewModel = locator<StudyViewModel>();
+    final viewModel = context.read<StudyViewModel>();
     final isCorrect = viewModel.checkTextAnswer(_controller.text.trim());
     setState(() {
       _isAnswered = true;
@@ -73,10 +73,8 @@ class _ListeningViewState extends State<ListeningView> {
 
   @override
   Widget build(BuildContext context) {
-    return BaseView<StudyViewModel>(
-      viewModel: locator<StudyViewModel>(),
-      onModelReady: (_) {},
-      builder: (context, viewModel, child) {
+    return Consumer<StudyViewModel>(
+      builder: (context, viewModel, _) {
         if (_currentWord == null) {
           return Scaffold(
               body: Center(
@@ -96,7 +94,7 @@ class _ListeningViewState extends State<ListeningView> {
             title: Text('listening_test'.tr()),
             centerTitle: true,
             bottom: PreferredSize(
-              preferredSize: Size.fromHeight(60),
+              preferredSize: const Size.fromHeight(60),
               child: LinearProgressIndicator(
                   value: progress,
                   color: context.colors.primary,
@@ -165,7 +163,7 @@ class _ListeningViewState extends State<ListeningView> {
                     ),
                   ),
                 ],
-                Spacer(),
+                const Spacer(),
                 SizedBox(
                   width: double.infinity,
                   height: 56,

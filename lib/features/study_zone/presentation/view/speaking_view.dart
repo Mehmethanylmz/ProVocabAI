@@ -2,11 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:provider/provider.dart';
 
-import '../../../../core/base/base_view.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/extensions/responsive_extension.dart';
-import '../../../../core/init/di/injection_container.dart';
 import '../view_model/study_view_model.dart';
 import '../../domain/entities/word_entity.dart';
 import 'test_result_view.dart';
@@ -33,12 +32,13 @@ class _SpeakingViewState extends State<SpeakingView> {
 
   Future<void> _checkPermissions() async {
     final status = await Permission.microphone.request();
-    setState(() => _hasPermission = status.isGranted);
+    if (mounted) setState(() => _hasPermission = status.isGranted);
   }
 
   Future<void> _loadNextWord() async {
-    final viewModel = locator<StudyViewModel>();
+    final viewModel = context.read<StudyViewModel>();
     if (viewModel.reviewQueue.isEmpty) {
+      if (!mounted) return;
       Navigator.pushReplacement(
           context, MaterialPageRoute(builder: (_) => const TestResultView()));
       return;
@@ -52,7 +52,7 @@ class _SpeakingViewState extends State<SpeakingView> {
 
   void _handleMicPress(bool isDown) async {
     if (_isAnswered || !_hasPermission) return;
-    final viewModel = locator<StudyViewModel>();
+    final viewModel = context.read<StudyViewModel>();
     if (isDown) {
       await viewModel.startListeningForSpeech();
     } else {
@@ -62,7 +62,7 @@ class _SpeakingViewState extends State<SpeakingView> {
   }
 
   void _checkAnswer() {
-    final viewModel = locator<StudyViewModel>();
+    final viewModel = context.read<StudyViewModel>();
     if (viewModel.spokenText.isEmpty) return;
 
     final isCorrect = viewModel.checkTextAnswer(viewModel.spokenText);
@@ -80,10 +80,8 @@ class _SpeakingViewState extends State<SpeakingView> {
 
   @override
   Widget build(BuildContext context) {
-    return BaseView<StudyViewModel>(
-      viewModel: locator<StudyViewModel>(),
-      onModelReady: (_) {},
-      builder: (context, viewModel, child) {
+    return Consumer<StudyViewModel>(
+      builder: (context, viewModel, _) {
         if (_currentWord == null) {
           return Scaffold(
               body: Center(
@@ -113,15 +111,15 @@ class _SpeakingViewState extends State<SpeakingView> {
                   icon: Icon(Icons.volume_up,
                       size: 32, color: context.colors.primary),
                 ),
-                Spacer(),
+                const Spacer(),
                 if (viewModel.spokenText.isNotEmpty)
-                  Text("“${viewModel.spokenText}”",
-                      style:
-                          TextStyle(fontSize: 20, fontStyle: FontStyle.italic)),
+                  Text('"${viewModel.spokenText}"',
+                      style: const TextStyle(
+                          fontSize: 20, fontStyle: FontStyle.italic)),
                 SizedBox(height: context.responsive.spacingL),
                 if (_isAnswered)
                   Container(
-                    padding: EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(16),
                     color: _isCorrect
                         ? context.ext.success.withOpacity(0.2)
                         : context.colors.error.withOpacity(0.2),
@@ -141,7 +139,8 @@ class _SpeakingViewState extends State<SpeakingView> {
                             : context.colors.primary,
                         shape: BoxShape.circle,
                       ),
-                      child: Icon(Icons.mic, color: Colors.white, size: 40),
+                      child:
+                          const Icon(Icons.mic, color: Colors.white, size: 40),
                     ),
                   ),
                 if (_isAnswered)

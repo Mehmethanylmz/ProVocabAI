@@ -15,7 +15,8 @@ class SettingsViewModel extends BaseViewModel {
   String _sourceLang = 'en-US';
   String _targetLang = 'tr-TR';
   String _proficiencyLevel = 'beginner';
-  int _batchSize = 10;
+  int _batchSize = 10; // Test soru sayısı
+  int _dailyGoal = 20; // Günlük kelime hedefi
   bool _autoPlaySound = true;
   ThemeMode _themeMode = ThemeMode.system;
 
@@ -23,6 +24,7 @@ class SettingsViewModel extends BaseViewModel {
   String get targetLang => _targetLang;
   String get proficiencyLevel => _proficiencyLevel;
   int get batchSize => _batchSize;
+  int get dailyGoal => _dailyGoal;
   bool get autoPlaySound => _autoPlaySound;
   ThemeMode get themeMode => _themeMode;
 
@@ -50,6 +52,7 @@ class SettingsViewModel extends BaseViewModel {
     });
 
     (await _repository.getBatchSize()).fold((l) {}, (r) => _batchSize = r);
+    (await _repository.getDailyGoal()).fold((l) {}, (r) => _dailyGoal = r);
     (await _repository.getAutoPlaySound())
         .fold((l) {}, (r) => _autoPlaySound = r);
     (await _repository.getThemeMode()).fold((l) {}, (r) => _themeMode = r);
@@ -131,11 +134,20 @@ class SettingsViewModel extends BaseViewModel {
     await _repository.saveProficiencyLevel(level);
   }
 
+  // Test soru sayısı
   Future<void> updateBatchSize(int newSize) async {
     if (_batchSize == newSize) return;
     _batchSize = newSize;
     notifyListeners();
     await _repository.saveBatchSize(newSize);
+  }
+
+  // Günlük kelime hedefi
+  Future<void> updateDailyGoal(int newGoal) async {
+    if (_dailyGoal == newGoal) return;
+    _dailyGoal = newGoal;
+    notifyListeners();
+    await _repository.saveDailyGoal(newGoal);
   }
 
   Future<void> updateAutoPlaySound(bool newValue) async {

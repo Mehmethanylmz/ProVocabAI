@@ -1,8 +1,7 @@
 import 'package:get_it/get_it.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-// --- CORE / NETWORK ---
-import '../../../../core/init/network/network_manager.dart';
+// --- CORE SERVICES ---
 import '../../services/speech_service.dart';
 import '../../services/tts_service.dart';
 
@@ -37,38 +36,29 @@ import '../../../features/onboarding/presentation/view_model/onboarding_view_mod
 final locator = GetIt.instance;
 
 Future<void> setupLocator() async {
-  // --- CORE & EXTERNAL SERVICES ---
+  // --- EXTERNAL SERVICES ---
   final sharedPreferences = await SharedPreferences.getInstance();
   locator.registerLazySingleton(() => sharedPreferences);
   locator.registerLazySingleton(() => TtsService());
   locator.registerLazySingleton(() => SpeechService());
 
-  // Network Manager (Tüm API trafiğini yöneten merkez)
-  locator.registerLazySingleton<NetworkManager>(() => NetworkManager.instance);
-
   // Database Manager
   locator.registerLazySingleton(() => ProductDatabaseManager.instance);
 
   // --- REPOSITORIES ---
-
-  // Settings Repository
   locator.registerLazySingleton<ISettingsRepository>(
       () => SettingsRepositoryImpl(locator<SharedPreferences>()));
 
-  // Dashboard Repository
   locator.registerLazySingleton<IDashboardRepository>(
       () => DashboardRepositoryImpl(locator<ProductDatabaseManager>()));
 
-  // Word Repository
   locator.registerLazySingleton<IWordRepository>(
       () => WordRepositoryImpl(locator<ProductDatabaseManager>()));
 
-  // Test Repository
   locator.registerLazySingleton<ITestRepository>(
       () => TestRepositoryImpl(locator<ProductDatabaseManager>()));
 
   // --- VIEW MODELS ---
-
   locator.registerLazySingleton(() => SettingsViewModel(
         locator<ISettingsRepository>(),
         locator<IWordRepository>(),
@@ -76,6 +66,7 @@ Future<void> setupLocator() async {
 
   locator.registerFactory(() => SplashViewModel(
         locator<ISettingsRepository>(),
+        locator<IWordRepository>(),
       ));
 
   locator.registerFactory(() => DashboardViewModel(

@@ -83,7 +83,6 @@ class StudyViewModel extends BaseViewModel {
   Future<void> startReview(
     String testMode, {
     List<String>? categoryFilter,
-    List<String>? grammarFilter,
   }) async {
     changeLoading();
     _status = StudyStatus.loading;
@@ -97,7 +96,6 @@ class StudyViewModel extends BaseViewModel {
     await _loadSettings();
 
     final selectedCategories = categoryFilter ?? ['all'];
-    final selectedGrammar = grammarFilter ?? ['all'];
 
     int batchSize = 10;
     final batchResult = await _settingsRepo.getBatchSize();
@@ -106,7 +104,6 @@ class StudyViewModel extends BaseViewModel {
     final result = await _wordRepo.getFilteredWords(
       targetLang: _targetLang,
       categories: selectedCategories,
-      grammar: selectedGrammar,
       mode: testMode,
       batchSize: batchSize,
     );

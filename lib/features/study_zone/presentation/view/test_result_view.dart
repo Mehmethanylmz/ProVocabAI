@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:provider/provider.dart';
 
-import '../../../../core/base/base_view.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/extensions/responsive_extension.dart';
-import '../../../../core/init/di/injection_container.dart';
 import '../../../main/presentation/view/main_view.dart';
 import '../view_model/study_view_model.dart';
 
@@ -14,11 +13,15 @@ class TestResultView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Sonuçlar kaydedildi, sadece gösterim yapıyoruz.
-    return BaseView<StudyViewModel>(
-      viewModel: locator<StudyViewModel>(),
-      onModelReady: (model) => model.saveTestResult(),
-      builder: (context, vm, child) {
+    return Consumer<StudyViewModel>(
+      builder: (context, vm, _) {
+        // Test sonucunu bir kere kaydet (mounted sonrası)
+        WidgetsBinding.instance.addPostFrameCallback((_) async {
+          if (vm.correctCount + vm.incorrectCount > 0) {
+            await vm.saveTestResult();
+          }
+        });
+
         final correct = vm.correctCount;
         final wrong = vm.incorrectCount;
         final total = correct + wrong;
@@ -44,7 +47,7 @@ class TestResultView extends StatelessWidget {
                   size: 100,
                   color: resultColor,
                 ),
-                SizedBox(height: 20),
+                const SizedBox(height: 20),
                 Text(
                   successRate >= 50
                       ? 'test_result_good'.tr()
@@ -54,7 +57,7 @@ class TestResultView extends StatelessWidget {
                       fontWeight: FontWeight.bold,
                       color: resultColor),
                 ),
-                SizedBox(height: 40),
+                const SizedBox(height: 40),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
@@ -66,7 +69,7 @@ class TestResultView extends StatelessWidget {
                         "%${successRate.toInt()}", context.colors.primary),
                   ],
                 ),
-                Spacer(),
+                const Spacer(),
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
@@ -79,7 +82,7 @@ class TestResultView extends StatelessWidget {
                     child: Text('btn_home'.tr()),
                   ),
                 ),
-                SizedBox(height: 20),
+                const SizedBox(height: 20),
               ],
             ),
           ),

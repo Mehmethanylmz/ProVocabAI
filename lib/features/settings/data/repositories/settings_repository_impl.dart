@@ -77,6 +77,16 @@ class SettingsRepositoryImpl implements ISettingsRepository {
   }
 
   @override
+  Future<Either<Failure, int>> getDailyGoal() async =>
+      Right(_prefs.getInt(AppConstants.keyDailyGoal) ?? 20);
+
+  @override
+  Future<Either<Failure, void>> saveDailyGoal(int goal) async {
+    await _prefs.setInt(AppConstants.keyDailyGoal, goal);
+    return const Right(null);
+  }
+
+  @override
   Future<Either<Failure, bool>> getAutoPlaySound() async =>
       Right(_prefs.getBool(AppConstants.keyAutoPlaySound) ?? true);
 

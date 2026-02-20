@@ -59,6 +59,16 @@ class SplashView extends StatelessWidget {
                 const CircularProgressIndicator(
                   color: Colors.white,
                 ).animate().fadeIn(delay: 500.ms),
+                if (viewModel.isLoading) ...[
+                  const SizedBox(height: 16),
+                  Text(
+                    'Kelime veritabanı hazırlanıyor...',
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.8),
+                      fontSize: 13,
+                    ),
+                  ).animate().fadeIn(),
+                ],
               ],
             ),
           ),

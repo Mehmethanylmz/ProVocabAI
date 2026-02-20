@@ -6,7 +6,6 @@ abstract class IWordRepository {
   Future<Either<Failure, List<WordEntity>>> getFilteredWords({
     required String targetLang,
     required List<String> categories,
-    required List<String> grammar,
     required String mode,
     required int batchSize,
   });
@@ -17,11 +16,9 @@ abstract class IWordRepository {
   Future<Either<Failure, int>> getFilteredReviewCount({
     required String targetLang,
     required List<String> categories,
-    required List<String> grammar,
   });
 
   Future<Either<Failure, List<String>>> getAllUniqueCategories();
-  Future<Either<Failure, List<String>>> getUniquePartsOfSpeech();
   Future<Either<Failure, int>> getDailyReviewCount(
       int batchSize, String targetLang);
   Future<Either<Failure, List<WordEntity>>> getDifficultWords(
@@ -32,4 +29,8 @@ abstract class IWordRepository {
 
   Future<Either<Failure, List<Map<String, dynamic>>>> getRandomCandidates(
       int limit);
+
+  /// Kelime tablosundaki toplam kayıt sayısı.
+  /// Sıfır ise veri hiç yüklenmemiş demektir.
+  Future<Either<Failure, int>> getWordCount();
 }

@@ -1,64 +1,86 @@
 import 'dart:convert';
 import 'dart:math';
 import 'package:dartz/dartz.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:sqflite/sqflite.dart';
 
-import '../../../../core/base/service_helper.dart';
-import '../../../../core/constants/enum/app_enums.dart';
+import '../../../../core/constants/app_constants.dart';
 import '../../../../core/error/failures.dart';
-import '../../../../core/init/network/network_manager.dart';
 import '../../../../core/utils/spaced_repetition.dart';
 import '../../../../product/init/database/ProductDatabaseManager.dart';
 import '../../domain/entities/word_entity.dart';
 import '../../domain/repositories/i_word_repository.dart';
 import '../models/word_model.dart';
 
-class WordRepositoryImpl with ServiceHelper implements IWordRepository {
+class WordRepositoryImpl implements IWordRepository {
   final ProductDatabaseManager _dbManager;
-  final NetworkManager _networkManager = NetworkManager.instance;
 
   WordRepositoryImpl(this._dbManager);
 
+  // ────────────────────────────────────────────────────────────────────────
+  // ASSET VERI DOLUMU
+  // Uygulama ilk açılışta assets/dataset/words.json dosyasından verileri
+  // SQLite'a aktarır. Bu yöntem onboarding tamamlandığında çağrılır.
+  // ────────────────────────────────────────────────────────────────────────
   @override
   Future<Either<Failure, void>> downloadInitialContent(
       String nativeLang, String targetLang) async {
-    return await serve<void>(() async {
-      final remoteWords = await _networkManager.send<List<WordModel>>(
-        '/words/sync',
-        type: HttpTypes.GET,
-        queryParameters: {
-          'native_lang': nativeLang,
-          'target_lang': targetLang,
-        },
-        parseModel: (json) {
-          if (json is List) {
-            return json.map((e) => WordModel.fromJson(e)).toList();
-          }
-          return [];
-        },
-      );
+    try {
+      // 1. Asset'ten JSON'u oku (async — UI bloke etmez)
+      final jsonString =
+          await rootBundle.loadString(AppConstants.wordsDatasetPath);
 
-      if (remoteWords != null) {
-        final db = await _dbManager.database;
+      // 2. JSON parse + model dönüşümü isolate'de yap (UI bloke etmez)
+      final List<Map<String, dynamic>> parsedMaps =
+          await compute(_parseWordJson, jsonString);
+
+      // 3. SQLite'a batch insert (chunked)
+      final db = await _dbManager.database;
+      const chunkSize = 500;
+      final totalChunks = (parsedMaps.length / chunkSize).ceil();
+
+      for (int chunk = 0; chunk < totalChunks; chunk++) {
+        final start = chunk * chunkSize;
+        final end = (start + chunkSize).clamp(0, parsedMaps.length);
+        final chunkList = parsedMaps.sublist(start, end);
+
         final batch = db.batch();
-
-        for (var word in remoteWords) {
+        for (final map in chunkList) {
           batch.insert(
             'words',
-            word.toSqlMap(),
+            map,
             conflictAlgorithm: ConflictAlgorithm.replace,
           );
         }
         await batch.commit(noResult: true);
       }
-    });
+
+      return const Right(null);
+    } catch (e) {
+      return Left(DatabaseFailure('Kelime veritabanı yüklenemedi: $e'));
+    }
+  }
+
+  /// Top-level fonksiyon: isolate'de JSON parse + model map dönüşümü
+  List<Map<String, dynamic>> _parseWordJson(String jsonString) {
+    final List<dynamic> rawList = jsonDecode(jsonString) as List<dynamic>;
+    final result = <Map<String, dynamic>>[];
+    for (final item in rawList) {
+      try {
+        final word = WordModel.fromJson(item as Map<String, dynamic>);
+        result.add(word.toSqlMap());
+      } catch (_) {
+        // Bozuk kaydı atla
+      }
+    }
+    return result;
   }
 
   @override
   Future<Either<Failure, List<WordEntity>>> getFilteredWords({
     required String targetLang,
     required List<String> categories,
-    required List<String> grammar,
     required String mode,
     required int batchSize,
   }) async {
@@ -77,17 +99,6 @@ class WordRepositoryImpl with ServiceHelper implements IWordRepository {
         }
         catQuery += ")";
         whereClause += " AND $catQuery";
-      }
-
-      if (grammar.isNotEmpty && !grammar.contains('all')) {
-        String grammarQuery = "(";
-        for (int i = 0; i < grammar.length; i++) {
-          grammarQuery += "part_of_speech = ?";
-          args.add(grammar[i]);
-          if (i < grammar.length - 1) grammarQuery += " OR ";
-        }
-        grammarQuery += ")";
-        whereClause += " AND $grammarQuery";
       }
 
       if (mode == 'daily') {
@@ -121,7 +132,6 @@ class WordRepositoryImpl with ServiceHelper implements IWordRepository {
   Future<Either<Failure, int>> getFilteredReviewCount({
     required String targetLang,
     required List<String> categories,
-    required List<String> grammar,
   }) async {
     try {
       final db = await _dbManager.database;
@@ -137,17 +147,6 @@ class WordRepositoryImpl with ServiceHelper implements IWordRepository {
         }
         catQuery += ")";
         whereClause += " AND $catQuery";
-      }
-
-      if (grammar.isNotEmpty && !grammar.contains('all')) {
-        String grammarQuery = "(";
-        for (int i = 0; i < grammar.length; i++) {
-          grammarQuery += "part_of_speech = ?";
-          args.add(grammar[i]);
-          if (i < grammar.length - 1) grammarQuery += " OR ";
-        }
-        grammarQuery += ")";
-        whereClause += " AND $grammarQuery";
       }
 
       final count = Sqflite.firstIntValue(await db.rawQuery(
@@ -181,40 +180,27 @@ class WordRepositoryImpl with ServiceHelper implements IWordRepository {
   }
 
   @override
-  Future<Either<Failure, List<String>>> getUniquePartsOfSpeech() async {
-    try {
-      final db = await _dbManager.database;
-      final result = await db.rawQuery(
-          'SELECT DISTINCT part_of_speech FROM words WHERE part_of_speech IS NOT NULL AND part_of_speech != ""');
-      return Right(result.map((e) => e['part_of_speech'] as String).toList());
-    } catch (e) {
-      return Left(DatabaseFailure(e.toString()));
-    }
-  }
-
-  @override
   Future<Either<Failure, int>> getDailyReviewCount(
-      int batchSize, String targetLang) async {
+      int dailyGoal, String targetLang) async {
     try {
       final db = await _dbManager.database;
-      final now = DateTime.now().millisecondsSinceEpoch;
 
-      final dueCount = Sqflite.firstIntValue(await db.rawQuery('''
-        SELECT COUNT(*) FROM progress 
-        WHERE target_lang = ? 
-        AND mastery_level > 0 
-        AND mastery_level != ${SpacedRepetition.leechLevel}
-        AND due_date <= ?
-      ''', [targetLang, now])) ?? 0;
+      // Bugünün gün başı ve sonu (milliseconds)
+      final now = DateTime.now();
+      final startOfDay =
+          DateTime(now.year, now.month, now.day).millisecondsSinceEpoch;
+      final endOfDay = DateTime(now.year, now.month, now.day, 23, 59, 59, 999)
+          .millisecondsSinceEpoch;
 
-      final newCount = Sqflite.firstIntValue(await db.rawQuery('''
-        SELECT COUNT(*) FROM words w
-        LEFT JOIN progress p ON w.id = p.word_id AND p.target_lang = ?
-        WHERE p.word_id IS NULL OR p.mastery_level = 0
-      ''', [targetLang])) ?? 0;
+      // Bugün gerçekten incelenen (last_seen bugün olan) kelimeler
+      final count = Sqflite.firstIntValue(await db.rawQuery('''
+        SELECT COUNT(*) FROM progress
+        WHERE target_lang = ?
+        AND last_seen >= ?
+        AND last_seen <= ?
+      ''', [targetLang, startOfDay, endOfDay])) ?? 0;
 
-      if (dueCount >= batchSize) return Right(batchSize);
-      return Right(dueCount + min(newCount, batchSize - dueCount));
+      return Right(count);
     } catch (e) {
       return Left(DatabaseFailure(e.toString()));
     }
@@ -227,7 +213,6 @@ class WordRepositoryImpl with ServiceHelper implements IWordRepository {
       final result = await getFilteredWords(
           targetLang: targetLang,
           categories: ['all'],
-          grammar: ['all'],
           mode: 'difficult',
           batchSize: 50);
       return result;
@@ -268,9 +253,16 @@ class WordRepositoryImpl with ServiceHelper implements IWordRepository {
       }
 
       await db.rawInsert('''
-        INSERT OR REPLACE INTO progress (word_id, target_lang, mastery_level, due_date, streak)
-        VALUES (?, ?, ?, ?, ?)
-      ''', [wordId, targetLang, newLevel, newReviewDate, newStreak]);
+        INSERT OR REPLACE INTO progress (word_id, target_lang, mastery_level, due_date, streak, last_seen)
+        VALUES (?, ?, ?, ?, ?, ?)
+      ''', [
+        wordId,
+        targetLang,
+        newLevel,
+        newReviewDate,
+        newStreak,
+        DateTime.now().millisecondsSinceEpoch
+      ]);
 
       return const Right(null);
     } catch (e) {
@@ -289,6 +281,18 @@ class WordRepositoryImpl with ServiceHelper implements IWordRepository {
           orderBy: 'RANDOM()',
           limit: limit);
       return Right(result);
+    } catch (e) {
+      return Left(DatabaseFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, int>> getWordCount() async {
+    try {
+      final db = await _dbManager.database;
+      final count = Sqflite.firstIntValue(
+          await db.rawQuery('SELECT COUNT(*) FROM words'));
+      return Right(count ?? 0);
     } catch (e) {
       return Left(DatabaseFailure(e.toString()));
     }

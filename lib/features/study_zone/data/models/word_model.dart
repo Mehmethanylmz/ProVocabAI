@@ -1,22 +1,16 @@
-// ignore_for_file: invalid_annotation_target
-
 import 'dart:convert';
-import 'package:json_annotation/json_annotation.dart';
 import '../../domain/entities/word_entity.dart';
 
-part 'word_model.g.dart';
-
-@JsonSerializable()
 class WordModel extends WordEntity {
   const WordModel({
     required super.id,
     required super.partOfSpeech,
     required super.transcription,
-    @JsonKey(name: 'categories') required super.categoriesJson,
-    @JsonKey(name: 'content') required super.contentJson,
-    @JsonKey(name: 'sentences') required super.sentencesJson,
-    @JsonKey(name: 'mastery_level') super.masteryLevel,
-    @JsonKey(name: 'due_date') super.nextReview,
+    required super.categoriesJson,
+    required super.contentJson,
+    required super.sentencesJson,
+    super.masteryLevel,
+    super.nextReview,
     super.streak,
   });
 
@@ -62,7 +56,19 @@ class WordModel extends WordEntity {
     );
   }
 
-  Map<String, dynamic> toJson() => _$WordModelToJson(this);
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'partOfSpeech': partOfSpeech,
+      'transcription': transcription,
+      'categoriesJson': categoriesJson,
+      'contentJson': contentJson,
+      'sentencesJson': sentencesJson,
+      'masteryLevel': masteryLevel,
+      'nextReview': nextReview,
+      'streak': streak,
+    };
+  }
 
   /// SQLite'a kaydederken kullanılacak Map yapısı
   Map<String, dynamic> toSqlMap() {

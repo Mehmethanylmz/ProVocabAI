@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:provider/provider.dart';
 
 import '../../../../core/base/base_view.dart';
 import '../../../../core/extensions/context_extensions.dart';
@@ -20,11 +21,8 @@ import 'speaking_view.dart';
 class TestMenuView extends StatelessWidget {
   const TestMenuView({super.key});
 
-  Future<void> _startTest(
-      BuildContext context, String mode, String type) async {
-    final menuVM = locator<MenuViewModel>();
-    final studyVM = locator<StudyViewModel>();
-
+  Future<void> _startTest(BuildContext context, String mode, String type,
+      MenuViewModel menuVM, StudyViewModel studyVM) async {
     if (mode == 'custom' && !menuVM.canStartTest) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -35,7 +33,6 @@ class TestMenuView extends StatelessWidget {
       return;
     }
 
-    // Yükleniyor dialogu
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -46,11 +43,10 @@ class TestMenuView extends StatelessWidget {
     await studyVM.startReview(
       mode,
       categoryFilter: menuVM.selectedCategories,
-      grammarFilter: menuVM.selectedGrammar,
     );
 
     if (!context.mounted) return;
-    Navigator.pop(context); // Dialog kapat
+    Navigator.pop(context);
 
     if (studyVM.status == StudyStatus.success) {
       Widget page;
@@ -66,7 +62,6 @@ class TestMenuView extends StatelessWidget {
       }
 
       await Navigator.push(context, MaterialPageRoute(builder: (_) => page));
-
       menuVM.loadMenuData();
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -84,10 +79,10 @@ class TestMenuView extends StatelessWidget {
   Widget build(BuildContext context) {
     return BaseView<MenuViewModel>(
       viewModel: locator<MenuViewModel>(),
-      onModelReady: (model) => model.loadMenuData(), // onModelReady kullanıldı
+      onModelReady: (model) => model.loadMenuData(),
       builder: (context, vm, child) {
+        final studyVM = context.read<StudyViewModel>();
         final categories = ['all', ...vm.allCategories];
-        final grammars = ['all', ...vm.allPartsOfSpeech];
 
         return Scaffold(
           backgroundColor: context.colors.surface,
@@ -130,13 +125,6 @@ class TestMenuView extends StatelessWidget {
                 onTap: vm.toggleCategory,
                 accentColor: context.ext.gradientPurple[0],
               ),
-              FilterRow(
-                title: 'filter_grammar'.tr(),
-                items: grammars,
-                selected: vm.selectedGrammar,
-                onTap: vm.toggleGrammar,
-                accentColor: context.ext.gradientBlue[0],
-              ),
               SliverToBoxAdapter(
                 child: Padding(
                   padding: EdgeInsets.symmetric(
@@ -176,7 +164,8 @@ class TestMenuView extends StatelessWidget {
                       icon: Icons.format_list_bulleted_rounded,
                       gradient: context.ext.gradientPurple,
                       enabled: vm.canStartTest,
-                      onTap: () => _startTest(context, 'custom', 'quiz'),
+                      onTap: () =>
+                          _startTest(context, 'custom', 'quiz', vm, studyVM),
                     ),
                     ModeCard(
                       title: 'mode_listening'.tr(),
@@ -186,7 +175,8 @@ class TestMenuView extends StatelessWidget {
                         context.colors.error.withOpacity(0.7)
                       ],
                       enabled: vm.canStartTest,
-                      onTap: () => _startTest(context, 'custom', 'listening'),
+                      onTap: () => _startTest(
+                          context, 'custom', 'listening', vm, studyVM),
                     ),
                     ModeCard(
                       title: 'mode_speaking'.tr(),
@@ -196,7 +186,8 @@ class TestMenuView extends StatelessWidget {
                         context.ext.success.withOpacity(0.7)
                       ],
                       enabled: vm.canStartTest,
-                      onTap: () => _startTest(context, 'custom', 'speaking'),
+                      onTap: () => _startTest(
+                          context, 'custom', 'speaking', vm, studyVM),
                     ),
                   ]),
                 ),
@@ -254,109 +245,204 @@ class TestMenuView extends StatelessWidget {
     );
   }
 
+  // ── Premium Günlük Hedef Kartı ──────────────────────────────────────────
   Widget _buildDailyGoalHeader(BuildContext context, MenuViewModel vm) {
+    final bool isCompleted = vm.isDailyGoalCompleted;
+    final double progress = vm.dailyTarget > 0
+        ? (vm.dailyReviewCount / vm.dailyTarget).clamp(0.0, 1.0)
+        : 0.0;
+    final int remaining =
+        (vm.dailyTarget - vm.dailyReviewCount).clamp(0, vm.dailyTarget);
+
+    final Color accentColor =
+        isCompleted ? const Color(0xFFFFC107) : const Color(0xFF6C63FF);
+    final Color barColor =
+        isCompleted ? const Color(0xFFFFC107) : const Color(0xFF00E5A0);
+
     return SliverToBoxAdapter(
       child: Container(
         margin: context.responsive.paddingPage,
-        padding: EdgeInsets.all(context.responsive.spacingL),
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [context.colors.primary, context.colors.secondary],
+            colors: isCompleted
+                ? [const Color(0xFF2C1A00), const Color(0xFF4A2E00)]
+                : [const Color(0xFF0D0B22), const Color(0xFF171642)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
           borderRadius:
               BorderRadius.circular(context.responsive.borderRadiusXL),
+          border: Border.all(
+            color: accentColor.withOpacity(0.2),
+            width: 1,
+          ),
           boxShadow: [
             BoxShadow(
-              color: context.colors.primary.withOpacity(0.4),
-              blurRadius: 20,
+              color: accentColor.withOpacity(0.25),
+              blurRadius: 28,
+              spreadRadius: -4,
               offset: const Offset(0, 10),
             ),
           ],
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'daily_test'.tr(),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ── Satır 1: ikon+etiket  |  rozet ──
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: accentColor.withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(
+                          isCompleted
+                              ? Icons.emoji_events_rounded
+                              : Icons.bolt_rounded,
+                          color: accentColor,
+                          size: 15,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Günlük Hedef',
+                        style: GoogleFonts.poppins(
+                          color: Colors.white60,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          letterSpacing: 0.4,
+                        ),
+                      ),
+                    ],
+                  ),
+                  // Rozet
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: accentColor.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                          color: accentColor.withOpacity(0.3), width: 1),
+                    ),
+                    child: Text(
+                      isCompleted ? '✓ TAMAMLANDI' : '$remaining kelime kaldı',
                       style: GoogleFonts.poppins(
-                        color: context.colors.onPrimary.withOpacity(0.9),
-                        fontSize: context.responsive.fontSizeBody,
-                        fontWeight: FontWeight.w500,
+                        color: accentColor,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.6,
                       ),
                     ),
-                    SizedBox(height: context.responsive.spacingXS),
-                    Text(
-                      "${vm.dailyReviewCount}/${vm.dailyTarget}",
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 14),
+
+              // ── Satır 2: büyük sayaç  |  yüzde ──
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    '${vm.dailyReviewCount}',
+                    style: GoogleFonts.poppins(
+                      color: Colors.white,
+                      fontSize: 52,
+                      fontWeight: FontWeight.w800,
+                      height: 1,
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 7, left: 5),
+                    child: Text(
+                      '/ ${vm.dailyTarget}',
                       style: GoogleFonts.poppins(
-                        color: context.colors.onPrimary,
-                        fontSize: context.responsive.fontSizeH1,
-                        fontWeight: FontWeight.bold,
+                        color: Colors.white30,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
-                  ],
-                ),
-                Container(
-                  padding: EdgeInsets.all(context.responsive.spacingM),
-                  decoration: BoxDecoration(
-                    color: context.colors.surface.withOpacity(0.2),
-                    shape: BoxShape.circle,
                   ),
-                  child: Icon(Icons.flag_rounded,
-                      color: context.colors.onPrimary,
-                      size: context.responsive.iconSizeL),
-                ),
-              ],
-            ),
-            SizedBox(height: context.responsive.spacingL),
-            ClipRRect(
-              borderRadius:
-                  BorderRadius.circular(context.responsive.borderRadiusM),
-              child: LinearProgressIndicator(
-                value: vm.dailyTarget > 0
-                    ? (vm.dailyReviewCount / vm.dailyTarget).clamp(0.0, 1.0)
-                    : 0,
-                minHeight: context.responsive
-                    .value(mobile: 8, tablet: 10, desktop: 12),
-                backgroundColor: Colors.black.withOpacity(0.2),
-                valueColor: AlwaysStoppedAnimation(context.ext.success),
-              ),
-            ),
-            SizedBox(height: context.responsive.spacingL),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () => _startTest(context, 'daily', 'quiz'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: context.colors.surface,
-                  foregroundColor: context.colors.primary,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(
-                          context.responsive.borderRadiusL)),
-                  padding: EdgeInsets.symmetric(
-                      vertical: context.responsive.spacingM),
-                ),
-                child: Text(
-                  'btn_start'.tr().toUpperCase(),
-                  style: GoogleFonts.poppins(
-                    fontWeight: FontWeight.bold,
-                    fontSize: context.responsive.fontSizeBody,
-                    letterSpacing: 1,
+                  const Spacer(),
+                  Text(
+                    '${(progress * 100).toStringAsFixed(0)}%',
+                    style: GoogleFonts.poppins(
+                      color: barColor,
+                      fontSize: 28,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
+                ],
+              ),
+
+              const SizedBox(height: 14),
+
+              // ── İnce gradient progress bar ──
+              Stack(
+                children: [
+                  Container(
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.07),
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                  ),
+                  LayoutBuilder(
+                    builder: (ctx, constraints) => AnimatedContainer(
+                      duration: const Duration(milliseconds: 700),
+                      curve: Curves.easeOutCubic,
+                      height: 5,
+                      width: constraints.maxWidth * progress,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: isCompleted
+                              ? [
+                                  const Color(0xFFFF9800),
+                                  const Color(0xFFFFC107)
+                                ]
+                              : [
+                                  const Color(0xFF00C9A7),
+                                  const Color(0xFF00E5A0)
+                                ],
+                        ),
+                        borderRadius: BorderRadius.circular(3),
+                        boxShadow: [
+                          BoxShadow(
+                              color: barColor.withOpacity(0.55), blurRadius: 8),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 10),
+
+              // ── Alt açıklama ──
+              Text(
+                isCompleted
+                    ? '🎉 Harika! Bugünkü hedefinizi tamamladınız.'
+                    : 'Herhangi bir testten kelime çözerek ilerleyin',
+                style: GoogleFonts.poppins(
+                  color: Colors.white30,
+                  fontSize: 11,
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ).animate().slideY(begin: -0.2, duration: 500.ms),
+      )
+          .animate()
+          .fadeIn(duration: 350.ms)
+          .slideY(begin: -0.08, duration: 350.ms),
     );
   }
 }

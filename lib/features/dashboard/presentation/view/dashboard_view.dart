@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:easy_localization/easy_localization.dart';
 
 import '../../../../core/base/base_view.dart';
@@ -12,10 +11,6 @@ import '../widgets/skill_radar_card.dart';
 import '../widgets/dashboard_stats_grid.dart';
 import '../widgets/word_tier_panel.dart';
 import '../widgets/activity_history_list.dart';
-
-import '../../../study_zone/presentation/view_model/study_view_model.dart';
-import '../../../study_zone/presentation/view_model/menu_view_model.dart';
-import '../../../study_zone/presentation/view/quiz_view.dart';
 
 class DashboardView extends StatelessWidget {
   const DashboardView({super.key});
@@ -93,24 +88,6 @@ class DashboardView extends StatelessWidget {
               ),
             ],
           ),
-          floatingActionButton: Padding(
-            padding:
-                EdgeInsets.only(bottom: context.responsive.fabMarginBottom),
-            child: FloatingActionButton.extended(
-              onPressed: () => _quickStartTest(context),
-              backgroundColor: context.colors.primary,
-              elevation: context.responsive.elevationHigh,
-              icon: Icon(Icons.rocket_launch_rounded,
-                  color: context.colors.onPrimary),
-              label: Text(
-                'quick_start'.tr(),
-                style: GoogleFonts.poppins(
-                  color: context.colors.onPrimary,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ),
         );
       },
     );
@@ -131,7 +108,6 @@ class DashboardView extends StatelessWidget {
           color: context.colors.onSurface,
         ),
       ),
-      // BUTONLAR KALDIRILDI
       actions: const [],
     );
   }
@@ -174,42 +150,5 @@ class DashboardView extends StatelessWidget {
         ),
       ],
     );
-  }
-
-  Future<void> _quickStartTest(BuildContext context) async {
-    final studyVM = locator<StudyViewModel>();
-    final menuVM = locator<MenuViewModel>();
-
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => Center(
-          child: CircularProgressIndicator(color: context.colors.primary)),
-    );
-
-    // Günlük testi başlat
-    await studyVM.startReview('daily');
-
-    if (!context.mounted) return;
-    Navigator.pop(context);
-
-    if (studyVM.status == StudyStatus.success) {
-      await Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => const QuizView()),
-      );
-
-      if (context.mounted) {
-        locator<DashboardViewModel>().loadHomeData();
-        menuVM.loadMenuData();
-      }
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('daily_goal_completed'.tr()),
-          backgroundColor: context.ext.success,
-        ),
-      );
-    }
   }
 }

@@ -48,6 +48,7 @@ class ProductDatabaseManager {
         mastery_level INTEGER DEFAULT 0,
         due_date INTEGER DEFAULT 0,
         streak INTEGER DEFAULT 0,
+        last_seen INTEGER DEFAULT 0,
         PRIMARY KEY (word_id, target_lang),
         FOREIGN KEY (word_id) REFERENCES words (id)
       )
@@ -77,5 +78,12 @@ class ProductDatabaseManager {
     ''');
   }
 
-  Future _onUpgrade(Database db, int oldVersion, int newVersion) async {}
+  Future _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      // v1 → v2: progress tablosuna last_seen kolonu ekle
+      await db.execute(
+        'ALTER TABLE progress ADD COLUMN last_seen INTEGER DEFAULT 0',
+      );
+    }
+  }
 }

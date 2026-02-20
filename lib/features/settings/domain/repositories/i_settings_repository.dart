@@ -9,8 +9,11 @@ abstract class ISettingsRepository {
 
   Future<Either<Failure, void>> saveProficiencyLevel(String level);
 
-  Future<Either<Failure, int>> getBatchSize();
+  Future<Either<Failure, int>> getBatchSize(); // Test soru sayısı
   Future<Either<Failure, void>> saveBatchSize(int size);
+
+  Future<Either<Failure, int>> getDailyGoal(); // Günlük kelime hedefi
+  Future<Either<Failure, void>> saveDailyGoal(int goal);
 
   Future<Either<Failure, bool>> getAutoPlaySound();
   Future<Either<Failure, void>> saveAutoPlaySound(bool value);

@@ -3,7 +3,6 @@ import '../../error/failures.dart';
 import '../../constants/enum/cache_keys.dart';
 
 /// Önbellek işlemlerinin soyut arayüzü.
-/// Dönüş tipleri artık Future<void> değil, işlemin sonucunu (Hata/Başarı) dönen Future<Either<Failure, void>> şeklindedir.
 abstract class ICacheManager {
   Future<Either<Failure, void>> setString(CacheKeys key, String value);
   Future<Either<Failure, void>> setBool(CacheKeys key, bool value);

@@ -16,9 +16,6 @@ dependencies:
   equatable: ^2.0.5       # Object comparison (Model eşitliği için standart)
   
   # --- NETWORK ---
-  dio: ^5.4.0             # Http Client
-  retrofit: ^4.1.0        # API Generator Interface
-  json_annotation: ^4.8.1 # JSON serileştirme (Model için şart)
   logger: ^2.0.2          # Renkli loglama
 
   # --- LOCAL STORAGE ---
@@ -54,13 +51,9 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
-
-  # --- CODE GENERATION (Sihirli Kısım) ---
-  build_runner: ^2.4.8        # Kod üretim motoru
-  retrofit_generator: ^7.0.8  # Retrofit kodlarını yazar
-  json_serializable: ^6.7.1   # fromJson/toJson kodlarını yazar
 flutter:
   uses-material-design: true
 
   assets:
     - assets/lang/
+    - assets/dataset/

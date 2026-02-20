@@ -4,11 +4,10 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:collection/collection.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:provider/provider.dart';
 
-import '../../../../core/base/base_view.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/extensions/responsive_extension.dart';
-import '../../../../core/init/di/injection_container.dart';
 import '../../domain/entities/word_entity.dart';
 import '../view_model/study_view_model.dart';
 import 'test_result_view.dart';
@@ -36,7 +35,7 @@ class _QuizViewState extends State<QuizView> {
   }
 
   Future<void> _loadNextWord() async {
-    final viewModel = locator<StudyViewModel>();
+    final viewModel = context.read<StudyViewModel>();
 
     if (viewModel.reviewQueue.isEmpty) {
       await _finishTestAndNavigate();
@@ -74,7 +73,7 @@ class _QuizViewState extends State<QuizView> {
 
   void _handleAnswer(int selectedIndex) {
     if (_isAnswered) return;
-    final viewModel = locator<StudyViewModel>();
+    final viewModel = context.read<StudyViewModel>();
     final isCorrect = selectedIndex == _correctOptionIndex;
 
     setState(() {
@@ -95,7 +94,7 @@ class _QuizViewState extends State<QuizView> {
       _isAnswered = true;
       _selectedOptionIndex = -1;
     });
-    locator<StudyViewModel>().answerIncorrectly(_currentWord!);
+    context.read<StudyViewModel>().answerIncorrectly(_currentWord!);
   }
 
   Future<void> _finishTestAndNavigate() async {
@@ -113,10 +112,8 @@ class _QuizViewState extends State<QuizView> {
 
   @override
   Widget build(BuildContext context) {
-    return BaseView<StudyViewModel>(
-      viewModel: locator<StudyViewModel>(),
-      onModelReady: (model) {},
-      builder: (context, viewModel, child) {
+    return Consumer<StudyViewModel>(
+      builder: (context, viewModel, _) {
         if (viewModel.isLoading || _currentWord == null) {
           return Scaffold(
             backgroundColor: context.colors.surface,
@@ -328,7 +325,7 @@ class _QuizViewState extends State<QuizView> {
                                 style: context.textTheme.bodyMedium
                                     ?.copyWith(fontStyle: FontStyle.italic)),
                             Divider(height: context.responsive.spacingL),
-                            Text('“$displayedSentence”',
+                            Text('"$displayedSentence"',
                                 style: context.textTheme.bodyLarge,
                                 textAlign: TextAlign.center),
                           ],

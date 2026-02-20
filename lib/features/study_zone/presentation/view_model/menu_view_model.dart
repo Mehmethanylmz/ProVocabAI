@@ -20,8 +20,12 @@ class MenuViewModel extends BaseViewModel {
 
   int _dailyReviewCount = 0;
   int get dailyReviewCount => _dailyReviewCount;
-  int _dailyTarget = 10;
+
+  // Günlük hedef — batchSize'dan bağımsız
+  int _dailyTarget = 20;
   int get dailyTarget => _dailyTarget;
+
+  bool get isDailyGoalCompleted => _dailyReviewCount >= _dailyTarget;
 
   int _filteredWordCount = 0;
   int get filteredWordCount => _filteredWordCount;
@@ -32,14 +36,10 @@ class MenuViewModel extends BaseViewModel {
 
   List<String> _allCategories = [];
   List<String> get allCategories => _allCategories;
-  List<String> _allPartsOfSpeech = [];
-  List<String> get allPartsOfSpeech => _allPartsOfSpeech;
 
   // Filtreler
   List<String> _selectedCategories = ['all'];
   List<String> get selectedCategories => _selectedCategories;
-  List<String> _selectedGrammar = ['all'];
-  List<String> get selectedGrammar => _selectedGrammar;
 
   Future<void> loadMenuData() async {
     changeLoading();
@@ -49,15 +49,18 @@ class MenuViewModel extends BaseViewModel {
     String targetLang = 'en';
     settingsResult.fold((l) {}, (r) => targetLang = r['target']!);
 
-    final batchResult = await _settingsRepo.getBatchSize();
-    batchResult.fold((l) {}, (r) => _dailyTarget = r);
+    // Günlük hedefi ayrı key'den oku
+    final dailyGoalResult = await _settingsRepo.getDailyGoal();
+    dailyGoalResult.fold((l) {}, (r) => _dailyTarget = r);
+
+    // Test soru sayısı (batchSize) artık sadece test için — menuye karışmıyor
 
     // 1. Geçmişi Sil ve Getir
     await _testRepo.deleteOldTestHistory();
     final historyResult = await _testRepo.getTestHistory();
-    historyResult.fold((l) => print(l.message), (r) => _testHistory = r);
+    historyResult.fold((l) {}, (r) => _testHistory = r);
 
-    // 2. Günlük Durum
+    // 2. Günlük Durum — dailyTarget kelimeden kaçı bugün yapıldı
     final dailyResult =
         await _wordRepo.getDailyReviewCount(_dailyTarget, targetLang);
     dailyResult.fold((l) {}, (r) => _dailyReviewCount = r);
@@ -69,9 +72,6 @@ class MenuViewModel extends BaseViewModel {
     // 4. Kategoriler
     final catResult = await _wordRepo.getAllUniqueCategories();
     catResult.fold((l) {}, (r) => _allCategories = r);
-
-    final posResult = await _wordRepo.getUniquePartsOfSpeech();
-    posResult.fold((l) {}, (r) => _allPartsOfSpeech = r);
 
     // 5. Filtre Sayısını Güncelle
     await refreshFilteredCount();
@@ -85,9 +85,7 @@ class MenuViewModel extends BaseViewModel {
     settingsResult.fold((l) {}, (r) => targetLang = r['target']!);
 
     final countResult = await _wordRepo.getFilteredReviewCount(
-        targetLang: targetLang,
-        categories: _selectedCategories,
-        grammar: _selectedGrammar);
+        targetLang: targetLang, categories: _selectedCategories);
     countResult.fold((l) {}, (r) => _filteredWordCount = r);
     notifyListeners();
   }
@@ -105,21 +103,6 @@ class MenuViewModel extends BaseViewModel {
         _selectedCategories.add(category);
       }
       if (_selectedCategories.isEmpty) _selectedCategories = ['all'];
-    }
-    refreshFilteredCount();
-  }
-
-  void toggleGrammar(String grammar) {
-    if (grammar == 'all') {
-      _selectedGrammar = ['all'];
-    } else {
-      if (_selectedGrammar.contains('all')) _selectedGrammar.remove('all');
-      if (_selectedGrammar.contains(grammar)) {
-        _selectedGrammar.remove(grammar);
-      } else {
-        _selectedGrammar.add(grammar);
-      }
-      if (_selectedGrammar.isEmpty) _selectedGrammar = ['all'];
     }
     refreshFilteredCount();
   }

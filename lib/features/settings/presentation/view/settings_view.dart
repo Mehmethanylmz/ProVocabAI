@@ -66,6 +66,10 @@ class SettingsView extends StatelessWidget {
                         height: context.responsive.spacingXL,
                         color: context.colors.outlineVariant),
                     _buildSectionHeader(context, 'study_settings'.tr()),
+                    // Günlük kelime hedefi
+                    _buildGoalSlider(context, viewModel),
+                    SizedBox(height: context.responsive.spacingS),
+                    // Test soru sayısı
                     _buildBatchSizeSlider(context, viewModel),
                     _buildAutoPlaySwitch(context, viewModel),
                   ],
@@ -200,6 +204,57 @@ class SettingsView extends StatelessWidget {
     );
   }
 
+  /// Günlük kelime hedefi slider'ı
+  Widget _buildGoalSlider(BuildContext context, SettingsViewModel viewModel) {
+    return Container(
+      margin: EdgeInsets.symmetric(vertical: context.responsive.spacingXS),
+      padding: EdgeInsets.all(context.responsive.spacingM),
+      decoration: BoxDecoration(
+        color: context.colors.surface,
+        borderRadius: BorderRadius.circular(context.responsive.borderRadiusM),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.flag_rounded, size: 18, color: context.colors.primary),
+              SizedBox(width: context.responsive.spacingXS),
+              Text(
+                '${'daily_goal'.tr()}: ',
+                style: context.textTheme.bodyLarge
+                    ?.copyWith(fontWeight: FontWeight.w600),
+              ),
+              Text(
+                '${viewModel.dailyGoal} kelime',
+                style: context.textTheme.bodyLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: context.colors.primary,
+                ),
+              ),
+            ],
+          ),
+          Slider(
+            value: viewModel.dailyGoal.toDouble(),
+            min: 5,
+            max: 100,
+            divisions: 19,
+            label: '${viewModel.dailyGoal}',
+            activeColor: context.colors.primary,
+            onChanged: (val) => viewModel.updateDailyGoal(val.toInt()),
+          ),
+          Text(
+            'Onboarding\'de seçtiğiniz hedefi burada değiştirebilirsiniz.',
+            style: context.textTheme.bodySmall?.copyWith(
+                color: context.colors.onSurfaceVariant,
+                fontStyle: FontStyle.italic),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Test soru sayısı slider'ı
   Widget _buildBatchSizeSlider(
       BuildContext context, SettingsViewModel viewModel) {
     return Container(
@@ -212,18 +267,39 @@ class SettingsView extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            '${'daily_goal'.tr()}: ${viewModel.batchSize}',
-            style: context.textTheme.bodyLarge,
+          Row(
+            children: [
+              Icon(Icons.format_list_numbered_rounded,
+                  size: 18, color: context.colors.secondary),
+              SizedBox(width: context.responsive.spacingXS),
+              Text(
+                'Test soru sayısı: ',
+                style: context.textTheme.bodyLarge
+                    ?.copyWith(fontWeight: FontWeight.w600),
+              ),
+              Text(
+                '${viewModel.batchSize} soru',
+                style: context.textTheme.bodyLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: context.colors.secondary,
+                ),
+              ),
+            ],
           ),
           Slider(
             value: viewModel.batchSize.toDouble(),
             min: 5,
             max: 50,
             divisions: 9,
-            label: viewModel.batchSize.toString(),
-            activeColor: context.colors.primary,
+            label: '${viewModel.batchSize} soru',
+            activeColor: context.colors.secondary,
             onChanged: (val) => viewModel.updateBatchSize(val.toInt()),
+          ),
+          Text(
+            'Her testte görünecek soru sayısı.',
+            style: context.textTheme.bodySmall?.copyWith(
+                color: context.colors.onSurfaceVariant,
+                fontStyle: FontStyle.italic),
           ),
         ],
       ),

@@ -44,6 +44,7 @@ class OnboardingView extends StatelessWidget {
                       excludeCode: viewModel.uiSourceLang,
                     ),
                     _buildLevelSelection(context, viewModel),
+                    _buildDailyGoalSelection(context, viewModel),
                   ],
                 ),
               ),
@@ -279,21 +280,37 @@ class OnboardingView extends StatelessWidget {
           else
             const SizedBox.shrink(),
           ElevatedButton(
-            onPressed: () async {
-              if (viewModel.currentPage < 2) {
-                viewModel.nextPage();
-              } else {
-                await viewModel.completeOnboarding(context);
+            onPressed: viewModel.isLoading
+                ? null
+                : () async {
+                    if (!viewModel.isLastPage) {
+                      viewModel.nextPage();
+                    } else {
+                      final success =
+                          await viewModel.completeOnboarding(context);
 
-                if (!context.mounted) return;
+                      if (!context.mounted) return;
 
-                NavigationService.instance
-                    .navigateToPageClear(path: NavigationConstants.MAIN);
-              }
-            },
+                      if (!success) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(viewModel.errorMessage),
+                            backgroundColor:
+                                Theme.of(context).colorScheme.error,
+                            duration: const Duration(seconds: 4),
+                          ),
+                        );
+                        return;
+                      }
+
+                      NavigationService.instance
+                          .navigateToPageClear(path: NavigationConstants.MAIN);
+                    }
+                  },
             style: ElevatedButton.styleFrom(
               backgroundColor: context.colors.primary,
               foregroundColor: context.colors.onPrimary,
+              disabledBackgroundColor: context.colors.primary.withOpacity(0.6),
               padding: EdgeInsets.symmetric(
                 horizontal: context.responsive.spacingXL,
                 vertical: context.responsive.spacingM,
@@ -303,13 +320,20 @@ class OnboardingView extends StatelessWidget {
                     BorderRadius.circular(context.responsive.borderRadiusXL),
               ),
             ),
-            child: Text(
-              viewModel.currentPage == 2 ? 'btn_start'.tr() : 'btn_next'.tr(),
-              style: GoogleFonts.poppins(
-                fontSize: context.responsive.fontSizeH3,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
+            child: viewModel.isLoading
+                ? SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2.5, color: context.colors.onPrimary),
+                  )
+                : Text(
+                    viewModel.isLastPage ? 'btn_start'.tr() : 'btn_next'.tr(),
+                    style: GoogleFonts.poppins(
+                      fontSize: context.responsive.fontSizeH3,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
           ),
         ],
       ),
@@ -334,5 +358,108 @@ class OnboardingView extends StatelessWidget {
       default:
         return '🏳️';
     }
+  }
+
+  Widget _buildDailyGoalSelection(
+      BuildContext context, OnboardingViewModel viewModel) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(height: context.responsive.spacingXL),
+        Text(
+          'Günlük Hedefini Belirle',
+          style: context.textTheme.headlineMedium?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: context.colors.onSurface,
+          ),
+        ),
+        SizedBox(height: context.responsive.spacingXS),
+        Text(
+          'Her gün kaç kelime öğrenmek istiyorsun? İstersen ayarlarda değiştirebilirsin.',
+          style: context.textTheme.bodyLarge?.copyWith(
+            color: context.colors.onSurfaceVariant,
+          ),
+        ),
+        SizedBox(height: context.responsive.spacingXL),
+        Expanded(
+          child: GridView.builder(
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              crossAxisSpacing: 16,
+              mainAxisSpacing: 16,
+              childAspectRatio: 1.4,
+            ),
+            itemCount: viewModel.dailyGoalOptions.length,
+            itemBuilder: (context, index) {
+              final goal = viewModel.dailyGoalOptions[index];
+              final isSelected = goal == viewModel.selectedDailyGoal;
+              return GestureDetector(
+                onTap: () => viewModel.setDailyGoal(goal),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 250),
+                  curve: Curves.easeOut,
+                  decoration: BoxDecoration(
+                    gradient: isSelected
+                        ? LinearGradient(
+                            colors: [
+                              context.colors.primary,
+                              context.colors.secondary
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          )
+                        : null,
+                    color: isSelected
+                        ? null
+                        : context.colors.surfaceContainerLowest,
+                    borderRadius: BorderRadius.circular(
+                        context.responsive.borderRadiusXL),
+                    border: Border.all(
+                      color: isSelected
+                          ? Colors.transparent
+                          : context.colors.outlineVariant,
+                      width: 2,
+                    ),
+                    boxShadow: isSelected
+                        ? [
+                            BoxShadow(
+                              color: context.colors.primary.withOpacity(0.35),
+                              blurRadius: 16,
+                              offset: const Offset(0, 6),
+                            )
+                          ]
+                        : null,
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        '$goal',
+                        style: GoogleFonts.poppins(
+                          fontSize: 36,
+                          fontWeight: FontWeight.w800,
+                          color: isSelected
+                              ? Colors.white
+                              : context.colors.onSurface,
+                        ),
+                      ),
+                      Text(
+                        'kelime/gün',
+                        style: GoogleFonts.poppins(
+                          fontSize: 12,
+                          color: isSelected
+                              ? Colors.white.withOpacity(0.9)
+                              : context.colors.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
   }
 }
