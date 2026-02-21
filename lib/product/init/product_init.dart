@@ -6,6 +6,7 @@ import 'package:provider/single_child_widget.dart';
 
 import '../../core/init/di/injection_container.dart';
 import '../../core/init/lang/language_manager.dart';
+import '../../features/auth/presentation/viewmodel/auth_view_model.dart';
 import '../../features/dashboard/presentation/view_model/dashboard_view_model.dart';
 import '../../features/main/presentation/view_model/main_view_model.dart';
 import '../../features/onboarding/presentation/view_model/onboarding_view_model.dart';
@@ -29,6 +30,7 @@ class ProductInit {
 
   static List<SingleChildWidget> get providers => [
         ChangeNotifierProvider(create: (_) => locator<SettingsViewModel>()),
+        ChangeNotifierProvider(create: (_) => locator<AuthViewModel>()),
         ChangeNotifierProvider(create: (_) => locator<MainViewModel>()),
         ChangeNotifierProvider(create: (_) => locator<DashboardViewModel>()),
         ChangeNotifierProvider(create: (_) => locator<StudyViewModel>()),

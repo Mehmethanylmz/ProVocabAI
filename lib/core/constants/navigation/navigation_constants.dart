@@ -2,6 +2,7 @@
 
 class NavigationConstants {
   static const SPLASH = '/';
+  static const LOGIN = '/login';
   static const TEST_MENU = '/test-menu';
   static const SETTINGS = '/settings';
   static const ONBOARDING = '/onboarding';

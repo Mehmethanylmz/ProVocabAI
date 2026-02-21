@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "157264766220",
+    "project_id": "improvevocabulary-d4181",
+    "storage_bucket": "improvevocabulary-d4181.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:157264766220:android:3d6b01a7716059e90d5529",
+        "android_client_info": {
+          "package_name": "com.example.pratikapp"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "157264766220-i0icc47p0e4195f97jicltrrgkpku1jo.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.pratikapp",
+            "certificate_hash": "caa63613c62842f30450324da27ff342194c3d68"
+          }
+        },
+        {
+          "client_id": "157264766220-jrbbreantj97jk4ao3nos7dftpt3oleq.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAoGTrsNjO697PXNu7AG5d1D-jEaoWT5b8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "157264766220-jrbbreantj97jk4ao3nos7dftpt3oleq.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "157264766220-ocvq8o1dljlevumj7pptcfkkdkg9qnmh.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.pratikapp"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

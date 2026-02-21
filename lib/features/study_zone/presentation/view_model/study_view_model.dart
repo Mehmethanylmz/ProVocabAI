@@ -59,6 +59,11 @@ class StudyViewModel extends BaseViewModel {
   String? _errorMessage;
   String? get errorMessage => _errorMessage;
 
+  /// Test süresini döndürür (saniye cinsinden).
+  Duration get testDuration => _testStartTime != null
+      ? DateTime.now().difference(_testStartTime!)
+      : Duration.zero;
+
   bool _isListening = false;
   bool get isListening => _isListening;
   String _spokenText = "";

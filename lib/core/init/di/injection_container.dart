@@ -30,6 +30,9 @@ import '../../../features/study_zone/presentation/view_model/menu_view_model.dar
 import '../../../features/study_zone/presentation/view_model/study_view_model.dart';
 
 // --- OTHER FEATURES ---
+import '../../../features/auth/data/repositories/auth_repository_impl.dart';
+import '../../../features/auth/domain/repositories/i_auth_repository.dart';
+import '../../../features/auth/presentation/viewmodel/auth_view_model.dart';
 import '../../../features/main/presentation/view_model/main_view_model.dart';
 import '../../../features/onboarding/presentation/view_model/onboarding_view_model.dart';
 
@@ -46,6 +49,10 @@ Future<void> setupLocator() async {
   locator.registerLazySingleton(() => ProductDatabaseManager.instance);
 
   // --- REPOSITORIES ---
+  locator.registerLazySingleton<IAuthRepository>(
+    () => AuthRepositoryImpl(),
+  );
+
   locator.registerLazySingleton<ISettingsRepository>(
       () => SettingsRepositoryImpl(locator<SharedPreferences>()));
 
@@ -67,6 +74,7 @@ Future<void> setupLocator() async {
   locator.registerFactory(() => SplashViewModel(
         locator<ISettingsRepository>(),
         locator<IWordRepository>(),
+        locator<IAuthRepository>(),
       ));
 
   locator.registerFactory(() => DashboardViewModel(
@@ -88,6 +96,9 @@ Future<void> setupLocator() async {
       ));
 
   locator.registerFactory(() => MainViewModel());
+
+  locator
+      .registerLazySingleton(() => AuthViewModel(locator<IAuthRepository>()));
 
   locator.registerFactory(() => MenuViewModel(
         locator<IWordRepository>(),

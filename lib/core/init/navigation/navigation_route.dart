@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../features/splash/presentation/view/splash_view.dart';
 import '../../constants/navigation/navigation_constants.dart';
+import '../../../features/auth/presentation/view/login_view.dart';
 import '../../../features/main/presentation/view/main_view.dart';
 import '../../../features/onboarding/presentation/view/onboarding_view.dart';
 import '../../../features/settings/presentation/view/settings_view.dart';
@@ -16,6 +17,8 @@ class NavigationRoute {
     switch (args.name) {
       case NavigationConstants.SPLASH:
         return normalNavigate(const SplashView());
+      case NavigationConstants.LOGIN:
+        return normalNavigate(const LoginView());
       case NavigationConstants.ONBOARDING:
         return normalNavigate(const OnboardingView());
 

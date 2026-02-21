@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:easy_localization/easy_localization.dart';
 import '../../../../core/base/base_view_model.dart';
+import '../../../auth/domain/repositories/i_auth_repository.dart';
 import '../../../settings/domain/repositories/i_settings_repository.dart';
 import '../../../study_zone/domain/repositories/i_word_repository.dart';
 import '../../../../core/init/navigation/navigation_service.dart';
@@ -10,8 +11,9 @@ import '../../../../core/init/lang/language_manager.dart';
 class SplashViewModel extends BaseViewModel {
   final ISettingsRepository _settingsRepo;
   final IWordRepository _wordRepo;
+  final IAuthRepository _authRepo;
 
-  SplashViewModel(this._settingsRepo, this._wordRepo);
+  SplashViewModel(this._settingsRepo, this._wordRepo, this._authRepo);
 
   Future<void> initializeApp(BuildContext context) async {
     await Future.delayed(const Duration(seconds: 2));
@@ -59,10 +61,11 @@ class SplashViewModel extends BaseViewModel {
       }
     });
 
-    // 4. Ana Ekrana Git
-    if (context.mounted) {
-      NavigationService.instance
-          .navigateToPageClear(path: NavigationConstants.MAIN);
-    }
+    // 4. Auth kontrolü → LOGIN veya MAIN
+    if (!context.mounted) return;
+    final isLoggedIn = _authRepo.currentUser != null;
+    NavigationService.instance.navigateToPageClear(
+      path: isLoggedIn ? NavigationConstants.MAIN : NavigationConstants.LOGIN,
+    );
   }
 }

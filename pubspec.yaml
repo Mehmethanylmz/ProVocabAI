@@ -1,22 +1,30 @@
 name: pratikapp
 description: A new Flutter project.
-publish_to: 'none'
+publish_to: "none"
 version: 1.0.0+1
 
 environment:
-  sdk: '>=3.2.3 <4.0.0'
+  sdk: ">=3.2.3 <4.0.0"
 
 dependencies:
   flutter:
     sdk: flutter
 
   # --- CORE & ARCHITECTURE ---
-  get_it: ^7.6.0          # Dependency Injection
-  provider: ^6.1.2        # State Management
-  equatable: ^2.0.5       # Object comparison (Model eşitliği için standart)
-  
+  get_it: ^7.6.0 # Dependency Injection
+  provider: ^6.1.2 # State Management
+  equatable: ^2.0.5 # Object comparison (Model eşitliği için standart)
+
+  # --- FIREBASE & AUTH ---
+  firebase_core: ^3.6.0
+  firebase_auth: ^5.3.0
+  google_sign_in: ^6.2.1
+  flutter_facebook_auth: ^7.0.1
+  sign_in_with_apple: ^6.1.2
+  crypto: ^3.0.3
+
   # --- NETWORK ---
-  logger: ^2.0.2          # Renkli loglama
+  logger: ^2.0.2 # Renkli loglama
 
   # --- LOCAL STORAGE ---
   sqflite: ^2.3.3+1
@@ -35,9 +43,9 @@ dependencies:
   audioplayers: ^6.5.1
   flutter_local_notifications: ^19.5.0
   timezone: ^0.10.1
-  
+
   # --- SPEECH ---
-  speech_to_text: ^7.1.0 
+  speech_to_text: ^7.1.0
   permission_handler: ^11.3.1
 
   # --- UTILS ---
