@@ -4,19 +4,12 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:provider/provider.dart';
 
-import '../../../../core/base/base_view.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/extensions/responsive_extension.dart';
-import '../../../../core/init/di/injection_container.dart';
-import '../view_model/menu_view_model.dart';
-import '../view_model/study_view_model.dart';
+
 import '../widgets/filter_row.dart';
 import '../widgets/history_card_widget.dart';
 import '../widgets/mode_card.dart';
-
-import 'quiz_view.dart';
-import 'listening_view.dart';
-import 'speaking_view.dart';
 
 class TestMenuView extends StatelessWidget {
   const TestMenuView({super.key});

@@ -1,0 +1,108 @@
+// firestore.rules
+//
+// T-17: Firestore Security Rules
+// Blueprint:
+//   users/{userId}/** : auth.uid == userId (read/write)
+//   leaderboard       : read-only (tüm authenticated users)
+//   app_config        : read-only (tüm authenticated users)
+//   XP rate limit     : isValidXPIncrease() — delta <= 500 per update
+//
+// Deploy:
+//   firebase deploy --only firestore:rules
+//
+// Test:
+//   npm install -g firebase-tools
+//   firebase emulators:start --only firestore
+//   node scripts/test_rules.js  (veya @firebase/rules-unit-testing)
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helper functions ───────────────────────────────────────────────────
+
+    /// Kullanıcı giriş yapmış mı?
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    /// İstek sahibi kendi dokümanını mı istiyor?
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    /// XP artışı makul sınırlar içinde mi?
+    /// Tek update'te maksimum 500 XP kazanılabilir (Cloud Function bypass'ını önler).
+    function isValidXPIncrease() {
+      let newXP = request.resource.data.get('weeklyXp', 0);
+      let oldXP = resource.data.get('weeklyXp', 0);
+      let delta = newXP - oldXP;
+      return delta >= 0 && delta <= 500;
+    }
+
+    /// Leaderboard update'i Cloud Function'dan mı geliyor?
+    /// Cloud Functions service account UID'i ile kontrol edilir.
+    function isCloudFunction() {
+      return request.auth.token.firebase.sign_in_provider == 'google.com'
+          || request.auth.uid == 'cloud-functions-service-account';
+    }
+
+    // ── Users ──────────────────────────────────────────────────────────────
+
+    /// Kullanıcının kendi profil ve tüm alt koleksiyonları: sadece kendisi.
+    match /users/{userId} {
+      allow read, write: if isOwner(userId);
+
+      /// Kullanıcının progress kayıtları.
+      match /progress/{progressId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      /// Kullanıcının session kayıtları.
+      match /sessions/{sessionId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      /// Kullanıcının profili — XP rate limit uygulanır.
+      match /profile/{profileId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId);
+        allow update: if isOwner(userId) && isValidXPIncrease();
+      }
+
+      /// Tüm diğer alt dökümanlar.
+      match /{document=**} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+
+    // ── Leaderboard ────────────────────────────────────────────────────────
+
+    /// Haftalık ve global leaderboard: authenticated users okuyabilir,
+    /// sadece Cloud Functions yazabilir.
+    match /leaderboard/{document=**} {
+      allow read: if isAuthenticated();
+      allow write: if false; // Cloud Functions service account üzerinden
+    }
+
+    match /leaderboard/weekly/{weekId} {
+      allow read: if isAuthenticated();
+      allow write: if false;
+    }
+
+    // ── App Config ─────────────────────────────────────────────────────────
+
+    /// Uygulama yapılandırması (feature flags, min version vb.):
+    /// authenticated users okuyabilir, kimse yazamaz (admin SDK üzerinden).
+    match /app_config/{document=**} {
+      allow read: if isAuthenticated();
+      allow write: if false;
+    }
+
+    // ── Default: her şeyi reddet ───────────────────────────────────────────
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -4,6 +4,8 @@
 
 list(APPEND FLUTTER_PLUGIN_LIST
   audioplayers_windows
+  cloud_firestore
+  connectivity_plus
   firebase_auth
   firebase_core
   flutter_secure_storage_windows
@@ -11,6 +13,7 @@ list(APPEND FLUTTER_PLUGIN_LIST
   permission_handler_windows
   share_plus
   speech_to_text_windows
+  sqlite3_flutter_libs
   url_launcher_windows
 )
 

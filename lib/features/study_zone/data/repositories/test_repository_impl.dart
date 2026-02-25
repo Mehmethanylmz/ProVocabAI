@@ -1,6 +1,5 @@
 import 'package:dartz/dartz.dart';
 import '../../../../core/error/failures.dart';
-import '../../../../product/init/database/ProductDatabaseManager.dart';
 import '../../domain/entities/test_result_entity.dart';
 import '../../domain/repositories/i_test_repository.dart';
 import '../models/test_result_model.dart';

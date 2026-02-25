@@ -2,12 +2,10 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:provider/provider.dart';
 
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/init/navigation/navigation_service.dart';
 import '../../../../core/constants/navigation/navigation_constants.dart';
-import '../viewmodel/auth_view_model.dart';
 
 class LoginView extends StatelessWidget {
   const LoginView({super.key});

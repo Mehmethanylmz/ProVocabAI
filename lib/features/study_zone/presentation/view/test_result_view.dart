@@ -1,14 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:easy_localization/easy_localization.dart';
-import 'package:provider/provider.dart';
 
-import '../../../../core/extensions/context_extensions.dart';
-import '../../../../core/extensions/responsive_extension.dart';
 import '../../domain/entities/word_entity.dart';
 import '../../../main/presentation/view/main_view.dart';
-import '../view_model/study_view_model.dart';
 
 class TestResultView extends StatefulWidget {
   const TestResultView({super.key});
