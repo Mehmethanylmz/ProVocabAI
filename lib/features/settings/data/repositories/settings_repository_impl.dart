@@ -1,18 +1,26 @@
+// lib/features/settings/data/repositories/settings_repository_impl.dart
+//
+// FIX: themeStream eklendi — app.dart anlık theme değişimini dinleyebilir
+
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:dartz/dartz.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/error/failures.dart';
 import '../../domain/repositories/i_settings_repository.dart';
-import '../../../../core/constants/app_constants.dart'; // EKLENDİ
+import '../../../../core/constants/app_constants.dart';
 
 class SettingsRepositoryImpl implements ISettingsRepository {
   final SharedPreferences _prefs;
+  final _themeController = StreamController<ThemeMode>.broadcast();
 
   SettingsRepositoryImpl(this._prefs);
 
-  // ESKİ PRIVATE SABİTLER SİLİNDİ.
-  // Artık AppConstants.keySourceLang vb. kullanıyoruz.
+  /// app.dart bu stream'i dinleyerek anlık theme güncellemesi yapar.
+  Stream<ThemeMode> get themeStream => _themeController.stream;
+
+  void dispose() => _themeController.close();
 
   @override
   Future<Either<Failure, Map<String, String>>> getLanguageSettings() async {
@@ -21,7 +29,6 @@ class SettingsRepositoryImpl implements ISettingsRepository {
           _detectDeviceLanguage();
       String target = _prefs.getString(AppConstants.keyTargetLang) ?? 'en';
       if (source == target) target = (source == 'en') ? 'tr' : 'en';
-
       return Right({
         'source': source,
         'target': target,
@@ -38,7 +45,7 @@ class SettingsRepositoryImpl implements ISettingsRepository {
       final String deviceLocale = Platform.localeName.split('_')[0];
       const supported = ['tr', 'en', 'es', 'de', 'fr', 'pt'];
       if (supported.contains(deviceLocale)) return deviceLocale;
-    } catch (e) {}
+    } catch (_) {}
     return 'en';
   }
 
@@ -115,6 +122,10 @@ class SettingsRepositoryImpl implements ISettingsRepository {
       if (mode == ThemeMode.light) val = 'light';
       if (mode == ThemeMode.dark) val = 'dark';
       await _prefs.setString(AppConstants.keyThemeMode, val);
+
+      // Stream'e yay — app.dart anlık günceller
+      _themeController.add(mode);
+
       return const Right(null);
     } catch (e) {
       return Left(CacheFailure(e.toString()));

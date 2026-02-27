@@ -1,72 +1,103 @@
+// lib/features/onboarding/presentation/view/onboarding_view.dart
+//
+// REWRITE: context.watch<OnboardingViewModel>() → BlocBuilder<OnboardingBloc>
+// DI: OnboardingBloc → NavigationRoute'ta BlocProvider ile sağlanır
+
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:provider/provider.dart';
 
 import '../../../../core/constants/navigation/navigation_constants.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/extensions/responsive_extension.dart';
 import '../../../../core/init/lang/language_manager.dart';
 import '../../../../core/init/navigation/navigation_service.dart';
-import '../view_model/onboarding_view_model.dart';
+import '../state/onboarding_bloc.dart';
 
 class OnboardingView extends StatelessWidget {
   const OnboardingView({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final viewModel = context.watch<OnboardingViewModel>();
-
-    return Scaffold(
-      backgroundColor: context.colors.surface,
-      body: SafeArea(
-        child: Padding(
-          padding: context.responsive.paddingPage,
-          child: Column(
-            children: [
-              Expanded(
-                child: IndexedStack(
-                  index: viewModel.currentPage,
+    return BlocListener<OnboardingBloc, OnboardingState>(
+      listenWhen: (prev, curr) =>
+          curr.isCompleted != prev.isCompleted ||
+          curr.errorMessage != prev.errorMessage,
+      listener: (context, state) {
+        if (state.isCompleted) {
+          NavigationService.instance
+              .navigateToPageClear(path: NavigationConstants.LOGIN);
+        } else if (state.errorMessage != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(state.errorMessage!),
+              backgroundColor: Theme.of(context).colorScheme.error,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
+      },
+      child: BlocBuilder<OnboardingBloc, OnboardingState>(
+        builder: (context, state) {
+          return Scaffold(
+            backgroundColor: context.colors.surface,
+            body: SafeArea(
+              child: Padding(
+                padding: context.responsive.paddingPage,
+                child: Column(
                   children: [
-                    _buildLanguageSelection(
-                      context,
-                      title: 'onboard_lang_source_title'.tr(),
-                      subtitle: 'onboard_lang_source_desc'.tr(),
-                      selectedValue: viewModel.uiSourceLang,
-                      onSelect: (code) => viewModel.setSourceLang(code),
+                    Expanded(
+                      child: IndexedStack(
+                        index: state.currentPage,
+                        children: [
+                          _buildLanguageSelection(
+                            context,
+                            state: state,
+                            title: 'onboard_lang_source_title'.tr(),
+                            subtitle: 'onboard_lang_source_desc'.tr(),
+                            selectedValue: state.sourceLang,
+                            onSelect: (code) => context
+                                .read<OnboardingBloc>()
+                                .add(OnboardingSourceLangChanged(code)),
+                          ),
+                          _buildLanguageSelection(
+                            context,
+                            state: state,
+                            title: 'onboard_lang_target_title'.tr(),
+                            subtitle: 'onboard_lang_target_desc'.tr(),
+                            selectedValue: state.targetLang,
+                            onSelect: (code) => context
+                                .read<OnboardingBloc>()
+                                .add(OnboardingTargetLangChanged(code)),
+                            excludeCode: state.sourceLang,
+                          ),
+                          _buildLevelSelection(context, state),
+                          _buildDailyGoalSelection(context, state),
+                        ],
+                      ),
                     ),
-                    _buildLanguageSelection(
-                      context,
-                      title: 'onboard_lang_target_title'.tr(),
-                      subtitle: 'onboard_lang_target_desc'.tr(),
-                      selectedValue: viewModel.uiTargetLang,
-                      onSelect: (code) => viewModel.setTargetLang(code),
-                      excludeCode: viewModel.uiSourceLang,
-                    ),
-                    _buildLevelSelection(context, viewModel),
-                    _buildDailyGoalSelection(context, viewModel),
+                    _buildBottomBar(context, state),
                   ],
                 ),
               ),
-              _buildBottomBar(context, viewModel),
-            ],
-          ),
-        ),
+            ),
+          );
+        },
       ),
     );
   }
 
   Widget _buildLanguageSelection(
     BuildContext context, {
+    required OnboardingState state,
     required String title,
     required String subtitle,
     required String selectedValue,
     required Function(String) onSelect,
     String? excludeCode,
   }) {
-    // ViewModel'deki desteklenen diller listesini kullanıyoruz
-    final viewModel = context.read<OnboardingViewModel>();
-    final languages = viewModel.supportedUiLanguages
+    final languages = OnboardingBloc.supportedLanguages
         .where((code) => code != excludeCode)
         .toList();
 
@@ -74,20 +105,13 @@ class OnboardingView extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SizedBox(height: context.responsive.spacingXL),
-        Text(
-          title,
-          style: context.textTheme.headlineMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-            color: context.colors.onSurface,
-          ),
-        ),
+        Text(title,
+            style: context.textTheme.headlineMedium
+                ?.copyWith(fontWeight: FontWeight.bold)),
         SizedBox(height: context.responsive.spacingXS),
-        Text(
-          subtitle,
-          style: context.textTheme.bodyLarge?.copyWith(
-            color: context.colors.onSurfaceVariant,
-          ),
-        ),
+        Text(subtitle,
+            style: context.textTheme.bodyLarge
+                ?.copyWith(color: context.colors.onSurfaceVariant)),
         SizedBox(height: context.responsive.spacingL),
         Expanded(
           child: ListView.builder(
@@ -121,13 +145,10 @@ class OnboardingView extends StatelessWidget {
                     ),
                     child: Row(
                       children: [
-                        Text(
-                          _getFlag(code),
-                          style: TextStyle(
-                            fontSize: context.responsive
-                                .value(mobile: 28, tablet: 32, desktop: 36),
-                          ),
-                        ),
+                        Text(_getFlag(code),
+                            style: TextStyle(
+                                fontSize: context.responsive
+                                    .value(mobile: 28, tablet: 32))),
                         SizedBox(width: context.responsive.spacingM),
                         Expanded(
                           child: Text(
@@ -144,11 +165,9 @@ class OnboardingView extends StatelessWidget {
                           ),
                         ),
                         if (isSelected)
-                          Icon(
-                            Icons.check_circle,
-                            color: context.colors.primary,
-                            size: context.responsive.iconSizeL,
-                          ),
+                          Icon(Icons.check_circle,
+                              color: context.colors.primary,
+                              size: context.responsive.iconSizeL),
                       ],
                     ),
                   ),
@@ -161,42 +180,32 @@ class OnboardingView extends StatelessWidget {
     );
   }
 
-  Widget _buildLevelSelection(
-      BuildContext context, OnboardingViewModel viewModel) {
+  Widget _buildLevelSelection(BuildContext context, OnboardingState state) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SizedBox(height: context.responsive.spacingXL),
-        Text(
-          'onboard_level_title'.tr(),
-          style: context.textTheme.headlineMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-            color: context.colors.onSurface,
-          ),
-        ),
+        Text('onboard_level_title'.tr(),
+            style: context.textTheme.headlineMedium
+                ?.copyWith(fontWeight: FontWeight.bold)),
         SizedBox(height: context.responsive.spacingXS),
-        Text(
-          'onboard_level_desc'.tr(),
-          style: context.textTheme.bodyLarge?.copyWith(
-            color: context.colors.onSurfaceVariant,
-          ),
-        ),
+        Text('onboard_level_desc'.tr(),
+            style: context.textTheme.bodyLarge
+                ?.copyWith(color: context.colors.onSurfaceVariant)),
         SizedBox(height: context.responsive.spacingL),
         Expanded(
           child: ListView.builder(
-            itemCount: viewModel.difficultyLevels.length,
+            itemCount: OnboardingBloc.difficultyLevels.length,
             itemBuilder: (context, index) {
-              final levelKey = viewModel.difficultyLevels[index];
-              final isSelected = levelKey == viewModel.selectedLevel;
-
-              final title = 'level_$levelKey'.tr();
-              final desc = 'level_${levelKey}_desc'.tr();
-
+              final levelKey = OnboardingBloc.difficultyLevels[index];
+              final isSelected = levelKey == state.selectedLevel;
               return Padding(
                 padding:
                     EdgeInsets.symmetric(vertical: context.responsive.spacingS),
                 child: InkWell(
-                  onTap: () => viewModel.setLevel(levelKey),
+                  onTap: () => context
+                      .read<OnboardingBloc>()
+                      .add(OnboardingLevelChanged(levelKey)),
                   borderRadius:
                       BorderRadius.circular(context.responsive.borderRadiusL),
                   child: Container(
@@ -214,15 +223,15 @@ class OnboardingView extends StatelessWidget {
                         width: 2,
                       ),
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Expanded(
-                              child: Text(
-                                title,
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'level_$levelKey'.tr(),
                                 style: GoogleFonts.poppins(
                                   fontSize: context.responsive.fontSizeH3,
                                   fontWeight: FontWeight.bold,
@@ -231,22 +240,19 @@ class OnboardingView extends StatelessWidget {
                                       : context.colors.onSurface,
                                 ),
                               ),
-                            ),
-                            if (isSelected)
-                              Icon(
-                                Icons.check_circle,
-                                color: context.colors.primary,
-                                size: context.responsive.iconSizeL,
+                              SizedBox(height: context.responsive.spacingS),
+                              Text(
+                                'level_${levelKey}_desc'.tr(),
+                                style: context.textTheme.bodyMedium?.copyWith(
+                                    color: context.colors.onSurfaceVariant),
                               ),
-                          ],
-                        ),
-                        SizedBox(height: context.responsive.spacingS),
-                        Text(
-                          desc,
-                          style: context.textTheme.bodyMedium?.copyWith(
-                            color: context.colors.onSurfaceVariant,
+                            ],
                           ),
                         ),
+                        if (isSelected)
+                          Icon(Icons.check_circle,
+                              color: context.colors.primary,
+                              size: context.responsive.iconSizeL),
                       ],
                     ),
                   ),
@@ -259,126 +265,21 @@ class OnboardingView extends StatelessWidget {
     );
   }
 
-  Widget _buildBottomBar(BuildContext context, OnboardingViewModel viewModel) {
-    return Padding(
-      padding: EdgeInsets.only(top: context.responsive.spacingM),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          if (viewModel.currentPage > 0)
-            TextButton(
-              onPressed: viewModel.previousPage,
-              child: Text(
-                'btn_back'.tr(),
-                style: GoogleFonts.poppins(
-                  fontSize: context.responsive.fontSizeBody,
-                  color: context.colors.onSurfaceVariant,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            )
-          else
-            const SizedBox.shrink(),
-          ElevatedButton(
-            onPressed: viewModel.isLoading
-                ? null
-                : () async {
-                    if (!viewModel.isLastPage) {
-                      viewModel.nextPage();
-                    } else {
-                      final success =
-                          await viewModel.completeOnboarding(context);
-
-                      if (!context.mounted) return;
-
-                      if (!success) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(viewModel.errorMessage),
-                            backgroundColor:
-                                Theme.of(context).colorScheme.error,
-                            duration: const Duration(seconds: 4),
-                          ),
-                        );
-                        return;
-                      }
-
-                      NavigationService.instance
-                          .navigateToPageClear(path: NavigationConstants.LOGIN);
-                    }
-                  },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: context.colors.primary,
-              foregroundColor: context.colors.onPrimary,
-              disabledBackgroundColor: context.colors.primary.withOpacity(0.6),
-              padding: EdgeInsets.symmetric(
-                horizontal: context.responsive.spacingXL,
-                vertical: context.responsive.spacingM,
-              ),
-              shape: RoundedRectangleBorder(
-                borderRadius:
-                    BorderRadius.circular(context.responsive.borderRadiusXL),
-              ),
-            ),
-            child: viewModel.isLoading
-                ? SizedBox(
-                    width: 22,
-                    height: 22,
-                    child: CircularProgressIndicator(
-                        strokeWidth: 2.5, color: context.colors.onPrimary),
-                  )
-                : Text(
-                    viewModel.isLastPage ? 'btn_start'.tr() : 'btn_next'.tr(),
-                    style: GoogleFonts.poppins(
-                      fontSize: context.responsive.fontSizeH3,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _getFlag(String langCode) {
-    final shortCode = langCode.split('-')[0];
-    switch (shortCode) {
-      case 'tr':
-        return '🇹🇷';
-      case 'en':
-        return '🇬🇧';
-      case 'es':
-        return '🇪🇸';
-      case 'de':
-        return '🇩🇪';
-      case 'fr':
-        return '🇫🇷';
-      case 'pt':
-        return '🇵🇹';
-      default:
-        return '🏳️';
-    }
-  }
-
-  Widget _buildDailyGoalSelection(
-      BuildContext context, OnboardingViewModel viewModel) {
+  Widget _buildDailyGoalSelection(BuildContext context, OnboardingState state) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SizedBox(height: context.responsive.spacingXL),
         Text(
           'Günlük Hedefini Belirle',
-          style: context.textTheme.headlineMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-            color: context.colors.onSurface,
-          ),
+          style: context.textTheme.headlineMedium
+              ?.copyWith(fontWeight: FontWeight.bold),
         ),
         SizedBox(height: context.responsive.spacingXS),
         Text(
           'Her gün kaç kelime öğrenmek istiyorsun? İstersen ayarlarda değiştirebilirsin.',
-          style: context.textTheme.bodyLarge?.copyWith(
-            color: context.colors.onSurfaceVariant,
-          ),
+          style: context.textTheme.bodyLarge
+              ?.copyWith(color: context.colors.onSurfaceVariant),
         ),
         SizedBox(height: context.responsive.spacingXL),
         Expanded(
@@ -389,12 +290,14 @@ class OnboardingView extends StatelessWidget {
               mainAxisSpacing: 16,
               childAspectRatio: 1.4,
             ),
-            itemCount: viewModel.dailyGoalOptions.length,
+            itemCount: OnboardingBloc.dailyGoalOptions.length,
             itemBuilder: (context, index) {
-              final goal = viewModel.dailyGoalOptions[index];
-              final isSelected = goal == viewModel.selectedDailyGoal;
+              final goal = OnboardingBloc.dailyGoalOptions[index];
+              final isSelected = goal == state.selectedDailyGoal;
               return GestureDetector(
-                onTap: () => viewModel.setDailyGoal(goal),
+                onTap: () => context
+                    .read<OnboardingBloc>()
+                    .add(OnboardingDailyGoalChanged(goal)),
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 250),
                   curve: Curves.easeOut,
@@ -420,15 +323,6 @@ class OnboardingView extends StatelessWidget {
                           : context.colors.outlineVariant,
                       width: 2,
                     ),
-                    boxShadow: isSelected
-                        ? [
-                            BoxShadow(
-                              color: context.colors.primary.withOpacity(0.35),
-                              blurRadius: 16,
-                              offset: const Offset(0, 6),
-                            )
-                          ]
-                        : null,
                   ),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -461,5 +355,93 @@ class OnboardingView extends StatelessWidget {
         ),
       ],
     );
+  }
+
+  Widget _buildBottomBar(BuildContext context, OnboardingState state) {
+    return Padding(
+      padding: EdgeInsets.only(top: context.responsive.spacingM),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          if (state.currentPage > 0)
+            TextButton(
+              onPressed: () => context
+                  .read<OnboardingBloc>()
+                  .add(const OnboardingPreviousPage()),
+              child: Text(
+                'btn_back'.tr(),
+                style: GoogleFonts.poppins(
+                  fontSize: context.responsive.fontSizeBody,
+                  color: context.colors.onSurfaceVariant,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            )
+          else
+            const SizedBox.shrink(),
+          ElevatedButton(
+            onPressed: state.isLoading
+                ? null
+                : () {
+                    if (!state.isLastPage) {
+                      context
+                          .read<OnboardingBloc>()
+                          .add(const OnboardingNextPage());
+                    } else {
+                      context
+                          .read<OnboardingBloc>()
+                          .add(const OnboardingCompleted());
+                    }
+                  },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: context.colors.primary,
+              foregroundColor: context.colors.onPrimary,
+              disabledBackgroundColor: context.colors.primary.withOpacity(0.6),
+              padding: EdgeInsets.symmetric(
+                horizontal: context.responsive.spacingXL,
+                vertical: context.responsive.spacingM,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius:
+                    BorderRadius.circular(context.responsive.borderRadiusXL),
+              ),
+            ),
+            child: state.isLoading
+                ? SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2.5, color: context.colors.onPrimary),
+                  )
+                : Text(
+                    state.isLastPage ? 'btn_start'.tr() : 'btn_next'.tr(),
+                    style: GoogleFonts.poppins(
+                      fontSize: context.responsive.fontSizeH3,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _getFlag(String langCode) {
+    switch (langCode.split('-')[0]) {
+      case 'tr':
+        return '🇹🇷';
+      case 'en':
+        return '🇬🇧';
+      case 'es':
+        return '🇪🇸';
+      case 'de':
+        return '🇩🇪';
+      case 'fr':
+        return '🇫🇷';
+      case 'pt':
+        return '🇵🇹';
+      default:
+        return '🏳️';
+    }
   }
 }

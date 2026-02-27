@@ -1,69 +1,55 @@
 // lib/core/di/injection_container.dart
-//
-// T-14: DI Container Tam Kurulum
-// Blueprint: get_it singletons + factories
-// REPLACES: lib/core/init/injection_container.dart (legacy Provider DI)
-//
-// Silme:
-//   git rm lib/core/init/injection_container.dart
-//
-// Kullanım:
-//   await configureDependencies();   // main.dart'ta
-//   getIt<StudyZoneBloc>()           // herhangi yerden
-
 import 'package:get_it/get_it.dart';
-
-// ── Database ──────────────────────────────────────────────────────────────────
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:pratikapp/database/app_database.dart';
-
-// ── SRS ───────────────────────────────────────────────────────────────────────
+import 'package:pratikapp/database/daos/progress_dao.dart';
+import 'package:pratikapp/database/daos/session_dao.dart';
+import 'package:pratikapp/database/daos/sync_queue_dao.dart';
+import 'package:pratikapp/database/daos/word_dao.dart';
 import 'package:pratikapp/srs/daily_planner.dart';
 import 'package:pratikapp/srs/fsrs_engine.dart';
-
-// ── Use Cases ─────────────────────────────────────────────────────────────────
 import 'package:pratikapp/features/study_zone/domain/usecases/start_session.dart';
 import 'package:pratikapp/features/study_zone/domain/usecases/submit_review.dart';
 import 'package:pratikapp/features/study_zone/domain/usecases/complete_session.dart';
-
-// ── BLoC ──────────────────────────────────────────────────────────────────────
 import 'package:pratikapp/features/study_zone/presentation/state/study_zone_bloc.dart';
-
-import '../../database/daos/progress_dao.dart';
-import '../../database/daos/session_dao.dart';
-import '../../database/daos/sync_queue_dao.dart';
-import '../../database/daos/word_dao.dart';
-import '../../firebase/messaging/fcm_service.dart';
+import 'package:pratikapp/features/auth/presentation/state/auth_bloc.dart';
+import 'package:pratikapp/features/splash/presentation/state/splash_bloc.dart';
+import 'package:pratikapp/features/onboarding/presentation/state/onboarding_bloc.dart';
+import 'package:pratikapp/features/dashboard/presentation/state/dashboard_bloc.dart';
+import 'package:pratikapp/features/settings/presentation/state/settings_bloc.dart';
+import 'package:pratikapp/features/settings/data/repositories/settings_repository_impl.dart';
+import 'package:pratikapp/features/settings/domain/repositories/i_settings_repository.dart';
+import 'package:pratikapp/firebase/auth/firebase_auth_service.dart';
+import 'package:pratikapp/firebase/messaging/fcm_service.dart';
+import 'package:pratikapp/core/services/dataset_service.dart';
 
 final GetIt getIt = GetIt.instance;
 
-/// Ana DI kurulum fonksiyonu — main.dart içinde WidgetsFlutterInitialized
-/// sonrasında çağrılmalı.
-///
-/// ```dart
-/// void main() async {
-///   WidgetsFlutterBinding.ensureInitialized();
-///   await Firebase.initializeApp(...);
-///   await configureDependencies();
-///   runApp(const App());
-/// }
-/// ```
 Future<void> configureDependencies() async {
-  // ── Singletons ─────────────────────────────────────────────────────────────
+  final prefs = await SharedPreferences.getInstance();
+  getIt.registerSingleton<SharedPreferences>(prefs);
 
-  // AppDatabase — tek instance, tüm DAO'lar buradan
   getIt.registerSingleton<AppDatabase>(AppDatabase());
-
-  // DAO'lar — AppDatabase'e bağlı
   getIt.registerSingleton<WordDao>(getIt<AppDatabase>().wordDao);
   getIt.registerSingleton<ProgressDao>(getIt<AppDatabase>().progressDao);
   getIt.registerSingleton<SyncQueueDao>(getIt<AppDatabase>().syncQueueDao);
   getIt.registerSingleton<SessionDao>(getIt<AppDatabase>().sessionDao);
-  //getIt.registerSingleton<LeaderboardDao>(getIt<AppDatabase>().leaderboardDao);
 
-  // FSRSEngine — stateless, singleton yeterli
+  getIt.registerSingleton<SettingsRepositoryImpl>(
+    SettingsRepositoryImpl(getIt<SharedPreferences>()),
+  );
+  getIt.registerSingleton<ISettingsRepository>(getIt<SettingsRepositoryImpl>());
+
+  getIt.registerSingleton<FirebaseAuthService>(FirebaseAuthService());
+
+  getIt.registerSingleton<DatasetService>(
+    DatasetService(
+      wordDao: getIt<WordDao>(),
+      prefsOverride: getIt<SharedPreferences>(),
+    ),
+  );
+
   getIt.registerSingleton<FSRSEngine>(FSRSEngine());
-
-  // DailyPlanner — DAO'lara bağlı singleton
   getIt.registerSingleton<DailyPlanner>(
     DailyPlanner(
       progressDao: getIt<ProgressDao>(),
@@ -71,28 +57,17 @@ Future<void> configureDependencies() async {
     ),
   );
 
-  // ── Use Cases (Singleton — stateless) ──────────────────────────────────────
+  getIt.registerSingleton<StartSession>(StartSession(getIt<AppDatabase>()));
+  getIt.registerSingleton<SubmitReview>(SubmitReview(getIt<AppDatabase>()));
+  getIt.registerSingleton<CompleteSession>(
+      CompleteSession(getIt<AppDatabase>()));
 
-  getIt.registerSingleton<StartSession>(
-    StartSession(getIt<AppDatabase>()),
-  );
   getIt.registerSingletonAsync<FCMService>(() async {
     final service = FCMService();
     await service.initialize();
     return service;
   });
 
-  getIt.registerSingleton<SubmitReview>(
-    SubmitReview(getIt<AppDatabase>()),
-  );
-
-  getIt.registerSingleton<CompleteSession>(
-    CompleteSession(getIt<AppDatabase>()),
-  );
-
-  // ── Factories (her talep yeni instance) ────────────────────────────────────
-
-  // StudyZoneBloc — Factory: her route push'ta yeni BLoC
   getIt.registerFactory<StudyZoneBloc>(
     () => StudyZoneBloc(
       dailyPlanner: getIt<DailyPlanner>(),
@@ -101,9 +76,36 @@ Future<void> configureDependencies() async {
       completeSession: getIt<CompleteSession>(),
     ),
   );
+
+  getIt.registerFactory<AuthBloc>(
+    () => AuthBloc(authService: getIt<FirebaseAuthService>()),
+  );
+
+  getIt.registerFactory<SplashBloc>(
+    () => SplashBloc(
+      settingsRepository: getIt<ISettingsRepository>(),
+      authService: getIt<FirebaseAuthService>(),
+      datasetService: getIt<DatasetService>(),
+    ),
+  );
+
+  getIt.registerFactory<OnboardingBloc>(
+    () => OnboardingBloc(settingsRepository: getIt<ISettingsRepository>()),
+  );
+
+  getIt.registerFactory<DashboardBloc>(
+    () => DashboardBloc(
+      sessionDao: getIt<SessionDao>(),
+      wordDao: getIt<WordDao>(),
+      progressDao: getIt<ProgressDao>(),
+    ),
+  );
+
+  getIt.registerFactory<SettingsBloc>(
+    () => SettingsBloc(settingsRepository: getIt<ISettingsRepository>()),
+  );
 }
 
-/// Test ortamında DI'yi sıfırla
 Future<void> resetDependencies() async {
   await getIt.reset();
 }

@@ -11,6 +11,7 @@ import '../../../../srs/plan_models.dart';
 import '../state/study_zone_bloc.dart';
 import '../state/study_zone_event.dart';
 import '../state/study_zone_state.dart';
+import 'quiz_screen.dart';
 
 // ── StudyZoneScreen ───────────────────────────────────────────────────────────
 
@@ -64,7 +65,20 @@ class _StudyZoneScreenState extends State<StudyZoneScreen> {
             curr is StudyZoneInSession || curr is StudyZoneError,
         listener: (context, state) {
           if (state is StudyZoneInSession) {
-            Navigator.of(context).pushNamed('/quiz');
+            final bloc = context.read<StudyZoneBloc>();
+            Navigator.of(context).push(PageRouteBuilder(
+              pageBuilder: (_, __, ___) => BlocProvider.value(
+                value: bloc,
+                child: const QuizScreen(),
+              ),
+              transitionsBuilder: (_, animation, __, child) => SlideTransition(
+                position: Tween(begin: const Offset(1.0, 0.0), end: Offset.zero)
+                    .animate(CurvedAnimation(
+                        parent: animation, curve: Curves.easeInOut)),
+                child: child,
+              ),
+              transitionDuration: const Duration(milliseconds: 250),
+            ));
           } else if (state is StudyZoneError) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(

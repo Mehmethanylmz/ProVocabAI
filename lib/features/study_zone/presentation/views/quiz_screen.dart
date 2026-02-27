@@ -15,6 +15,7 @@ import '../state/study_zone_bloc.dart';
 import '../state/study_zone_event.dart';
 import '../state/study_zone_state.dart';
 import '../widgets/review_rating_sheet.dart';
+import 'session_result_screen.dart';
 
 // ── QuizScreen ────────────────────────────────────────────────────────────────
 
@@ -30,7 +31,16 @@ class QuizScreen extends StatelessWidget {
           curr is StudyZoneCompleted || curr is StudyZoneIdle,
       listener: (context, state) {
         if (state is StudyZoneCompleted) {
-          Navigator.of(context).pushReplacementNamed('/session_result');
+          final bloc = context.read<StudyZoneBloc>();
+          Navigator.of(context).pushReplacement(PageRouteBuilder(
+            pageBuilder: (_, __, ___) => BlocProvider.value(
+              value: bloc,
+              child: const SessionResultScreen(),
+            ),
+            transitionDuration: const Duration(milliseconds: 300),
+            transitionsBuilder: (_, animation, __, child) =>
+                FadeTransition(opacity: animation, child: child),
+          ));
         } else if (state is StudyZoneIdle) {
           Navigator.of(context).pop();
         }

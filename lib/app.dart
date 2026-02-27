@@ -1,20 +1,14 @@
 // lib/app.dart
 //
-// REWRITE: Legacy PratikApp (MultiProvider/ChangeNotifier) → Blueprint app.
-//
-// Silindi:
-//   git rm lib/product/init/product_init.dart
-//   (ProductInit.providers — Provider/ChangeNotifier)
-//
-// Yeni mimari:
-//   - Provider YOK
-//   - BlocProvider gerektiğinde ilgili route'ta açılır (getIt factory)
-//   - NavigationService.instance.navigatorKey — FCM deep link + navigation
-//   - ThemeMode: SettingsRepository'den (GetIt singleton)
-//   - EasyLocalization: korunur (çeviri sistemi Blueprint dışı)
+// FIX: Theme anlık değişim — SettingsRepositoryImpl.themeStream dinleniyor
+// FIX: AuthBloc app seviyesinde → DashboardBloc UID değişince reload
+// FIX: Main route'ta MultiBlocProvider ile AuthBloc + DashboardBloc sağlanıyor
+
+import 'dart:async';
 
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'core/constants/navigation/navigation_constants.dart';
 import 'core/di/injection_container.dart';
@@ -23,6 +17,7 @@ import 'core/init/navigation/navigation_service.dart';
 import 'core/init/theme/dark_theme.dart';
 import 'core/init/theme/light_theme.dart';
 import 'core/init/lang/language_manager.dart';
+import 'features/auth/presentation/state/auth_bloc.dart';
 import 'features/settings/data/repositories/settings_repository_impl.dart';
 
 class PratikApp extends StatefulWidget {
@@ -34,49 +29,60 @@ class PratikApp extends StatefulWidget {
 
 class _PratikAppState extends State<PratikApp> {
   ThemeMode _themeMode = ThemeMode.system;
+  StreamSubscription<ThemeMode>? _themeSub;
+  late final AuthBloc _authBloc;
 
   @override
   void initState() {
     super.initState();
-    _loadTheme();
+    _authBloc = getIt<AuthBloc>()..add(const AuthStarted());
+    _initTheme();
   }
 
-  Future<void> _loadTheme() async {
+  Future<void> _initTheme() async {
     final repo = getIt<SettingsRepositoryImpl>();
+
+    // İlk değeri yükle
     final result = await repo.getThemeMode();
     if (mounted) {
-      result.fold(
-        (_) {}, // Failure → system default kullan
-        (mode) => setState(() => _themeMode = mode),
-      );
+      result.fold((_) {}, (mode) => setState(() => _themeMode = mode));
     }
+
+    // Stream'i dinle — SettingsBloc kaydettiğinde anlık güncelle
+    _themeSub = repo.themeStream.listen((mode) {
+      if (mounted) setState(() => _themeMode = mode);
+    });
+  }
+
+  @override
+  void dispose() {
+    _themeSub?.cancel();
+    _authBloc.close();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return EasyLocalization(
-      supportedLocales: LanguageManager.instance.supportedLocales,
-      path: LanguageManager.instance.assetPath,
-      fallbackLocale: LanguageManager.instance.supportedLocales[1], // en-US
-      child: Builder(
-        builder: (ctx) => MaterialApp(
-          title: 'ProVocabAI',
-          debugShowCheckedModeBanner: false,
-
-          // Localization
-          localizationsDelegates: ctx.localizationDelegates,
-          supportedLocales: ctx.supportedLocales,
-          locale: ctx.locale,
-
-          // Navigation — FCM deep link için navigatorKey zorunlu
-          navigatorKey: NavigationService.instance.navigatorKey,
-          onGenerateRoute: NavigationRoute.instance.generateRoute,
-          initialRoute: NavigationConstants.SPLASH,
-
-          // Theme
-          theme: LightTheme.instance.themeData,
-          darkTheme: DarkTheme.instance.themeData,
-          themeMode: _themeMode,
+    return BlocProvider.value(
+      value: _authBloc,
+      child: EasyLocalization(
+        supportedLocales: LanguageManager.instance.supportedLocales,
+        path: LanguageManager.instance.assetPath,
+        fallbackLocale: LanguageManager.instance.supportedLocales[1],
+        child: Builder(
+          builder: (ctx) => MaterialApp(
+            title: 'ProVocabAI',
+            debugShowCheckedModeBanner: false,
+            localizationsDelegates: ctx.localizationDelegates,
+            supportedLocales: ctx.supportedLocales,
+            locale: ctx.locale,
+            navigatorKey: NavigationService.instance.navigatorKey,
+            onGenerateRoute: NavigationRoute.instance.generateRoute,
+            initialRoute: NavigationConstants.SPLASH,
+            theme: LightTheme.instance.themeData,
+            darkTheme: DarkTheme.instance.themeData,
+            themeMode: _themeMode,
+          ),
         ),
       ),
     );

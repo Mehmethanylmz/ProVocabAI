@@ -1,18 +1,22 @@
 // lib/core/init/navigation/navigation_route.dart
 //
-// REWRITE: Legacy routes + yeni Blueprint routes
-// Silindi: TestMenuView (legacy), StudyViewModel bağımlı tüm view'lar
-// Eklendi: /study_zone (FCM deep link), /quiz, /session_result, /leaderboard
+// REWRITE: Tüm legacy route'lar kaldırıldı.
+// Yeni BLoC'lar BlocProvider ile route'ta sağlanıyor:
+//   SplashBloc, AuthBloc, OnboardingBloc, DashboardBloc (MainView içinde)
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../core/constants/navigation/navigation_constants.dart';
 import '../../../core/di/injection_container.dart';
+import '../../../features/auth/presentation/state/auth_bloc.dart';
 import '../../../features/auth/presentation/view/login_view.dart';
+import '../../../features/dashboard/presentation/state/dashboard_bloc.dart';
 import '../../../features/main/presentation/view/main_view.dart';
+import '../../../features/onboarding/presentation/state/onboarding_bloc.dart';
 import '../../../features/onboarding/presentation/view/onboarding_view.dart';
 import '../../../features/settings/presentation/view/settings_view.dart';
+import '../../../features/splash/presentation/state/splash_bloc.dart';
 import '../../../features/splash/presentation/view/splash_view.dart';
 import '../../../features/study_zone/presentation/state/study_zone_bloc.dart';
 import '../../../features/study_zone/presentation/views/quiz_screen.dart';
@@ -26,25 +30,54 @@ class NavigationRoute {
 
   Route<dynamic> generateRoute(RouteSettings args) {
     switch (args.name) {
-      // ── Auth & Onboarding ──────────────────────────────────────────────
+      // ── Splash ─────────────────────────────────────────────────────────
       case NavigationConstants.SPLASH:
-        return _slide(const SplashView());
+        return _slide(
+          BlocProvider(
+            create: (_) => getIt<SplashBloc>(),
+            child: const SplashView(),
+          ),
+        );
 
+      // ── Auth ───────────────────────────────────────────────────────────
       case NavigationConstants.LOGIN:
-        return _slide(const LoginView());
+        return _slide(
+          BlocProvider(
+            create: (_) => getIt<AuthBloc>()..add(const AuthStarted()),
+            child: const LoginView(),
+          ),
+        );
 
+      // ── Onboarding ────────────────────────────────────────────────────
       case NavigationConstants.ONBOARDING:
-        return _slide(const OnboardingView());
+        return _slide(
+          BlocProvider(
+            create: (_) => getIt<OnboardingBloc>(),
+            child: const OnboardingView(),
+          ),
+        );
 
-      // ── Main ───────────────────────────────────────────────────────────
+      // ── Main (Dashboard + StudyZone + Profile) ────────────────────────
+      // DashboardBloc + AuthBloc MainView'a BlocProvider ile sağlanır
       case NavigationConstants.MAIN:
-        return _slide(const MainView());
+        return _slide(
+          MultiBlocProvider(
+            providers: [
+              BlocProvider(
+                create: (_) => getIt<AuthBloc>()..add(const AuthStarted()),
+              ),
+              BlocProvider(
+                create: (_) => getIt<DashboardBloc>(),
+              ),
+            ],
+            child: const MainView(),
+          ),
+        );
 
       case NavigationConstants.SETTINGS:
         return _slide(const SettingsView());
 
-      // ── Study Zone (Blueprint T-12/T-13) ──────────────────────────────
-      // BlocProvider: getIt factory → yeni StudyZoneBloc her push'ta
+      // ── Study Zone ─────────────────────────────────────────────────────
       case NavigationConstants.STUDY_ZONE:
         return _slide(
           BlocProvider(
@@ -54,37 +87,35 @@ class NavigationRoute {
         );
 
       case NavigationConstants.QUIZ:
-        // StudyZoneBloc üst widget'tan sağlanmalı — ayrı BlocProvider YOK
-        return _slide(const QuizScreen());
+        // Bu route artık kullanılmıyor.
+        // Quiz: study_zone_screen.dart içinden BlocProvider.value ile açılıyor.
+        return _slide(const Scaffold(
+          body: Center(child: Text('Quiz route deprecated')),
+        ));
 
       case NavigationConstants.SESSION_RESULT:
         return _slide(const SessionResultScreen());
 
       default:
-        return MaterialPageRoute(
-          builder: (_) => const Scaffold(
-            body: Center(child: Text('Sayfa bulunamadı')),
-          ),
-        );
+        return _slide(const Scaffold(
+          body: Center(child: Text('404 — Route bulunamadı')),
+        ));
     }
   }
 
-  // ── Transition helpers ────────────────────────────────────────────────────
-
-  PageRouteBuilder _slide(Widget page) {
+  PageRouteBuilder<dynamic> _slide(Widget page) {
     return PageRouteBuilder(
-      pageBuilder: (_, __, ___) => page,
+      pageBuilder: (_, animation, __) => page,
       transitionsBuilder: (_, animation, __, child) {
-        const begin = Offset(1.0, 0.0);
-        const end = Offset.zero;
-        final tween = Tween(begin: begin, end: end)
-            .chain(CurveTween(curve: Curves.easeInOut));
         return SlideTransition(
-          position: animation.drive(tween),
+          position: Tween<Offset>(
+            begin: const Offset(1.0, 0.0),
+            end: Offset.zero,
+          ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOut)),
           child: child,
         );
       },
-      transitionDuration: const Duration(milliseconds: 250),
+      transitionDuration: const Duration(milliseconds: 280),
     );
   }
 }

@@ -1,45 +1,208 @@
-# Miscellaneous
-*.class
-*.log
-*.pyc
-*.swp
-.DS_Store
-.atom/
-.build/
-.buildlog/
-.history
-.svn/
-.swiftpm/
-migrate_working_dir/
+# ═══════════════════════════════════════════════════════════════════════════════
+# ProVocabAI — .gitignore
+# Flutter + Drift + BLoC + Firebase + Cloud Functions (Node.js)
+# ═══════════════════════════════════════════════════════════════════════════════
 
-# IntelliJ related
-*.iml
-*.ipr
-*.iws
-.idea/
 
-# The .vscode folder contains launch configuration and tasks you configure in
-# VS Code which you may wish to be included in version control, so this line
-# is commented out by default.
-#.vscode/
+# ── FLUTTER / DART ────────────────────────────────────────────────────────────
 
-# Flutter/Dart/Pub related
-**/doc/api/
-**/ios/Flutter/.last_build_id
 .dart_tool/
+.flutter-plugins
 .flutter-plugins-dependencies
 .pub-cache/
 .pub/
 /build/
 /coverage/
 
-# Symbolication related
-app.*.symbols
+# Dart code generation (Drift .g.dart, mock .mocks.dart)
+# NOT: .g.dart dosyaları üretilmiş kod — commit etmek isteğe bağlı.
+# Bu projede build_runner kullanıldığından üretilmiş dosyaları GİT dışında bırakıyoruz.
+**/*.g.dart
+**/*.freezed.dart
+**/*.mocks.dart
 
-# Obfuscation related
+# Pub
+pubspec.lock           # Sadece library paketi değil, uygulama — LOCK dosyasını commit et
+                        # Satırı aktif etmek istersen: pubspec.lock
+
+# Dart doc
+**/doc/api/
+
+
+# ── FİREBASE — GİZLİ DOSYALAR ────────────────────────────────────────────────
+
+# API anahtarları ve Firebase config — KESİNLİKLE commit edilmemeli
+# android/app/google-services.json → proje ID + API key içeriyor
+android/app/google-services.json
+
+# iOS Firebase config
+ios/Runner/GoogleService-Info.plist
+
+# Firebase options (otomatik üretilmiş, key içeriyor)
+lib/firebase_options.dart
+
+# Firebase .env / service account
+.env
+.env.*
+*.env
+service-account*.json
+firebase-adminsdk*.json
+
+
+# ── CLOUD FUNCTIONS (Node.js) ─────────────────────────────────────────────────
+
+functions/node_modules/
+functions/lib/                  # TypeScript derlenmiş çıktı (npm run build)
+functions/.env
+functions/.env.*
+functions/*.env
+functions/yarn.lock             # npm kullanılıyor, yarn.lock gereksiz
+
+
+# ── ANDROID ───────────────────────────────────────────────────────────────────
+
+# Keystore — production imzalama anahtarı
+*.jks
+*.keystore
+android/key.properties          # storeFile/storePassword/keyAlias/keyPassword
+
+# Gradle build çıktıları
+/android/.gradle
+/android/app/debug/
+/android/app/profile/
+/android/app/release/
+/android/captures/
+/android/local.properties       # SDK yolu — makineye özgü
+
+# Android Studio
+/android/.idea/
+/android/*.iml
+
+
+# ── iOS ───────────────────────────────────────────────────────────────────────
+
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+ios/Flutter/Generated.xcconfig
+ios/Flutter/ephemeral/
+ios/Flutter/.last_build_id
+ios/Runner.xcworkspace/xcuserdata/
+ios/Runner.xcodeproj/xcuserdata/
+ios/Runner.xcodeproj/project.xcworkspace/xcuserdata/
+
+# Provisioning profiles
+*.mobileprovision
+*.p12
+*.cer
+
+
+# ── DRIFT (LOCAL DB) ─────────────────────────────────────────────────────────
+
+# Drift migration test snapshots (hassas değil ama generated)
+# drift_schemas/ klasörü genelde commit edilir — migration takibi için
+# Eğer commit istemiyorsan aşağıyı aktif et:
+# drift_schemas/
+
+# SQLite test dosyaları
+*.db
+*.sqlite
+*.sqlite3
+
+
+# ── IDE / EDITOR ──────────────────────────────────────────────────────────────
+
+# IntelliJ / Android Studio
+.idea/
+*.iml
+*.ipr
+*.iws
+.name
+
+# VS Code — launch.json ve tasks.json paylaşılabilir, settings kişisel
+.vscode/settings.json
+.vscode/launch.json.local
+
+# Emacs / Vim
+*.swp
+*.swo
+*~
+.#*
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+**/.DS_Store
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+
+# ── LOGS & TEMP ───────────────────────────────────────────────────────────────
+
+*.log
+*.pyc
+*.class
+*.swp
+*.tmp
+
+# Flutter run logs
+flutter_*.log
+dart_*.log
+
+# Firebase debug
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+pubsub-debug.log
+
+# Firebase emulator
+.firebase/
+.firebaserc.local
+
+
+# ── TEST / COVERAGE ───────────────────────────────────────────────────────────
+
+coverage/
+lcov.info
+*.lcov
+test/.test_coverage.dart
+
+
+# ── SECRETS & MISC ────────────────────────────────────────────────────────────
+
+# AdMob production IDs (eğer ayrı dosyada tutuluyorsa)
+lib/core/constants/ad_constants_prod.dart
+
+# Herhangi bir secrets dosyası
+secrets.dart
+secrets.yaml
+secrets.json
+*_secret*
+*_secrets*
+*.secret
+
+# Obfuscation mapping
+app.*.symbols
 app.*.map.json
 
-# Android Studio will place build artifacts here
-/android/app/debug
-/android/app/profile
-/android/app/release
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# COMMIT EDİLMESİ GEREKEN (gitignore'a EKLEME):
+#   - pubspec.yaml ✓
+#   - pubspec.lock ✓  (uygulama repo'su — reproducible builds için)
+#   - assets/       ✓  (lang JSON, words.json)
+#   - firestore.rules ✓
+#   - firestore.indexes.json ✓
+#   - firebase.json ✓  (proje config — key içermiyor)
+#   - functions/src/ ✓  (TypeScript kaynak)
+#   - functions/package.json ✓
+#   - functions/tsconfig.json ✓
+#   - android/app/src/main/AndroidManifest.xml ✓
+#   - ios/Runner/Info.plist ✓
+# ═══════════════════════════════════════════════════════════════════════════════
