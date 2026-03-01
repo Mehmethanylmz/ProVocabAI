@@ -156,5 +156,6 @@
     "hard": "Hard",
     "nav_home": "Home Screen",
     "nav_study": "Workshop",
-    "nav_profile": "Profile"
+    "nav_profile": "Profile",
+    "nav_leaderboard": "Leader Board"
 }

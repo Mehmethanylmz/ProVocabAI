@@ -1,3 +1,4 @@
+// FAZ 8C: Font migration GoogleFonts.poppins → GoogleFonts.inter
 // lib/features/leaderboard/presentation/views/leaderboard_screen.dart
 //
 // FAZ 4 FIX:
@@ -86,14 +87,13 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
       appBar: AppBar(
         title: Text(
           'Liderlik Tablosu',
-          style: GoogleFonts.poppins(fontWeight: FontWeight.w700),
+          style: GoogleFonts.inter(fontWeight: FontWeight.w700),
         ),
         centerTitle: true,
         bottom: TabBar(
           controller: _tabController,
-          labelStyle: GoogleFonts.poppins(fontWeight: FontWeight.w600),
-          unselectedLabelStyle:
-              GoogleFonts.poppins(fontWeight: FontWeight.w400),
+          labelStyle: GoogleFonts.inter(fontWeight: FontWeight.w600),
+          unselectedLabelStyle: GoogleFonts.inter(fontWeight: FontWeight.w400),
           indicatorSize: TabBarIndicatorSize.label,
           tabs: const [
             Tab(text: 'Bu Hafta'),
@@ -152,7 +152,7 @@ class _WeeklyTab extends StatelessWidget {
             Text(
               'Bu hafta henüz kimse XP kazanmadı.\nİlk sen ol!',
               textAlign: TextAlign.center,
-              style: GoogleFonts.poppins(fontSize: 16, color: Colors.grey),
+              style: GoogleFonts.inter(fontSize: 16, color: Colors.grey),
             ),
           ],
         ),
@@ -188,7 +188,7 @@ class _WeeklyTab extends StatelessWidget {
                         ),
                         child: Text(
                           '📅 $weekId',
-                          style: GoogleFonts.poppins(
+                          style: GoogleFonts.inter(
                             fontSize: 12,
                             fontWeight: FontWeight.w500,
                             color: Theme.of(context)
@@ -356,7 +356,7 @@ class _PodiumItem extends StatelessWidget {
           entry.displayName,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: GoogleFonts.poppins(
+          style: GoogleFonts.inter(
             fontSize: 12,
             fontWeight: isCurrentUser ? FontWeight.w700 : FontWeight.w500,
             color: isCurrentUser ? scheme.primary : null,
@@ -395,14 +395,14 @@ class _PodiumItem extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   '${entry.weeklyXp}',
-                  style: GoogleFonts.poppins(
+                  style: GoogleFonts.inter(
                     fontSize: 16,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
                 Text(
                   'XP',
-                  style: GoogleFonts.poppins(
+                  style: GoogleFonts.inter(
                     fontSize: 10,
                     color: scheme.onSurface.withValues(alpha: 0.5),
                   ),
@@ -446,7 +446,7 @@ class _LeaderboardTile extends StatelessWidget {
           child: Text(
             '${entry.rank}',
             textAlign: TextAlign.center,
-            style: GoogleFonts.poppins(
+            style: GoogleFonts.inter(
               fontWeight: FontWeight.w700,
               fontSize: 14,
               color: Colors.grey,
@@ -455,7 +455,7 @@ class _LeaderboardTile extends StatelessWidget {
         ),
         title: Text(
           entry.displayName,
-          style: GoogleFonts.poppins(
+          style: GoogleFonts.inter(
             fontWeight: isCurrentUser ? FontWeight.w700 : FontWeight.w500,
             fontSize: 14,
             color: isCurrentUser ? scheme.primary : null,
@@ -468,7 +468,7 @@ class _LeaderboardTile extends StatelessWidget {
             const SizedBox(width: 4),
             Text(
               '${entry.weeklyXp} XP',
-              style: GoogleFonts.poppins(
+              style: GoogleFonts.inter(
                 fontWeight: FontWeight.w600,
                 fontSize: 13,
               ),
@@ -499,7 +499,7 @@ class _StickyMyRankRow extends StatelessWidget {
           const SizedBox(width: 8),
           Text(
             'Sıran: #${entry.rank}',
-            style: GoogleFonts.poppins(
+            style: GoogleFonts.inter(
               fontWeight: FontWeight.w700,
               fontSize: 14,
             ),
@@ -509,7 +509,7 @@ class _StickyMyRankRow extends StatelessWidget {
           const SizedBox(width: 4),
           Text(
             '${entry.weeklyXp} XP',
-            style: GoogleFonts.poppins(
+            style: GoogleFonts.inter(
               fontWeight: FontWeight.w700,
               fontSize: 14,
             ),
@@ -534,7 +534,7 @@ class _ComingSoonTab extends StatelessWidget {
           const Icon(Icons.construction_rounded, size: 64, color: Colors.grey),
           const SizedBox(height: 16),
           Text('Yakında',
-              style: GoogleFonts.poppins(fontSize: 18, color: Colors.grey)),
+              style: GoogleFonts.inter(fontSize: 18, color: Colors.grey)),
         ],
       ),
     );
@@ -558,8 +558,8 @@ class _ErrorView extends StatelessWidget {
           const Icon(Icons.error_outline_rounded, size: 48, color: Colors.red),
           const SizedBox(height: 12),
           Text('Yüklenemedi',
-              style: GoogleFonts.poppins(
-                  fontSize: 16, fontWeight: FontWeight.w600)),
+              style:
+                  GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600)),
           const SizedBox(height: 8),
           FilledButton.tonalIcon(
             onPressed: onRetry,

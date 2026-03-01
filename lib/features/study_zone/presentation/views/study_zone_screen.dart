@@ -7,6 +7,7 @@
 //   F2-06: Streak göstergesi plan kartı üzerinde
 
 import 'package:flutter/material.dart';
+import '../../../../core/constants/app/color_palette.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/di/injection_container.dart';
@@ -123,7 +124,7 @@ class _StudyZoneScreenState extends State<StudyZoneScreen> {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(state.message),
-                backgroundColor: Colors.red,
+                backgroundColor: Theme.of(context).colorScheme.error,
               ),
             );
           } else if (state is StudyZoneIdle) {
@@ -514,19 +515,19 @@ class DailyProgressCard extends StatelessWidget {
                   key: const Key('stat_due'),
                   label: 'Tekrar',
                   value: plan.dueCount,
-                  color: const Color(0xFF43A047)),
+                  color: ColorPalette.success),
               const SizedBox(width: 12),
               _PlanStat(
                   key: const Key('stat_new'),
                   label: 'Yeni',
                   value: plan.newCount,
-                  color: const Color(0xFF1E88E5)),
+                  color: ColorPalette.secondary),
               if (plan.leechCount > 0) ...[
                 const SizedBox(width: 12),
                 _PlanStat(
                     label: 'Zor',
                     value: plan.leechCount,
-                    color: const Color(0xFFE53935)),
+                    color: ColorPalette.error),
               ],
             ],
           ),
@@ -583,19 +584,19 @@ class _StreakBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: const Color(0xFFFF7043).withValues(alpha: 0.15),
+        color: ColorPalette.tertiary.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           const Icon(Icons.local_fire_department,
-              color: Color(0xFFFF7043), size: 14),
+              color: ColorPalette.tertiary, size: 14),
           const SizedBox(width: 3),
           Text(
             '$count',
             style: const TextStyle(
-              color: Color(0xFFFF7043),
+              color: ColorPalette.tertiary,
               fontSize: 12,
               fontWeight: FontWeight.w700,
             ),
@@ -663,22 +664,21 @@ class LeechWarningBanner extends StatelessWidget {
       key: const Key('leech_warning_banner'),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: BoxDecoration(
-        color: const Color(0xFFE53935).withValues(alpha: 0.10),
+        color: ColorPalette.error.withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(12),
-        border:
-            Border.all(color: const Color(0xFFE53935).withValues(alpha: 0.3)),
+        border: Border.all(color: ColorPalette.error.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [
           const Icon(Icons.warning_amber_rounded,
-              color: Color(0xFFE53935), size: 20),
+              color: ColorPalette.error, size: 20),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
               '$leechCount zor kart var — ekstra tekrar gerekebilir',
               style: const TextStyle(
                   fontSize: 13,
-                  color: Color(0xFFE53935),
+                  color: ColorPalette.error,
                   fontWeight: FontWeight.w500),
             ),
           ),
@@ -743,10 +743,9 @@ class _AllDoneCard extends StatelessWidget {
       key: const Key('all_done_card'),
       padding: const EdgeInsets.all(32),
       decoration: BoxDecoration(
-        color: const Color(0xFF43A047).withValues(alpha: 0.1),
+        color: ColorPalette.success.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(20),
-        border:
-            Border.all(color: const Color(0xFF43A047).withValues(alpha: 0.3)),
+        border: Border.all(color: ColorPalette.success.withValues(alpha: 0.3)),
       ),
       child: const Column(
         children: [
@@ -757,7 +756,7 @@ class _AllDoneCard extends StatelessWidget {
             style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w800,
-                color: Color(0xFF43A047)),
+                color: ColorPalette.success),
             textAlign: TextAlign.center,
           ),
           SizedBox(height: 8),

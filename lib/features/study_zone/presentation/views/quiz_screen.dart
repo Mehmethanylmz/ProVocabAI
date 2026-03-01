@@ -10,9 +10,11 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import '../../../../core/constants/app/color_palette.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/di/injection_container.dart';
+import '../../../../core/init/theme/app_theme_extension.dart';
 import '../../../../core/services/speech_service.dart';
 import '../../../../core/services/tts_service.dart';
 import '../../../../core/utils/levenshtein.dart';
@@ -333,11 +335,16 @@ class _AnswerOptionTile extends StatelessWidget {
 
     if (phase == AnswerPhase.answered) {
       if (isCorrect) {
-        bgColor = Colors.green.withValues(alpha: 0.15);
-        borderColor = Colors.green;
+        bgColor = scheme.primary
+            .withValues(alpha: 0.0); // ext kullanılamaz, aşağıda override
+        // success renk: tema extension'dan
+        final ext = Theme.of(context).extension<AppThemeExtension>();
+        final successColor = ext?.success ?? Colors.green;
+        bgColor = successColor.withValues(alpha: 0.12);
+        borderColor = successColor;
       } else if (isSelected && !isCorrect) {
-        bgColor = Colors.red.withValues(alpha: 0.15);
-        borderColor = Colors.red;
+        bgColor = scheme.error.withValues(alpha: 0.12);
+        borderColor = scheme.error;
       }
     }
 
@@ -364,9 +371,14 @@ class _AnswerOptionTile extends StatelessWidget {
                 ),
               ),
               if (phase == AnswerPhase.answered && isCorrect)
-                const Icon(Icons.check_circle, color: Colors.green, size: 20),
+                Icon(Icons.check_circle_rounded,
+                    color: Theme.of(context)
+                            .extension<AppThemeExtension>()
+                            ?.success ??
+                        Colors.green,
+                    size: 20),
               if (phase == AnswerPhase.answered && isSelected && !isCorrect)
-                const Icon(Icons.cancel, color: Colors.red, size: 20),
+                Icon(Icons.cancel_rounded, color: scheme.error, size: 20),
             ],
           ),
         ),
@@ -999,11 +1011,30 @@ class _ProgressBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final progress = total == 0 ? 0.0 : current / total;
-    return LinearProgressIndicator(
-      key: const Key('quiz_progress_bar'),
-      value: progress,
-      minHeight: 4,
-      backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+    final scheme = Theme.of(context).colorScheme;
+
+    return Container(
+      height: 5,
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(3),
+      ),
+      child: FractionallySizedBox(
+        alignment: Alignment.centerLeft,
+        widthFactor: progress.clamp(0.0, 1.0),
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: Theme.of(context)
+                      .extension<AppThemeExtension>()
+                      ?.gradientAccent ??
+                  [scheme.primary, scheme.secondary],
+            ),
+            borderRadius: BorderRadius.circular(3),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -1014,18 +1045,22 @@ class _CardTypeBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ext = Theme.of(context).extension<AppThemeExtension>();
+    final scheme = Theme.of(context).colorScheme;
+
     final (label, color) = switch (source) {
-      CardSource.newCard => ('Yeni', const Color(0xFF1E88E5)),
-      CardSource.leech => ('Zor', const Color(0xFFE53935)),
-      CardSource.due => ('Tekrar', const Color(0xFF43A047)),
+      CardSource.newCard => ('Yeni', scheme.secondary),
+      CardSource.leech => ('Zor', scheme.error),
+      CardSource.due => ('Tekrar', ext?.success ?? Colors.green),
     };
     return Align(
       alignment: Alignment.centerLeft,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
         decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.15),
+          color: color.withValues(alpha: 0.12),
           borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
         ),
         child: Text(
           label,
@@ -1066,18 +1101,21 @@ class _RatingBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ext = Theme.of(context).extension<AppThemeExtension>();
+    final scheme = Theme.of(context).colorScheme;
+
     final (label, color) = switch (rating) {
-      ReviewRating.again => ('Tekrar', Colors.red),
-      ReviewRating.hard => ('Zor', Colors.orange),
-      ReviewRating.good => ('İyi', Colors.green),
-      ReviewRating.easy => ('Kolay', Colors.blue),
+      ReviewRating.again => ('Tekrar', scheme.error),
+      ReviewRating.hard => ('Zor', ext?.warning ?? Colors.orange),
+      ReviewRating.good => ('İyi', ext?.success ?? Colors.green),
+      ReviewRating.easy => ('Kolay', scheme.primary),
     };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.15),
+        color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withValues(alpha: 0.5)),
+        border: Border.all(color: color.withValues(alpha: 0.4)),
       ),
       child: Text(
         label,
@@ -1105,7 +1143,7 @@ class _SessionStatusBar extends StatelessWidget {
             Row(
               children: [
                 const Icon(Icons.local_fire_department,
-                    color: Color(0xFFFF7043), size: 20),
+                    color: ColorPalette.tertiary, size: 20),
                 const SizedBox(width: 4),
                 Text('$streak',
                     style: const TextStyle(fontWeight: FontWeight.w700)),

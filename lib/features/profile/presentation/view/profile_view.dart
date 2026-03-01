@@ -1,3 +1,4 @@
+// FAZ 8C: Font migration GoogleFonts.poppins → GoogleFonts.inter
 // lib/features/profile/presentation/view/profile_view.dart
 //
 // FAZ 5 FIX — Profil Zenginleştirme:
@@ -118,7 +119,7 @@ class ProfileView extends StatelessWidget {
               Center(
                 child: Text(
                   name,
-                  style: GoogleFonts.poppins(
+                  style: GoogleFonts.inter(
                     fontSize: 20,
                     fontWeight: FontWeight.w700,
                   ),
@@ -129,7 +130,7 @@ class ProfileView extends StatelessWidget {
                 Center(
                   child: Text(
                     email,
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.inter(
                       fontSize: 13,
                       color: context.colors.onSurfaceVariant,
                     ),
@@ -251,13 +252,12 @@ class _StatCard extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             value,
-            style:
-                GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w800),
+            style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 2),
           Text(
             label,
-            style: GoogleFonts.poppins(
+            style: GoogleFonts.inter(
               fontSize: 11,
               color: scheme.onSurface.withValues(alpha: 0.6),
             ),
@@ -313,10 +313,10 @@ class _AchievementSection extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text('İlk rozetini kazan!',
-                        style: GoogleFonts.poppins(
+                        style: GoogleFonts.inter(
                             fontWeight: FontWeight.w600, fontSize: 14)),
                     Text('100 XP kazanarak başla',
-                        style: GoogleFonts.poppins(
+                        style: GoogleFonts.inter(
                             fontSize: 12,
                             color: context.colors.onSurfaceVariant)),
                   ],
@@ -334,7 +334,7 @@ class _AchievementSection extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text('Başarılar',
-              style: GoogleFonts.poppins(
+              style: GoogleFonts.inter(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
                   color: context.colors.onSurfaceVariant)),
@@ -361,7 +361,7 @@ class _AchievementSection extends StatelessWidget {
                             Text(b.emoji, style: const TextStyle(fontSize: 18)),
                             const SizedBox(width: 6),
                             Text(b.label,
-                                style: GoogleFonts.poppins(
+                                style: GoogleFonts.inter(
                                     fontSize: 12, fontWeight: FontWeight.w500)),
                           ],
                         ),
@@ -404,7 +404,7 @@ class _StatsFromDashboard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text('İstatistikler',
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.inter(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
                         color: context.colors.onSurfaceVariant)),
@@ -436,10 +436,10 @@ class _StatsFromDashboard extends StatelessWidget {
         children: [
           Icon(icon, size: 18, color: context.colors.onSurfaceVariant),
           const SizedBox(width: 8),
-          Text(label, style: GoogleFonts.poppins(fontSize: 13)),
+          Text(label, style: GoogleFonts.inter(fontSize: 13)),
           const Spacer(),
           Text(value,
-              style: GoogleFonts.poppins(
+              style: GoogleFonts.inter(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
                   color: valueColor)),
@@ -478,10 +478,10 @@ class _GuestUpgradeCTA extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text('Hesabınla giriş yap',
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.inter(
                           fontWeight: FontWeight.w700, fontSize: 14)),
                   Text('İlerlemenin kaybolmasın! Google ile bağla.',
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.inter(
                           fontSize: 12,
                           color: context.colors.onSurfaceVariant)),
                 ],
@@ -494,7 +494,7 @@ class _GuestUpgradeCTA extends StatelessWidget {
               style: FilledButton.styleFrom(
                   padding: const EdgeInsets.symmetric(horizontal: 16)),
               child: Text('Bağla',
-                  style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+                  style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
             ),
           ],
         ),
@@ -511,30 +511,30 @@ class _SignOutTile extends StatelessWidget {
     return ListTile(
       leading: Icon(Icons.logout_rounded, color: context.colors.error),
       title: Text('Çıkış Yap',
-          style: GoogleFonts.poppins(
+          style: GoogleFonts.inter(
               fontWeight: FontWeight.w600, color: context.colors.error)),
       onTap: () async {
         final confirm = await showDialog<bool>(
           context: context,
           builder: (ctx) => AlertDialog(
             title: Text('Çıkış Yap',
-                style: GoogleFonts.poppins(fontWeight: FontWeight.w700)),
+                style: GoogleFonts.inter(fontWeight: FontWeight.w700)),
             content: Text(
               'Hesabından çıkmak istediğine emin misin?\n\n'
               'Lokal ilerleme verilerin temizlenecek. '
               'Tekrar giriş yaptığında Firestore\'dan senkronize edilir.',
-              style: GoogleFonts.poppins(fontSize: 14),
+              style: GoogleFonts.inter(fontSize: 14),
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx, false),
                 child: Text('İptal',
-                    style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+                    style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
               ),
               TextButton(
                 onPressed: () => Navigator.pop(ctx, true),
                 child: Text('Çıkış',
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.inter(
                         fontWeight: FontWeight.w600,
                         color: context.colors.error)),
               ),

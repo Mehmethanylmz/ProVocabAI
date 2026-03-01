@@ -1,3 +1,10 @@
+// lib/core/init/theme/light_theme.dart
+//
+// FAZ 8A: Premium Light Theme — "Midnight Sapphire" paleti
+//
+// Felsefe: Temiz, nefes alan, indigo vurguları
+// Kartlar beyaz, arka plan çok hafif mavi-beyaz, gölgeler yumuşak
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../constants/app/color_palette.dart';
@@ -14,110 +21,226 @@ class LightTheme extends AppTheme {
   LightTheme._init() {
     themeData = ThemeData(
       useMaterial3: true,
+      brightness: Brightness.light,
 
-      // Arka plan
-      scaffoldBackgroundColor: ColorPalette.gray100,
+      // ── Arka plan ──────────────────────────────────────────────────────
+      scaffoldBackgroundColor: ColorPalette.surfaceLight,
 
-      // Temel Renk Şeması
+      // ── Renk Şeması ───────────────────────────────────────────────────
       colorScheme: const ColorScheme.light(
-        primary: ColorPalette.royalBlue,
-        onPrimary: ColorPalette.white,
-        secondary: ColorPalette.emeraldGreen,
-        onSecondary: ColorPalette.white,
-        surface: ColorPalette.white,
-        onSurface: ColorPalette.gray900,
-        error: ColorPalette.redError,
-        onError: ColorPalette.white,
+        primary: ColorPalette.primary,
+        onPrimary: ColorPalette.onPrimary,
+        primaryContainer: ColorPalette.primaryContainer,
+        onPrimaryContainer: Color(0xFF1E1B4B), // Indigo 950
+
+        secondary: ColorPalette.secondary,
+        onSecondary: Colors.white,
+        secondaryContainer: ColorPalette.secondaryContainer,
+        onSecondaryContainer: Color(0xFF0C4A6E),
+
+        tertiary: ColorPalette.tertiary,
+        onTertiary: Colors.white,
+        tertiaryContainer: ColorPalette.tertiaryContainer,
+        onTertiaryContainer: Color(0xFF78350F),
+
+        surface: ColorPalette.surfaceLight,
+        onSurface: ColorPalette.onSurfaceLight,
+        surfaceContainerLowest: Colors.white,
+        surfaceContainerLow: Color(0xFFF8FAFC),
+        surfaceContainer: ColorPalette.surfaceContainerLight,
+        surfaceContainerHigh: ColorPalette.surfaceContainerHighLight,
+        surfaceContainerHighest: ColorPalette.surfaceContainerHighestLight,
+        onSurfaceVariant: ColorPalette.onSurfaceVariantLight,
+
+        outline: ColorPalette.outlineLight,
+        outlineVariant: Color(0xFFE2E8F0),
+
+        error: ColorPalette.error,
+        onError: Colors.white,
+        errorContainer: ColorPalette.errorContainer,
       ),
 
-      // AppBar
-      appBarTheme: const AppBarTheme(
+      // ── AppBar ─────────────────────────────────────────────────────────
+      appBarTheme: AppBarTheme(
         backgroundColor: Colors.transparent,
         elevation: 0,
+        scrolledUnderElevation: 0,
         centerTitle: true,
-        iconTheme: IconThemeData(color: ColorPalette.gray900),
-        titleTextStyle: TextStyle(
-          color: ColorPalette.gray900,
+        surfaceTintColor: Colors.transparent,
+        iconTheme: const IconThemeData(color: ColorPalette.onSurfaceLight),
+        titleTextStyle: GoogleFonts.inter(
+          color: ColorPalette.onSurfaceLight,
           fontSize: 20,
-          fontWeight: FontWeight.bold,
+          fontWeight: FontWeight.w700,
+          letterSpacing: -0.3,
         ),
       ),
 
-      // Text (VİRGÜLE DİKKAT)
-      textTheme: GoogleFonts.poppinsTextTheme().apply(
-        bodyColor: ColorPalette.gray900,
-        displayColor: ColorPalette.gray900,
-      ), // <--- BURADAKİ VİRGÜL ÇOK ÖNEMLİ
+      // ── Typography ─────────────────────────────────────────────────────
+      textTheme: GoogleFonts.interTextTheme().apply(
+        bodyColor: ColorPalette.onSurfaceLight,
+        displayColor: ColorPalette.onSurfaceLight,
+      ),
 
-      // Kartlar
+      // ── Kartlar ────────────────────────────────────────────────────────
       cardTheme: CardThemeData(
-        color: ColorPalette.white,
-        elevation: 2,
-        shadowColor: Colors.black.withOpacity(0.05),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        color: ColorPalette.surfaceContainerLight,
+        elevation: 0,
+        shadowColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(
+            color: ColorPalette.outlineLight.withValues(alpha: 0.5),
+          ),
+        ),
         margin: EdgeInsets.zero,
       ),
 
-      // Butonlar
+      // ── Butonlar ───────────────────────────────────────────────────────
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: ColorPalette.royalBlue,
-          foregroundColor: ColorPalette.white,
-          elevation: 4,
-          shadowColor: ColorPalette.royalBlue.withOpacity(0.3),
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          backgroundColor: ColorPalette.primary,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          shadowColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
           padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
-          textStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+          textStyle: GoogleFonts.inter(
+            fontWeight: FontWeight.w600,
+            fontSize: 16,
+            letterSpacing: 0.3,
+          ),
         ),
       ),
 
-      // Input Alanları (TextField)
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+          textStyle: GoogleFonts.inter(
+            fontWeight: FontWeight.w600,
+            fontSize: 16,
+          ),
+        ),
+      ),
+
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+          side: const BorderSide(color: ColorPalette.outlineLight),
+          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+        ),
+      ),
+
+      // ── Input ──────────────────────────────────────────────────────────
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: ColorPalette.white,
+        fillColor: ColorPalette.surfaceContainerHighLight,
         contentPadding:
             const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: ColorPalette.gray800, width: 0.5),
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide.none,
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: ColorPalette.gray800.withOpacity(0.2)),
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide.none,
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: ColorPalette.royalBlue, width: 2),
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: ColorPalette.primary, width: 2),
         ),
         errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: ColorPalette.redError, width: 1),
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: ColorPalette.error, width: 1),
         ),
-        labelStyle: const TextStyle(color: ColorPalette.gray800),
-        hintStyle: TextStyle(color: ColorPalette.gray800.withOpacity(0.5)),
+        labelStyle: const TextStyle(color: ColorPalette.onSurfaceVariantLight),
+        hintStyle: TextStyle(
+            color: ColorPalette.onSurfaceVariantLight.withValues(alpha: 0.6)),
       ),
 
-      // Divider
+      // ── Chip ───────────────────────────────────────────────────────────
+      chipTheme: ChipThemeData(
+        backgroundColor: ColorPalette.surfaceContainerHighLight,
+        selectedColor: ColorPalette.primaryContainer,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+        side: BorderSide.none,
+        labelStyle:
+            GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w500),
+      ),
+
+      // ── Navigation Bar ─────────────────────────────────────────────────
+      navigationBarTheme: NavigationBarThemeData(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        indicatorColor: ColorPalette.primaryContainer,
+        labelTextStyle: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return GoogleFonts.inter(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: ColorPalette.primary,
+            );
+          }
+          return GoogleFonts.inter(
+            fontSize: 11,
+            fontWeight: FontWeight.w500,
+            color: ColorPalette.onSurfaceVariantLight,
+          );
+        }),
+      ),
+
+      // ── Divider ────────────────────────────────────────────────────────
       dividerTheme: DividerThemeData(
-        color: ColorPalette.gray800.withOpacity(0.1),
+        color: ColorPalette.outlineLight.withValues(alpha: 0.5),
         thickness: 1,
         space: 1,
       ),
 
-      // Extension (Özel Renkler)
+      // ── Bottom Sheet ───────────────────────────────────────────────────
+      bottomSheetTheme: const BottomSheetThemeData(
+        backgroundColor: ColorPalette.surfaceContainerLight,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+      ),
+
+      // ── Dialog ─────────────────────────────────────────────────────────
+      dialogTheme: DialogThemeData(
+        backgroundColor: ColorPalette.surfaceContainerLight,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        elevation: 8,
+      ),
+
+      // ── Extension ──────────────────────────────────────────────────────
       extensions: [
         AppThemeExtension(
-          success: ColorPalette.emeraldGreen,
-          warning: ColorPalette.amberWarning,
-          info: ColorPalette.infoBlue,
-          gradientPurple: [
-            ColorPalette.gradientPurpleStart,
-            ColorPalette.gradientPurpleEnd
-          ],
-          gradientBlue: [ColorPalette.lightBlue, ColorPalette.royalBlue],
+          success: ColorPalette.success,
+          warning: ColorPalette.warning,
+          info: ColorPalette.info,
+          tertiary: ColorPalette.tertiary,
+          tertiaryContainer: ColorPalette.tertiaryContainer,
+          gradientPrimary: ColorPalette.gradientPrimary,
+          gradientAccent: ColorPalette.gradientAccent,
+          gradientGold: ColorPalette.gradientGold,
+          gradientSuccess: ColorPalette.gradientSuccess,
+          gradientGlass: ColorPalette.gradientGlassLight,
           chartVolume: ColorPalette.chartVolume,
           chartAccuracy: ColorPalette.chartAccuracy,
+          chartNew: ColorPalette.chartNew,
+          chartReview: ColorPalette.chartReview,
+          chartMastered: ColorPalette.chartMastered,
+          glowPrimary: ColorPalette.primary.withValues(alpha: 0.25),
+          glowSuccess: ColorPalette.success.withValues(alpha: 0.25),
+          glowError: ColorPalette.error.withValues(alpha: 0.25),
         ),
       ],
     );

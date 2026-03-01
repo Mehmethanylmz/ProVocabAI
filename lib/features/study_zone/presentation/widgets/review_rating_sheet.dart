@@ -7,6 +7,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import '../../../../core/constants/app/color_palette.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../srs/fsrs_state.dart';
@@ -147,7 +148,7 @@ class _ReviewRatingSheetState extends State<ReviewRatingSheet>
                       label: 'Çok Zor',
                       sublabel: 'Unutmuştum',
                       rating: ReviewRating.again,
-                      color: const Color(0xFFE53935),
+                      color: ColorPalette.error,
                       onTap: () => _submitRating(ReviewRating.again),
                     ),
                   ),
@@ -157,7 +158,7 @@ class _ReviewRatingSheetState extends State<ReviewRatingSheet>
                       label: 'Zor',
                       sublabel: 'Zorlandım',
                       rating: ReviewRating.hard,
-                      color: const Color(0xFFFB8C00),
+                      color: ColorPalette.tertiary,
                       onTap: () => _submitRating(ReviewRating.hard),
                     ),
                   ),
@@ -171,7 +172,7 @@ class _ReviewRatingSheetState extends State<ReviewRatingSheet>
                       label: 'İyi',
                       sublabel: 'Hatırladım',
                       rating: ReviewRating.good,
-                      color: const Color(0xFF43A047),
+                      color: ColorPalette.success,
                       isDefault: true,
                       onTap: () => _submitRating(ReviewRating.good),
                     ),
@@ -182,7 +183,7 @@ class _ReviewRatingSheetState extends State<ReviewRatingSheet>
                       label: 'Kolay',
                       sublabel: 'Çok kolaydı',
                       rating: ReviewRating.easy,
-                      color: const Color(0xFF1E88E5),
+                      color: ColorPalette.secondary,
                       onTap: () => _submitRating(ReviewRating.easy),
                     ),
                   ),
@@ -223,7 +224,7 @@ class _CountdownBar extends StatelessWidget {
               Theme.of(context).colorScheme.surfaceContainerHighest,
           valueColor: AlwaysStoppedAnimation<Color>(
             remaining <= 1
-                ? const Color(0xFFE53935)
+                ? ColorPalette.error
                 : Theme.of(context).colorScheme.primary,
           ),
         ),
