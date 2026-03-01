@@ -2,12 +2,14 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    /* ──────────── Common Functions ──────────── */
+
     function isAuthenticated() {
       return request.auth != null;
     }
 
-    function isOwner(userId) {
-      return isAuthenticated() && request.auth.uid == userId;
+    function isOwner(uid) {
+      return isAuthenticated() && request.auth.uid == uid;
     }
 
     function isValidXPIncrease() {
@@ -17,43 +19,47 @@ service cloud.firestore {
       return delta >= 0 && delta <= 500;
     }
 
-    // ── Users ──────────────────────────────────────────────────────────────
-    match /users/{userId} {
-      allow read, write: if isOwner(userId);
+    /* ──────────── Users Root (Leaderboard için okunabilir) ──────────── */
 
-      match /progress/{progressId} {
-        allow read, write: if isOwner(userId);
-      }
+    match /users/{uid} {
+      // Leaderboard sorgusu için herkes (authenticated) okuyabilir
+      allow read: if isAuthenticated();
 
-      match /sessions/{sessionId} {
-        allow read, write: if isOwner(userId);
-      }
-
-      // Profile: XP rate limit — tek update'te max 500 XP
-      match /profile/{profileId} {
-        allow read: if isOwner(userId);
-        allow create: if isOwner(userId);
-        allow update: if isOwner(userId) && isValidXPIncrease();
-      }
-
-      match /{document=**} {
-        allow read, write: if isOwner(userId);
-      }
+      // Sadece owner yazabilir
+      allow write: if isOwner(uid);
     }
 
-    // ── Leaderboard — sadece okuma, yazma Cloud Functions Admin SDK ile ───
+    /* ──────────── Profile Subcollection ──────────── */
+
+    match /users/{uid}/profile/{doc} {
+      allow read: if isOwner(uid);
+      allow create: if isOwner(uid);
+      allow update: if isOwner(uid) && isValidXPIncrease();
+      allow delete: if isOwner(uid);
+    }
+
+    /* ──────────── Progress & Sessions & Diğer Subcollections ──────────── */
+
+    match /users/{uid}/{collection}/{doc} {
+      allow read, write: if isOwner(uid);
+    }
+
+    /* ──────────── Leaderboard (Admin SDK Only Write) ──────────── */
+
     match /leaderboard/{document=**} {
       allow read: if isAuthenticated();
       allow write: if false;
     }
 
-    // ── App Config — sadece okuma ──────────────────────────────────────────
+    /* ──────────── App Config (Read Only) ──────────── */
+
     match /app_config/{document=**} {
       allow read: if isAuthenticated();
       allow write: if false;
     }
 
-    // ── Default: her şeyi reddet ───────────────────────────────────────────
+    /* ──────────── Default Deny ──────────── */
+
     match /{document=**} {
       allow read, write: if false;
     }

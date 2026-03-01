@@ -1,7 +1,8 @@
 // lib/features/study_zone/presentation/widgets/review_rating_sheet.dart
 //
-// Blueprint T-12: ModalBottomSheet — 4 buton (Çok Zor/Zor/İyi/Kolay),
-// 3 sn countdown → GOOD default, AnswerSubmitted(rating) emit.
+// FAZ 1 FIX:
+//   F1-05: Countdown 3 saniye → 2 saniye (daha hızlı akış)
+//   Deprecated API düzeltmeleri: withOpacity→withValues
 
 import 'dart:async';
 
@@ -14,10 +15,6 @@ import '../state/study_zone_event.dart';
 
 // ── ReviewRatingSheet ─────────────────────────────────────────────────────────
 
-/// 4-lü rating bottom sheet — Blueprint G.2 UI.
-///
-/// Kullanım (QuizScreen'den):
-///   ReviewRatingSheet.show(context, responseMs: sw.elapsedMilliseconds);
 class ReviewRatingSheet extends StatefulWidget {
   final int responseMs;
 
@@ -46,7 +43,8 @@ class ReviewRatingSheet extends StatefulWidget {
 
 class _ReviewRatingSheetState extends State<ReviewRatingSheet>
     with SingleTickerProviderStateMixin {
-  static const _countdownSeconds = 3;
+  // F1-05: 3 → 2 saniye countdown
+  static const _countdownSeconds = 2;
 
   late int _remaining;
   Timer? _timer;
@@ -102,7 +100,7 @@ class _ReviewRatingSheetState extends State<ReviewRatingSheet>
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.18),
+            color: Colors.black.withValues(alpha: 0.18),
             blurRadius: 32,
             offset: const Offset(0, -4),
           ),
@@ -135,7 +133,7 @@ class _ReviewRatingSheetState extends State<ReviewRatingSheet>
               Text(
                 '$_remaining sn içinde seçilmezse "İyi" seçilir',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: scheme.onSurface.withOpacity(0.5),
+                      color: scheme.onSurface.withValues(alpha: 0.5),
                     ),
                 textAlign: TextAlign.center,
               ),
@@ -221,7 +219,8 @@ class _CountdownBar extends StatelessWidget {
         child: LinearProgressIndicator(
           value: 1 - controller.value,
           minHeight: 4,
-          backgroundColor: Theme.of(context).colorScheme.surfaceVariant,
+          backgroundColor:
+              Theme.of(context).colorScheme.surfaceContainerHighest,
           valueColor: AlwaysStoppedAnimation<Color>(
             remaining <= 1
                 ? const Color(0xFFE53935)
@@ -255,7 +254,7 @@ class _RatingButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: color.withOpacity(0.12),
+      color: color.withValues(alpha: 0.12),
       borderRadius: BorderRadius.circular(14),
       child: InkWell(
         key: ValueKey('rating_${rating.name}'),
@@ -282,7 +281,7 @@ class _RatingButton extends StatelessWidget {
                 sublabel,
                 style: TextStyle(
                   fontSize: 11,
-                  color: color.withOpacity(0.75),
+                  color: color.withValues(alpha: 0.75),
                 ),
               ),
             ],

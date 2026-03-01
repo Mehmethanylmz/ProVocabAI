@@ -1,8 +1,10 @@
 // lib/app.dart
 //
-// FIX: Theme anlık değişim — SettingsRepositoryImpl.themeStream dinleniyor
-// FIX: AuthBloc app seviyesinde → DashboardBloc UID değişince reload
-// FIX: Main route'ta MultiBlocProvider ile AuthBloc + DashboardBloc sağlanıyor
+// FAZ 3 FIX:
+//   Global BlocListener<AuthBloc>:
+//     - AuthUnauthenticated → login ekranına yönlendir (tüm stack temizle)
+//     - AuthAuthenticated → DashboardBloc refresh tetikle
+//   Bu sayede herhangi bir ekrandan çıkış yapıldığında login'e dönülür.
 
 import 'dart:async';
 
@@ -42,13 +44,11 @@ class _PratikAppState extends State<PratikApp> {
   Future<void> _initTheme() async {
     final repo = getIt<SettingsRepositoryImpl>();
 
-    // İlk değeri yükle
     final result = await repo.getThemeMode();
     if (mounted) {
       result.fold((_) {}, (mode) => setState(() => _themeMode = mode));
     }
 
-    // Stream'i dinle — SettingsBloc kaydettiğinde anlık güncelle
     _themeSub = repo.themeStream.listen((mode) {
       if (mounted) setState(() => _themeMode = mode);
     });
@@ -82,6 +82,31 @@ class _PratikAppState extends State<PratikApp> {
             theme: LightTheme.instance.themeData,
             darkTheme: DarkTheme.instance.themeData,
             themeMode: _themeMode,
+            // F3: Global auth state listener
+            builder: (context, child) {
+              return BlocListener<AuthBloc, AuthState>(
+                listenWhen: (prev, curr) {
+                  // Sadece gerçek geçişlerde tetikle
+                  // AuthInitial → AuthUnauthenticated: normal açılış, splash halleder
+                  // AuthAuthenticated → AuthUnauthenticated: sign-out → login'e yönlendir
+                  // AuthLoading → AuthAuthenticated: sign-in tamamlandı
+                  if (prev is AuthAuthenticated &&
+                      curr is AuthUnauthenticated) {
+                    return true; // Sign-out
+                  }
+                  return false;
+                },
+                listener: (context, state) {
+                  if (state is AuthUnauthenticated) {
+                    // Sign-out: tüm route stack'i temizle → login ekranı
+                    NavigationService.instance.navigateToPageClear(
+                      path: NavigationConstants.LOGIN,
+                    );
+                  }
+                },
+                child: child ?? const SizedBox.shrink(),
+              );
+            },
           ),
         ),
       ),

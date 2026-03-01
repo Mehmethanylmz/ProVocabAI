@@ -1,15 +1,9 @@
 // lib/srs/mode_selector.dart
 //
-// Blueprint T-05: ModeSelector — sıfır dış bağımlılık.
-// CardState (T-03) bağımlılığı var.
-//
-// Kullanım (T-10 StudyZoneBloc._onSessionStarted / _onNextCard):
-//   final mode = ModeSelector.selectMode(
-//     modeHistory: {'mcq': 5, 'listening': 5, 'speaking': 0},
-//     cardState: CardState.review,
-//     isMiniSession: false,
-//   );
-//   // → 'speaking' (en az kullanılan)
+// FAZ 2 FIX:
+//   F2-04: canUseAdvancedMode() helper eklendi.
+//          Yeni kartlar ve düşük tekrar sayılı kartlar listening/speaking kullanamaz.
+//   Mevcut selectMode() mantığı korundu — userPreferredMode desteği zaten var.
 
 import 'fsrs_state.dart';
 
@@ -34,6 +28,30 @@ extension StudyModeX on StudyMode {
     }
   }
 
+  /// Kullanıcıya gösterilecek Türkçe etiket.
+  String get label {
+    switch (this) {
+      case StudyMode.mcq:
+        return 'MCQ';
+      case StudyMode.listening:
+        return 'Dinleme';
+      case StudyMode.speaking:
+        return 'Konuşma';
+    }
+  }
+
+  /// Chip icon'u.
+  String get icon {
+    switch (this) {
+      case StudyMode.mcq:
+        return '📝';
+      case StudyMode.listening:
+        return '🔊';
+      case StudyMode.speaking:
+        return '🎤';
+    }
+  }
+
   static StudyMode fromKey(String k) {
     switch (k) {
       case 'listening':
@@ -48,13 +66,6 @@ extension StudyModeX on StudyMode {
 
 // ── ModeSelector ─────────────────────────────────────────────────────────────
 
-/// Kart için hangi çalışma modunun seçileceğini belirler — stateless, pure.
-///
-/// Öncelik sırası:
-///   1. isMiniSession=true → her zaman MCQ (Blueprint: mini session MCQ only)
-///   2. cardState == newCard → MCQ (yeni kelime tanıtımı)
-///   3. userPreferredMode != null → tercih edileni ver (history'ye göre rotate)
-///   4. modeHistory'den en az kullanılanı seç
 class ModeSelector {
   static const List<StudyMode> _allModes = [
     StudyMode.mcq,
@@ -62,20 +73,55 @@ class ModeSelector {
     StudyMode.speaking,
   ];
 
+  // ── canUseAdvancedMode (F2-04) ──────────────────────────────────────────
+
+  /// Bir kart için listening veya speaking modu kullanılabilir mi?
+  ///
+  /// Koşullar:
+  ///   1. Kart yeni (newCard) ise → HAYIR (önce MCQ ile tanıt)
+  ///   2. Progress kaydı yoksa → HAYIR
+  ///   3. cardState != 'review' ise → HAYIR (learning aşamasında MCQ)
+  ///   4. repetitions < 2 ise → HAYIR (en az 2 kez doğru cevaplamış olmalı)
+  ///
+  /// [isNewCard]    : PlanCard.source == CardSource.newCard
+  /// [cardState]    : ProgressData.cardState ('new', 'learning', 'review', 'relearning')
+  /// [repetitions]  : ProgressData.repetitions
+  static bool canUseAdvancedMode({
+    required bool isNewCard,
+    String? cardState,
+    int repetitions = 0,
+  }) {
+    if (isNewCard) return false;
+    if (cardState == null) return false;
+    if (cardState != 'review') return false;
+    if (repetitions < 2) return false;
+    return true;
+  }
+
+  /// Session başlangıcında tüm plan kartlarından kaçı advanced mode destekliyor
+  /// kontrolü — mod chip'lerinin enabled/disabled durumunu belirler.
+  ///
+  /// [reviewCardCount] : Planda review kartı sayısı (due + leech)
+  /// [advancedEligibleCount] : repetitions >= 2 olan review kartı sayısı
+  ///
+  /// Eğer planın %30'undan fazlası eligible değilse, advanced modlar
+  /// etkili olmaz → chip disabled gösterilir.
+  static bool hasEnoughAdvancedCards({
+    required int totalCards,
+    required int advancedEligibleCount,
+  }) {
+    if (totalCards == 0) return false;
+    return advancedEligibleCount > 0;
+  }
+
   // ── selectMode ────────────────────────────────────────────────────────────
 
   /// Bir sonraki kart için mod seç.
   ///
   /// [modeHistory]       : {'mcq': 5, 'listening': 3, 'speaking': 0}
-  ///                       Eksik modlar 0 olarak değerlendirilir.
   /// [cardState]         : Yeni kartlar → MCQ forced.
-  /// [isMiniSession]     : true → MCQ forced (Blueprint: mini=MCQ only).
-  /// [userPreferredMode] : Kullanıcı tercihini modeHistory'ye göre rotate et.
-  ///                       null → tamamen otomatik.
-  ///
-  /// Blueprint T-05 test:
-  ///   modeHistory={mcq:5,listening:5,speaking:0} → 'speaking'
-  ///   isMiniSession=true → 'mcq'
+  /// [isMiniSession]     : true → MCQ forced.
+  /// [userPreferredMode] : Kullanıcı tercihi → modeHistory'ye göre rotate et.
   static StudyMode selectMode({
     required Map<String, int> modeHistory,
     required CardState cardState,
@@ -97,13 +143,41 @@ class ModeSelector {
     return _getLeastUsedMode(modeHistory);
   }
 
+  /// Kullanıcı tercihi + kart durumu birlikte değerlendir.
+  ///
+  /// Kullanıcı listening/speaking seçtiyse ama kart uygun değilse → MCQ'ya fallback.
+  static StudyMode selectModeWithValidation({
+    required Map<String, int> modeHistory,
+    required CardState cardState,
+    required bool isMiniSession,
+    StudyMode? userPreferredMode,
+    required bool isNewCard,
+    String? progressCardState,
+    int repetitions = 0,
+  }) {
+    // Önce temel mod seçimi
+    final mode = selectMode(
+      modeHistory: modeHistory,
+      cardState: cardState,
+      isMiniSession: isMiniSession,
+      userPreferredMode: userPreferredMode,
+    );
+
+    // MCQ her zaman geçerli
+    if (mode == StudyMode.mcq) return mode;
+
+    // Advanced mod seçildiyse kart uygun mu kontrol et
+    final eligible = canUseAdvancedMode(
+      isNewCard: isNewCard,
+      cardState: progressCardState,
+      repetitions: repetitions,
+    );
+
+    return eligible ? mode : StudyMode.mcq;
+  }
+
   // ── _getLeastUsedMode ─────────────────────────────────────────────────────
 
-  /// modeHistory'deki en düşük count'lu modu döndür.
-  ///
-  /// Eşitlik durumunda: mcq < listening < speaking (enum sırası).
-  ///
-  /// Blueprint T-05: {mcq:5, listening:5, speaking:0} → speaking
   static StudyMode _getLeastUsedMode(Map<String, int> history) {
     StudyMode least = _allModes.first;
     int minCount = history[least.key] ?? 0;
@@ -120,24 +194,18 @@ class ModeSelector {
 
   // ── _rotatePreferred ──────────────────────────────────────────────────────
 
-  /// Kullanıcının tercih ettiği modu genel dengeye göre rotate et.
-  ///
-  /// Eğer tercih edilen mod dominant (diğerlerinden 3+ fazla) ise
-  /// en az kullanılan alternatife geç, yoksa tercihi ver.
   static StudyMode _rotatePreferred(
     Map<String, int> history,
     StudyMode preferred,
   ) {
     final prefCount = history[preferred.key] ?? 0;
-    final dominantThreshold = 3;
+    const dominantThreshold = 3;
 
-    // Diğer tüm modlardan fazla mı kullanılmış?
     final others = _allModes.where((m) => m != preferred);
     final allOthersLower = others
         .every((m) => prefCount - (history[m.key] ?? 0) >= dominantThreshold);
 
     if (allOthersLower) {
-      // Dominant → alternatife geç
       return _alternativeMode(history, preferred);
     }
     return preferred;
@@ -145,7 +213,6 @@ class ModeSelector {
 
   // ── _alternativeMode ──────────────────────────────────────────────────────
 
-  /// Belirtilen modun dışındaki en az kullanılan modu döndür.
   static StudyMode _alternativeMode(
     Map<String, int> history,
     StudyMode exclude,
@@ -164,10 +231,8 @@ class ModeSelector {
     return least;
   }
 
-  // ── _getDominantMode ──────────────────────────────────────────────────────
+  // ── getDominantMode ───────────────────────────────────────────────────────
 
-  /// History'deki en çok kullanılan modu döndür.
-  /// Eşitlik: mcq > listening > speaking (enum sırası).
   static StudyMode getDominantMode(Map<String, int> history) {
     StudyMode dominant = _allModes.first;
     int maxCount = history[dominant.key] ?? 0;

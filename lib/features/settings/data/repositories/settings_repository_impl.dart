@@ -1,9 +1,15 @@
 // lib/features/settings/data/repositories/settings_repository_impl.dart
 //
-// FIX: themeStream eklendi — app.dart anlık theme değişimini dinleyebilir
+// FAZ 6 FIX:
+//   - getNotificationsEnabled / saveNotificationsEnabled eklendi
+//   - Bildirim kapatınca Firestore'dan fcmToken silinir (push gelmez)
+//   - Bildirim açınca FCM token yeniden alınır ve Firestore'a yazılır
 
 import 'dart:async';
 import 'dart:io';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:dartz/dartz.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -17,10 +23,70 @@ class SettingsRepositoryImpl implements ISettingsRepository {
 
   SettingsRepositoryImpl(this._prefs);
 
-  /// app.dart bu stream'i dinleyerek anlık theme güncellemesi yapar.
   Stream<ThemeMode> get themeStream => _themeController.stream;
 
   void dispose() => _themeController.close();
+
+  // ── Bildirim (FAZ 6) ────────────────────────────────────────────────────
+
+  static const _keyNotificationsEnabled = 'notifications_enabled';
+
+  @override
+  Future<Either<Failure, bool>> getNotificationsEnabled() async {
+    try {
+      return Right(_prefs.getBool(_keyNotificationsEnabled) ?? true);
+    } catch (e) {
+      return Left(CacheFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> saveNotificationsEnabled(bool enabled) async {
+    try {
+      await _prefs.setBool(_keyNotificationsEnabled, enabled);
+
+      // Firestore'da fcmToken güncelle
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid != null) {
+        if (enabled) {
+          // Token yeniden al ve yaz
+          final token = await FirebaseMessaging.instance.getToken();
+          if (token != null) {
+            final batch = FirebaseFirestore.instance.batch();
+            batch.set(
+              FirebaseFirestore.instance.doc('users/$uid'),
+              {'fcmToken': token},
+              SetOptions(merge: true),
+            );
+            batch.set(
+              FirebaseFirestore.instance.doc('users/$uid/profile/main'),
+              {'fcmToken': token},
+              SetOptions(merge: true),
+            );
+            await batch.commit();
+          }
+        } else {
+          // Token sil → Cloud Function bildirim göndermez
+          final batch = FirebaseFirestore.instance.batch();
+          batch.update(
+            FirebaseFirestore.instance.doc('users/$uid'),
+            {'fcmToken': FieldValue.delete()},
+          );
+          batch.update(
+            FirebaseFirestore.instance.doc('users/$uid/profile/main'),
+            {'fcmToken': FieldValue.delete()},
+          );
+          await batch.commit();
+        }
+      }
+
+      return const Right(null);
+    } catch (e) {
+      return Left(CacheFailure(e.toString()));
+    }
+  }
+
+  // ── Mevcut methodlar (değişiklik yok) ──────────────────────────────────
 
   @override
   Future<Either<Failure, Map<String, String>>> getLanguageSettings() async {
@@ -122,10 +188,7 @@ class SettingsRepositoryImpl implements ISettingsRepository {
       if (mode == ThemeMode.light) val = 'light';
       if (mode == ThemeMode.dark) val = 'dark';
       await _prefs.setString(AppConstants.keyThemeMode, val);
-
-      // Stream'e yay — app.dart anlık günceller
       _themeController.add(mode);
-
       return const Right(null);
     } catch (e) {
       return Left(CacheFailure(e.toString()));

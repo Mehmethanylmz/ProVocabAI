@@ -1,16 +1,9 @@
 // lib/firebase/messaging/fcm_service.dart
 //
-// T-19: FCMService + Push Notification
-// Blueprint:
-//   initialize()       → permission request + token → Firestore güncelle
-//   getToken()         → users/{uid}/profile.fcmToken kaydet
-//   onMessage          → FlutterLocalNotifications (foreground)
-//   onMessageOpenedApp → /study_zone deep link
-//
-// Bağımlılıklar: T-15 FirebaseAuth, T-14 DI
-// pubspec.yaml:
-//   firebase_messaging: ^15.0.0
-//   flutter_local_notifications: ^19.0.0  (zaten mevcut — pubspec.lock'ta var)
+// FAZ 6 FIX:
+//   - Token'ı hem users/{uid} (root) hem users/{uid}/profile/main'e yaz
+//   - Cloud Functions artık root dokümanı okuyor (FAZ 4 leaderboard ile uyumlu)
+//   - onTokenRefresh → dual write
 
 import 'dart:async';
 
@@ -24,18 +17,9 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  // Background'da gelen mesajları işle — UI update yok
   debugPrint('FCM background: ${message.messageId}');
 }
 
-/// FCM token yönetimi, foreground bildirim gösterimi ve deep link navigasyonu.
-///
-/// Kullanım (DI):
-///   getIt.registerSingletonAsync<FCMService>(() async {
-///     final service = FCMService(...);
-///     await service.initialize();
-///     return service;
-///   });
 class FCMService {
   FCMService({
     FirebaseMessaging? messaging,
@@ -53,7 +37,6 @@ class FCMService {
   final FirebaseAuth _auth;
   final FlutterLocalNotificationsPlugin _localNotifications;
 
-  // Stream: tap ile gelen route'u dışarı ilet
   final _navigationController = StreamController<String>.broadcast();
   Stream<String> get onNavigate => _navigationController.stream;
 
@@ -62,13 +45,9 @@ class FCMService {
 
   // ── Public API ────────────────────────────────────────────────────────────
 
-  /// FCM'yi başlat: permission → token → listener'lar.
-  /// main.dart'ta `await configureDependencies()` sonrasında çağrılır.
   Future<void> initialize() async {
-    // 1. Background handler kaydı (top-level function)
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
-    // 2. iOS/macOS permission request
     final settings = await _messaging.requestPermission(
       alert: true,
       badge: true,
@@ -81,36 +60,25 @@ class FCMService {
       return;
     }
 
-    // 3. Local notifications kanalını kur (Android)
     await _initLocalNotifications();
-
-    // 4. Token al ve Firestore'a kaydet
     await _fetchAndSaveToken();
 
-    // 5. Token yenilendiğinde güncelle
     _messaging.onTokenRefresh.listen(_saveTokenToFirestore);
-
-    // 6. Foreground mesaj listener
     FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
-
-    // 7. Bildirime tıklanınca (app arka planda veya kapalıyken)
     FirebaseMessaging.onMessageOpenedApp.listen(_handleNotificationTap);
 
-    // 8. App notification ile açıldıysa (terminated state)
     final initialMessage = await _messaging.getInitialMessage();
     if (initialMessage != null) {
       _handleNotificationTap(initialMessage);
     }
   }
 
-  /// Güncel FCM token'ı döndür.
   Future<String?> getToken() => _messaging.getToken();
 
   void dispose() {
     _navigationController.close();
   }
 
-  /// Test amacıyla onNavigate stream'e event ekle.
   @visibleForTesting
   void addNavigationEvent(String route) {
     _navigationController.add(route);
@@ -121,7 +89,7 @@ class FCMService {
   Future<void> _initLocalNotifications() async {
     const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
     const iosInit = DarwinInitializationSettings(
-      requestAlertPermission: false, // zaten FCM'den istendi
+      requestAlertPermission: false,
       requestBadgePermission: false,
       requestSoundPermission: false,
     );
@@ -136,7 +104,6 @@ class FCMService {
       },
     );
 
-    // Android notification channel
     const channel = AndroidNotificationChannel(
       _channelId,
       _channelName,
@@ -157,13 +124,36 @@ class FCMService {
     }
   }
 
+  /// FAZ 6: Token dual-write — root users/{uid} + profile dokümanı
+  ///
+  /// Cloud Functions (sendDailyReminders, sendStreakReminder):
+  ///   - Root dokümanı okur (FAZ 4'teki leaderboard yapısıyla uyumlu)
+  ///   - Profile dokümanı da okunabilir (eski uyumluluk)
   Future<void> _saveTokenToFirestore(String token) async {
     final uid = _auth.currentUser?.uid;
     if (uid == null) return;
 
-    await _firestore
-        .doc('users/$uid/profile/main')
-        .set({'fcmToken': token}, SetOptions(merge: true));
+    try {
+      final batch = _firestore.batch();
+
+      // Root doküman — Cloud Functions buradan okur
+      batch.set(
+        _firestore.doc('users/$uid'),
+        {'fcmToken': token},
+        SetOptions(merge: true),
+      );
+
+      // Profile doküman — eski uyumluluk
+      batch.set(
+        _firestore.doc('users/$uid/profile/main'),
+        {'fcmToken': token},
+        SetOptions(merge: true),
+      );
+
+      await batch.commit();
+    } catch (e) {
+      debugPrint('FCM token save error: $e');
+    }
   }
 
   void _handleForegroundMessage(RemoteMessage message) {

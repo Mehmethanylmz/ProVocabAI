@@ -1,38 +1,29 @@
 // lib/features/study_zone/presentation/state/study_zone_bloc.dart
 //
-// Blueprint T-10: StudyZoneBloc — tüm handler'lar.
-// Blueprint E.2 Event→Handler tablosuna birebir uyumlu.
+// FAZ 2 FIX:
+//   F2-03: _userPreferredMode alanı + StudyModeManuallyChanged handler
+//          selectModeWithValidation() kullanımı — kart uygunluğuna göre fallback
+
+import 'dart:convert';
 
 import 'package:flutter/widgets.dart' show AppLifecycleState;
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../database/app_database.dart';
+import '../../../../database/daos/progress_dao.dart';
+import '../../../../database/daos/word_dao.dart';
 import '../../../../srs/daily_planner.dart';
 import '../../../../srs/fsrs_engine.dart';
 import '../../../../srs/fsrs_state.dart';
-import '../../../../srs/leech_handler.dart';
 import '../../../../srs/mode_selector.dart';
 import '../../../../srs/plan_models.dart';
+import '../../../../ads/ad_service.dart';
 import '../../../../srs/xp_calculator.dart';
 import '../../domain/usecases/complete_session.dart';
 import '../../domain/usecases/start_session.dart';
 import '../../domain/usecases/submit_review.dart';
 import 'study_zone_event.dart';
 import 'study_zone_state.dart';
-
-// ── AdService (abstract — Sprint 4'te implement edilir) ──────────────────────
-
-abstract class AdService {
-  bool get isInterstitialReady;
-  Future<void> showInterstitialIfReady();
-}
-
-class NoOpAdService implements AdService {
-  const NoOpAdService();
-  @override
-  bool get isInterstitialReady => false;
-  @override
-  Future<void> showInterstitialIfReady() async {}
-}
 
 // ── StudyZoneBloc ─────────────────────────────────────────────────────────────
 
@@ -42,13 +33,13 @@ class StudyZoneBloc extends Bloc<StudyZoneEvent, StudyZoneState> {
   final SubmitReview _submitReview;
   final CompleteSession _completeSession;
   final FSRSEngine _fsrs;
-  final AdService _adService;
+  final AdService? _adService;
+  final WordDao _wordDao;
+  final ProgressDao _progressDao;
 
-  /// Interstitial trigger — her N cevaptan sonra.
   static const int _interstitialTriggerCount = 15;
 
   // ── Session-scoped mutable state ──────────────────────────────────────────
-  // Bloc dışına çıkmaz, her session başında sıfırlanır.
 
   final Map<String, int> _modeHistory = {};
   List<PlanCard> _planCards = [];
@@ -58,22 +49,31 @@ class StudyZoneBloc extends Bloc<StudyZoneEvent, StudyZoneState> {
   int _correctCards = 0;
   int _answerCount = 0;
 
-  /// Plan yüklenirken kullanılan targetLang (submitReview'a geçmek için).
   String _targetLang = 'en';
+  int _sessionCardLimit = 10;
+
+  /// F2-03: Kullanıcının seçtiği tercih edilen mod.
+  /// null → otomatik (ModeSelector.selectMode kendi karar verir)
+  /// StudyMode.xxx → kullanıcı tercihi (uygun değilse MCQ'ya fallback)
+  StudyMode? _userPreferredMode;
 
   StudyZoneBloc({
     required DailyPlanner dailyPlanner,
     required StartSession startSession,
     required SubmitReview submitReview,
     required CompleteSession completeSession,
+    required WordDao wordDao,
+    required ProgressDao progressDao,
     FSRSEngine fsrs = const FSRSEngine(),
-    AdService adService = const NoOpAdService(),
+    AdService? adService,
   })  : _dailyPlanner = dailyPlanner,
         _startSession = startSession,
         _submitReview = submitReview,
         _completeSession = completeSession,
         _fsrs = fsrs,
         _adService = adService,
+        _wordDao = wordDao,
+        _progressDao = progressDao,
         super(const StudyZoneIdle()) {
     on<LoadPlanRequested>(_onLoadPlan);
     on<SessionStarted>(_onSessionStarted);
@@ -83,16 +83,20 @@ class StudyZoneBloc extends Bloc<StudyZoneEvent, StudyZoneState> {
     on<AppLifecycleChanged>(_onLifecycleChange);
     on<RewardedAdCompleted>(_onRewardedAdCompleted);
     on<PlanDateChanged>(_onPlanDateChanged);
+    on<StudyModeManuallyChanged>(_onModeChanged); // F2-03
   }
 
+  /// F2-03: Dışarıdan kullanıcının tercih ettiği modu okuma (UI chip bar için).
+  StudyMode? get userPreferredMode => _userPreferredMode;
+
   // ── Handler: _onLoadPlan ──────────────────────────────────────────────────
-  // Idle → Planning → Ready | Idle(empty) | Error
 
   Future<void> _onLoadPlan(
     LoadPlanRequested event,
     Emitter<StudyZoneState> emit,
   ) async {
     _targetLang = event.targetLang;
+    _sessionCardLimit = event.sessionCardLimit;
     emit(const StudyZonePlanning());
 
     try {
@@ -115,7 +119,6 @@ class StudyZoneBloc extends Bloc<StudyZoneEvent, StudyZoneState> {
   }
 
   // ── Handler: _onSessionStarted ────────────────────────────────────────────
-  // Ready → InSession
 
   Future<void> _onSessionStarted(
     SessionStarted event,
@@ -124,8 +127,7 @@ class StudyZoneBloc extends Bloc<StudyZoneEvent, StudyZoneState> {
     final ready = state;
     if (ready is! StudyZoneReady) return;
 
-    // Session state sıfırla
-    _planCards = List.of(ready.plan.cards);
+    _planCards = List.of(ready.plan.cards).take(_sessionCardLimit).toList();
     _modeHistory.clear();
     _sessionXP = 0;
     _wrongWordIds.clear();
@@ -134,7 +136,17 @@ class StudyZoneBloc extends Bloc<StudyZoneEvent, StudyZoneState> {
     _sessionStartTime = DateTime.now();
 
     final firstCard = _planCards.first;
-    final mode = _selectMode(firstCard, isMiniSession: false);
+
+    // F2-03: Kullanıcı tercihi + kart uygunluğu birlikte kontrol
+    final mode = await _selectModeValidated(firstCard, isMiniSession: false);
+
+    final word = await _wordDao.getWordById(firstCard.wordId);
+    if (word == null) {
+      emit(StudyZoneError(message: 'Kelime bulunamadı: ${firstCard.wordId}'));
+      return;
+    }
+
+    final decoys = await _buildDecoys(word);
 
     final sessionId = await _startSession(
       targetLang: ready.plan.targetLang,
@@ -142,6 +154,9 @@ class StudyZoneBloc extends Bloc<StudyZoneEvent, StudyZoneState> {
       mode: mode,
     );
     _incrementMode(mode);
+
+    final wordText = _parseWordText(word, ready.plan.targetLang);
+    final wordMeaning = _parseWordMeaning(word, ready.plan.targetLang);
 
     emit(StudyZoneInSession(
       currentCard: firstCard,
@@ -153,11 +168,15 @@ class StudyZoneBloc extends Bloc<StudyZoneEvent, StudyZoneState> {
       timerStart: DateTime.now(),
       cardIndex: 0,
       totalCards: _planCards.length,
+      targetLang: ready.plan.targetLang,
+      currentWord: word,
+      decoys: decoys,
+      currentWordText: wordText,
+      currentWordMeaning: wordMeaning,
     ));
   }
 
   // ── Handler: _onAnswerSubmitted ───────────────────────────────────────────
-  // InSession → Reviewing
 
   Future<void> _onAnswerSubmitted(
     AnswerSubmitted event,
@@ -169,14 +188,17 @@ class StudyZoneBloc extends Bloc<StudyZoneEvent, StudyZoneState> {
     final card = inSession.currentCard;
     final rating = event.rating;
 
-    // 1. FSRS güncelle
+    final existingProgress = await _progressDao.getCardProgress(
+      wordId: card.wordId,
+      targetLang: _targetLang,
+    );
     final updatedFSRS = _computeFSRS(
       card: card,
       rating: rating,
       mode: inSession.currentMode,
+      existingProgress: existingProgress,
     );
 
-    // 2. XP
     final xp = XPCalculator.calculateReviewXP(
       mode: inSession.currentMode,
       rating: rating,
@@ -185,15 +207,10 @@ class StudyZoneBloc extends Bloc<StudyZoneEvent, StudyZoneState> {
       hasBonus: inSession.hasRewardedAdBonus,
     );
 
-    // 3. Streak
     final newStreak =
         rating != ReviewRating.again ? inSession.sessionStreak + 1 : 0;
 
-    // 4. SubmitReview (Drift transaction)
-    // stabilityBefore: FSRS hesaplanmadan önce mevcut değer.
-    // initNewCard kullanıldığından cold-start stability = 0.5 (w[2] default).
-    const stabilityBefore =
-        0.5; // TODO T-Sprint3: ProgressDao'dan mevcut state çek
+    final stabilityBefore = existingProgress?.stability ?? 0.5;
     await _submitReview(SubmitReviewParams(
       wordId: card.wordId,
       targetLang: _targetLang,
@@ -207,7 +224,6 @@ class StudyZoneBloc extends Bloc<StudyZoneEvent, StudyZoneState> {
       isNew: card.source == CardSource.newCard,
     ));
 
-    // 5. Session istatistikleri
     _sessionXP += xp;
     _answerCount++;
     if (rating == ReviewRating.again) {
@@ -216,7 +232,6 @@ class StudyZoneBloc extends Bloc<StudyZoneEvent, StudyZoneState> {
       _correctCards++;
     }
 
-    // 6. Interstitial kontrolü (fire-and-forget)
     _checkInterstitialAd();
 
     emit(StudyZoneReviewing(
@@ -235,7 +250,6 @@ class StudyZoneBloc extends Bloc<StudyZoneEvent, StudyZoneState> {
   }
 
   // ── Handler: _onNextCard ──────────────────────────────────────────────────
-  // Reviewing → InSession | Completed
 
   Future<void> _onNextCard(
     NextCardRequested event,
@@ -252,16 +266,35 @@ class StudyZoneBloc extends Bloc<StudyZoneEvent, StudyZoneState> {
     }
 
     final nextCard = _planCards[nextIndex];
-    final nextMode = _selectMode(nextCard, isMiniSession: false);
+
+    // F2-03: Kart başına mod validasyonu
+    final nextMode = await _selectModeValidated(nextCard, isMiniSession: false);
     _incrementMode(nextMode);
 
-    emit(reviewing.toInSession(
-      nextCard: nextCard,
-      nextCardIndex: nextIndex,
-      nextMode: nextMode,
-      newStreak: reviewing.sessionStreak,
-      timerStart: DateTime.now(),
-    ));
+    final nextWord = await _wordDao.getWordById(nextCard.wordId);
+    if (nextWord == null) {
+      emit(StudyZoneError(message: 'Kelime bulunamadı: ${nextCard.wordId}'));
+      return;
+    }
+    final nextDecoys = await _buildDecoys(nextWord);
+    final wordText = _parseWordText(nextWord, _targetLang);
+    final wordMeaning = _parseWordMeaning(nextWord, _targetLang);
+
+    emit(reviewing
+        .toInSession(
+          nextCard: nextCard,
+          nextCardIndex: nextIndex,
+          nextMode: nextMode,
+          newStreak: reviewing.sessionStreak,
+          timerStart: DateTime.now(),
+          nextWord: nextWord,
+          nextDecoys: nextDecoys,
+          targetLang: _targetLang,
+        )
+        .copyWith(
+          currentWordText: wordText,
+          currentWordMeaning: wordMeaning,
+        ));
   }
 
   // ── Handler: _onSessionAborted ────────────────────────────────────────────
@@ -321,7 +354,6 @@ class StudyZoneBloc extends Bloc<StudyZoneEvent, StudyZoneState> {
           add(const NextCardRequested());
         }
       case RewardedBonus.extraWords:
-        // Sprint 3'te DailyPlanner extend ile implement edilecek
         break;
     }
   }
@@ -335,23 +367,77 @@ class StudyZoneBloc extends Bloc<StudyZoneEvent, StudyZoneState> {
     emit(const StudyZoneIdle());
   }
 
+  // ── Handler: _onModeChanged (F2-03) ───────────────────────────────────────
+
+  /// Kullanıcı mod seçici chip bar'dan mod değiştirdi.
+  ///
+  /// Session dışında: _userPreferredMode güncellenir, sonraki session'da kullanılır.
+  /// Session içinde: Mevcut kart değişmez ama sonraki karttan itibaren
+  ///                 yeni tercih uygulanır. InSession state'inde
+  ///                 userPreferredMode güncellenir (UI chip'in seçili göstermesi için).
+  void _onModeChanged(
+    StudyModeManuallyChanged event,
+    Emitter<StudyZoneState> emit,
+  ) {
+    _userPreferredMode = event.mode;
+
+    // Session içindeyse state'i güncelle (sonraki kart tercihli mod kullanacak)
+    if (state is StudyZoneInSession) {
+      final s = state as StudyZoneInSession;
+      emit(s.copyWith(userPreferredMode: event.mode));
+    }
+  }
+
   // ── Private Helpers ───────────────────────────────────────────────────────
 
-  /// FSRS hesaplama — yeni kart: initNewCard, mevcut: updateCard.
   FSRSState _computeFSRS({
     required PlanCard card,
     required ReviewRating rating,
     required StudyMode mode,
+    ProgressData? existingProgress,
   }) {
-    if (card.source == CardState.newCard as dynamic ||
-        card.source == CardSource.newCard) {
+    if (existingProgress == null || card.source == CardSource.newCard) {
       return _fsrs.initNewCard(rating, mode: mode.key);
     }
-    // Due/leech: mevcut FSRSState gerekir — ProgressDao'dan alınmalı.
-    // T-10 scope: Bloc progress state'i cache etmez, SubmitReview sonrası
-    // Drift'te güncellenir. Bu path ProgressDao fetch ile genişletilecek (T-11+).
-    // Şimdilik initNewCard kullanarak ilk güvenli state üret.
-    return _fsrs.initNewCard(rating, mode: mode.key);
+    final currentState = FSRSState.fromProgressData(
+      stability: existingProgress.stability,
+      difficulty: existingProgress.difficulty,
+      cardStateStr: existingProgress.cardState,
+      nextReviewMs: existingProgress.nextReviewMs,
+      lastReviewMs: existingProgress.lastReviewMs,
+      repetitions: existingProgress.repetitions,
+      lapses: existingProgress.lapses,
+    );
+    return _fsrs.updateCard(currentState, rating, mode: mode.key);
+  }
+
+  Future<List<Word>> _buildDecoys(Word correct) async {
+    final candidates = await _wordDao.getRandomCandidates(limit: 50);
+    final filtered = candidates.where((w) => w.id != correct.id).toList();
+    filtered.shuffle();
+    return filtered.take(3).toList();
+  }
+
+  String _parseWordText(Word word, String targetLang) {
+    try {
+      final Map<String, dynamic> content = jsonDecode(word.contentJson);
+      final langData = content[targetLang] as Map<String, dynamic>?;
+      return (langData?['word'] as String?) ??
+          (langData?['term'] as String?) ??
+          '';
+    } catch (_) {
+      return '';
+    }
+  }
+
+  String _parseWordMeaning(Word word, String targetLang) {
+    try {
+      final Map<String, dynamic> content = jsonDecode(word.contentJson);
+      final langData = content[targetLang] as Map<String, dynamic>?;
+      return (langData?['meaning'] as String?) ?? '';
+    } catch (_) {
+      return '';
+    }
   }
 
   Future<void> _finishSession(
@@ -379,13 +465,40 @@ class StudyZoneBloc extends Bloc<StudyZoneEvent, StudyZoneState> {
     ));
   }
 
-  StudyMode _selectMode(PlanCard card, {required bool isMiniSession}) {
-    return ModeSelector.selectMode(
+  /// F2-03: Kart için mod seç — kullanıcı tercihi + kart uygunluğu validasyonu.
+  ///
+  /// 1. Kullanıcı tercihi var mı? → ModeSelector'a userPreferredMode olarak geçir
+  /// 2. Kart advanced mode'a uygun mu? → canUseAdvancedMode kontrol et
+  /// 3. Uygun değilse → MCQ'ya fallback
+  Future<StudyMode> _selectModeValidated(
+    PlanCard card, {
+    required bool isMiniSession,
+  }) async {
+    final isNewCard = card.source == CardSource.newCard;
+
+    // Progress bilgisini al (kart durumu kontrolü için)
+    String? progressCardState;
+    int repetitions = 0;
+
+    if (!isNewCard) {
+      final progress = await _progressDao.getCardProgress(
+        wordId: card.wordId,
+        targetLang: _targetLang,
+      );
+      if (progress != null) {
+        progressCardState = progress.cardState;
+        repetitions = progress.repetitions;
+      }
+    }
+
+    return ModeSelector.selectModeWithValidation(
       modeHistory: _modeHistory,
-      cardState: card.source == CardSource.newCard
-          ? CardState.newCard
-          : CardState.review,
+      cardState: isNewCard ? CardState.newCard : CardState.review,
       isMiniSession: isMiniSession,
+      userPreferredMode: _userPreferredMode,
+      isNewCard: isNewCard,
+      progressCardState: progressCardState,
+      repetitions: repetitions,
     );
   }
 
@@ -396,8 +509,8 @@ class StudyZoneBloc extends Bloc<StudyZoneEvent, StudyZoneState> {
   void _checkInterstitialAd() {
     if (_answerCount % _interstitialTriggerCount == 0 &&
         _answerCount > 0 &&
-        _adService.isInterstitialReady) {
-      _adService.showInterstitialIfReady();
+        (_adService?.isInterstitialReady() ?? false)) {
+      _adService?.showInterstitialIfReady();
     }
   }
 

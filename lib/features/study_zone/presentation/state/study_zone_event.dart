@@ -1,12 +1,13 @@
 // lib/features/study_zone/presentation/state/study_zone_event.dart
 //
-// Blueprint T-09: StudyZone BLoC Events (8 sınıf).
-// Bağımlılıklar: equatable, fsrs_state.dart (T-03), plan_models.dart (T-04).
+// FAZ 2 FIX:
+//   F2-02: StudyModeManuallyChanged event eklendi — kullanıcı mod seçimi.
 
 import 'package:equatable/equatable.dart';
 import 'package:flutter/widgets.dart' show AppLifecycleState;
 
 import '../../../../srs/fsrs_state.dart';
+import '../../../../srs/mode_selector.dart';
 
 // ── Base ─────────────────────────────────────────────────────────────────────
 
@@ -18,38 +19,35 @@ abstract class StudyZoneEvent extends Equatable {
 }
 
 // ── 1. LoadPlanRequested ──────────────────────────────────────────────────────
-/// UI → Bloc: Günlük plan yükle.
-/// Handler: _onLoadPlan → Planning → Ready | Idle(empty) | Error
+
 class LoadPlanRequested extends StudyZoneEvent {
   final String targetLang;
   final List<String> categories;
   final int newWordsGoal;
+  final int sessionCardLimit;
 
   const LoadPlanRequested({
     required this.targetLang,
     required this.categories,
     required this.newWordsGoal,
+    this.sessionCardLimit = 10,
   });
 
   @override
-  List<Object?> get props => [targetLang, categories, newWordsGoal];
+  List<Object?> get props =>
+      [targetLang, categories, newWordsGoal, sessionCardLimit];
 }
 
 // ── 2. SessionStarted ─────────────────────────────────────────────────────────
-/// UI → Bloc: Kullanıcı "Başla" butonuna bastı.
-/// Handler: _onSessionStarted → InSession
+
 class SessionStarted extends StudyZoneEvent {
   const SessionStarted();
 }
 
 // ── 3. AnswerSubmitted ────────────────────────────────────────────────────────
-/// UI → Bloc: Kullanıcı 4-lü rating seçti (Again/Hard/Good/Easy).
-/// Handler: _onAnswerSubmitted → Reviewing
+
 class AnswerSubmitted extends StudyZoneEvent {
   final ReviewRating rating;
-
-  /// Kartın gösterilmesinden cevaba kadar geçen süre (ms).
-  /// XP ve analytics için kullanılır.
   final int responseMs;
 
   const AnswerSubmitted({
@@ -62,22 +60,19 @@ class AnswerSubmitted extends StudyZoneEvent {
 }
 
 // ── 4. NextCardRequested ──────────────────────────────────────────────────────
-/// UI → Bloc: Kullanıcı "Devam" butonuna bastı (Reviewing → InSession).
-/// Handler: _onNextCard → InSession | Completed
+
 class NextCardRequested extends StudyZoneEvent {
   const NextCardRequested();
 }
 
 // ── 5. SessionAborted ─────────────────────────────────────────────────────────
-/// UI → Bloc: Kullanıcı session'ı yarıda bıraktı.
-/// Handler: _onSessionAborted → Idle
+
 class SessionAborted extends StudyZoneEvent {
   const SessionAborted();
 }
 
 // ── 6. AppLifecycleChanged ────────────────────────────────────────────────────
-/// System → Bloc: Uygulama arka plana/öne geçti.
-/// Handler: _onLifecycleChange → Paused | InSession (restored)
+
 class AppLifecycleChanged extends StudyZoneEvent {
   final AppLifecycleState state;
 
@@ -88,8 +83,7 @@ class AppLifecycleChanged extends StudyZoneEvent {
 }
 
 // ── 7. RewardedAdCompleted ────────────────────────────────────────────────────
-/// AdService → Bloc: Rewarded ad izlendi, ödül uygula.
-/// Handler: _onRewardedAdCompleted
+
 class RewardedAdCompleted extends StudyZoneEvent {
   final RewardedBonus bonus;
 
@@ -100,10 +94,9 @@ class RewardedAdCompleted extends StudyZoneEvent {
 }
 
 // ── 8. PlanDateChanged ────────────────────────────────────────────────────────
-/// System → Bloc: Gece yarısı gün değişti → plan sıfırla.
-/// Handler: _onPlanDateChanged → Idle
+
 class PlanDateChanged extends StudyZoneEvent {
-  final String newDate; // 'YYYY-MM-DD'
+  final String newDate;
 
   const PlanDateChanged(this.newDate);
 
@@ -111,15 +104,29 @@ class PlanDateChanged extends StudyZoneEvent {
   List<Object?> get props => [newDate];
 }
 
+// ── 9. StudyModeManuallyChanged (FAZ 2 — F2-02) ──────────────────────────────
+/// UI → Bloc: Kullanıcı mod seçici chip bar'dan mod değiştirdi.
+///
+/// [mode] null → otomatik mod (ModeSelector karar verir).
+/// [mode] StudyMode.mcq / listening / speaking → kullanıcı tercihi.
+///
+/// Handler: _onModeChanged → _userPreferredMode güncellenir.
+/// Sonraki kart geçişlerinde bu tercih kullanılır.
+/// Yeni kartlar veya uygun olmayan kartlar → MCQ'ya fallback.
+class StudyModeManuallyChanged extends StudyZoneEvent {
+  /// null → otomatik mod seçimi (varsayılan davranış)
+  final StudyMode? mode;
+
+  const StudyModeManuallyChanged(this.mode);
+
+  @override
+  List<Object?> get props => [mode];
+}
+
 // ── RewardedBonus ─────────────────────────────────────────────────────────────
-/// Blueprint G.4: Rewarded ad ödül tipleri.
+
 enum RewardedBonus {
-  /// XP 2x (mevcut review için).
   doubleXP,
-
-  /// Leech kartı planın sonuna at, şimdi skip et.
   skipLeech,
-
-  /// +5 yeni kart plan'a ekle.
   extraWords,
 }

@@ -1,7 +1,8 @@
 // lib/features/settings/presentation/view/settings_view.dart
 //
-// FIX: supportedLanguageCodes getter yok →
-//      LanguageManager.instance.supportedLocales.map(locale.languageCode) kullan
+// FAZ 6 FIX:
+//   - Bildirim açma/kapama SwitchListTile eklendi
+//   - Deprecated withOpacity → withValues
 
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
@@ -92,6 +93,12 @@ class _SettingsViewState extends State<SettingsView> {
                       SizedBox(height: context.responsive.spacingS),
                       _buildBatchSizeSlider(context, state),
                       _buildAutoPlaySwitch(context, state),
+                      Divider(
+                          height: context.responsive.spacingXL,
+                          color: context.colors.outlineVariant),
+                      // FAZ 6: Bildirim ayarı
+                      _buildSectionHeader(context, 'Bildirimler'),
+                      _buildNotificationSwitch(context, state),
                     ],
                   ),
           );
@@ -164,8 +171,6 @@ class _SettingsViewState extends State<SettingsView> {
     required String currentValue,
     required Function(String?) onChanged,
   }) {
-    // LanguageManager.supportedLanguageCodes YOKTUR.
-    // supportedLocales listesini map'leyerek short code alıyoruz.
     final languageCodes = LanguageManager.instance.supportedLocales
         .map((l) => l.languageCode)
         .toList();
@@ -177,7 +182,7 @@ class _SettingsViewState extends State<SettingsView> {
         borderRadius: BorderRadius.circular(context.responsive.borderRadiusM),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: const Color.fromRGBO(0, 0, 0, 0.05),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -331,6 +336,46 @@ class _SettingsViewState extends State<SettingsView> {
         activeThumbColor: context.colors.primary,
         onChanged: (val) =>
             context.read<SettingsBloc>().add(SettingsAutoPlayChanged(val)),
+      ),
+    );
+  }
+
+  /// FAZ 6: Bildirim switch
+  Widget _buildNotificationSwitch(BuildContext context, SettingsState state) {
+    return Container(
+      margin: EdgeInsets.symmetric(vertical: context.responsive.spacingXS),
+      decoration: BoxDecoration(
+        color: context.colors.surface,
+        borderRadius: BorderRadius.circular(context.responsive.borderRadiusM),
+      ),
+      child: Column(
+        children: [
+          SwitchListTile(
+            title: Text('Hatırlatma Bildirimleri',
+                style: context.textTheme.bodyLarge),
+            subtitle: Text(
+              state.notificationsEnabled
+                  ? 'Günlük çalışma hatırlatmaları alırsın'
+                  : 'Bildirimler kapalı',
+              style: context.textTheme.bodySmall?.copyWith(
+                color: context.colors.onSurfaceVariant,
+              ),
+            ),
+            secondary: Icon(
+              state.notificationsEnabled
+                  ? Icons.notifications_active_rounded
+                  : Icons.notifications_off_rounded,
+              color: state.notificationsEnabled
+                  ? context.colors.primary
+                  : context.colors.onSurfaceVariant,
+            ),
+            value: state.notificationsEnabled,
+            activeThumbColor: context.colors.primary,
+            onChanged: (val) => context
+                .read<SettingsBloc>()
+                .add(SettingsNotificationsChanged(val)),
+          ),
+        ],
       ),
     );
   }

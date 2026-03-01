@@ -1,4 +1,10 @@
 // lib/srs/plan_models.dart
+//
+// FAZ 1 FIX:
+//   F1-10: DailyPlan'a completedCount alanı eklendi.
+//          DailyPlanner.buildPlan() bugün tamamlanan kart sayısını hesaplayıp
+//          bu alana yazacak. Şimdilik default 0.
+//
 // Sıfır dış bağımlılık — Flutter, Drift import edilmez.
 
 /// Bir planın içindeki tek kartın kaynağı.
@@ -55,6 +61,11 @@ class DailyPlan {
   final int estimatedMinutes;
   final DateTime createdAt;
 
+  /// F1-10: Bugün tamamlanan kart sayısı.
+  /// DailyPlanner.buildPlan() ReviewEventDao'dan bugünün review_events sayısını
+  /// hesaplayıp bu alana yazar. Henüz implement edilmediyse default 0.
+  final int completedCount;
+
   const DailyPlan({
     required this.targetLang,
     required this.planDate,
@@ -64,6 +75,7 @@ class DailyPlan {
     required this.leechCount,
     required this.estimatedMinutes,
     required this.createdAt,
+    this.completedCount = 0,
   });
 
   int get totalCards => cards.length;
@@ -75,5 +87,5 @@ class DailyPlan {
   @override
   String toString() => 'DailyPlan($planDate/$targetLang '
       'total=$totalCards due=$dueCount new=$newCount leech=$leechCount '
-      '~${estimatedMinutes}min)';
+      'completed=$completedCount ~${estimatedMinutes}min)';
 }

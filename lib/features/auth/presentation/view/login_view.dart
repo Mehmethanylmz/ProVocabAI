@@ -1,9 +1,9 @@
 // lib/features/auth/presentation/view/login_view.dart
 //
-// REWRITE: AuthViewModel (Provider) → BlocConsumer<AuthBloc>
-// AuthBloc zaten mevcut: lib/features/auth/presentation/state/auth_bloc.dart
-// DI: AuthBloc → NavigationRoute'ta BlocProvider ile sağlanır
-// SILINDI: lib/features/auth/presentation/viewmodel/auth_view_model.dart (kullanım kaldırıldı)
+// FAZ 3 FIX:
+//   Deprecated API: withOpacity → withValues (Flutter 3.22+)
+//   Login sonrası navigasyon LoginView BlocListener'da kalıyor (login-specific)
+//   Global sign-out navigasyonu app.dart'ta.
 
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
@@ -80,7 +80,7 @@ class LoginView extends StatelessWidget {
                                 boxShadow: [
                                   BoxShadow(
                                     color: const Color(0xFF6C63FF)
-                                        .withOpacity(0.4),
+                                        .withValues(alpha: 0.4),
                                     blurRadius: 24,
                                     spreadRadius: -4,
                                     offset: const Offset(0, 8),
@@ -228,7 +228,7 @@ class LoginView extends StatelessWidget {
                               'Giriş yaparak Gizlilik Politikası\'nı kabul edersiniz.',
                               textAlign: TextAlign.center,
                               style: GoogleFonts.poppins(
-                                color: Colors.white.withOpacity(0.2),
+                                color: const Color.fromRGBO(255, 255, 255, 0.2),
                                 fontSize: 11,
                               ),
                             ),
@@ -322,10 +322,10 @@ class _GlowPainter extends CustomPainter {
     final paint = Paint()
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 80);
 
-    paint.color = const Color(0xFF6C63FF).withOpacity(0.15);
+    paint.color = const Color.fromRGBO(108, 99, 255, 0.15);
     canvas.drawCircle(Offset(size.width * 0.15, size.height * 0.2), 180, paint);
 
-    paint.color = const Color(0xFF48CFE8).withOpacity(0.1);
+    paint.color = const Color.fromRGBO(72, 207, 232, 0.1);
     canvas.drawCircle(
         Offset(size.width * 0.85, size.height * 0.75), 150, paint);
   }

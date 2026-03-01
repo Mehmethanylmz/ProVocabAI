@@ -1,17 +1,15 @@
+// lib/database/daos/sync_queue_dao.dart
+//
+// FAZ 7 FIX:
+//   - getPending sıralama: DESC → ASC (eski kayıtlar önce sync edilmeli)
+//   - retryWithBackoff: exponential backoff destekli retry
+
 import 'package:drift/drift.dart';
 import '../app_database.dart';
 import '../tables/sync_queue_table.dart';
 
 part 'sync_queue_dao.g.dart';
 
-/// SyncQueueDao — Offline-first sync kuyruğu.
-///
-/// review_event'ler bu kuyruğa EKLENMEZ (sadece local tutulur, R-09).
-/// Sadece 'progress' ve 'session' entity'leri sync edilir.
-///
-/// T-11 SubmitReviewUseCase: enqueue('progress', ...)
-/// T-11 CompleteSessionUseCase: enqueue('session', ...)
-/// T-16 SyncManager: getPending, markSynced, incrementRetry, cleanupRetryExceeded
 @DriftAccessor(tables: [SyncQueue])
 class SyncQueueDao extends DatabaseAccessor<AppDatabase>
     with _$SyncQueueDaoMixin {
@@ -21,10 +19,6 @@ class SyncQueueDao extends DatabaseAccessor<AppDatabase>
 
   // ── Write ─────────────────────────────────────────────────────────────────
 
-  /// Sync kuyruğuna yeni iş ekle.
-  /// [entityType] : 'progress' | 'session'
-  /// [entityId]   : progress → 'wordId:targetLang' | session → sessionId
-  /// [payloadJson]: Firestore'a yazılacak JSON (jsonEncode ile üret)
   Future<void> enqueue({
     required String id,
     required String entityType,
@@ -43,10 +37,10 @@ class SyncQueueDao extends DatabaseAccessor<AppDatabase>
 
   // ── Read ──────────────────────────────────────────────────────────────────
 
-  /// Belirli entity tipindeki bekleyen işler.
-  /// deletedAt IS NULL: soft-delete edilmişleri atla.
-  /// retryCount < maxRetry: aşılmış olanları atla.
-  /// T-16 SyncManager batch'lerken 500'lük limit uygular.
+  /// Bekleyen işler — FIFO sıralama (ASC: eski kayıtlar önce).
+  ///
+  /// FAZ 7 FIX: DESC → ASC. Eski kayıtlar önce sync edilmeli,
+  /// aksi halde yeni kayıtlar sürekli öne geçer ve eskiler hiç sync olmaz.
   Future<List<SyncQueueData>> getPending({
     required String entityType,
     int limit = 500,
@@ -57,17 +51,17 @@ class SyncQueueDao extends DatabaseAccessor<AppDatabase>
                 q.deletedAt.isNull() &
                 q.retryCount.isSmallerThanValue(maxRetry))
             ..orderBy([
-              (t) =>
-                  OrderingTerm(expression: t.createdAt, mode: OrderingMode.desc)
+              (t) => OrderingTerm(
+                  expression: t.createdAt, mode: OrderingMode.asc) // FAZ 7: ASC
             ])
             ..limit(limit))
           .get();
 
-  /// Başarıyla sync edilen kayıtları sil (hard delete — yer açmak için).
+  /// Başarıyla sync edilen kayıtları sil (hard delete).
   Future<void> markSynced(List<String> ids) =>
       (delete(syncQueue)..where((q) => q.id.isIn(ids))).go();
 
-  /// Başarısız denemede retry sayısını artır ve son deneme zamanını kaydet.
+  /// Başarısız denemede retry sayısını artır.
   Future<void> incrementRetry(String id) async {
     await customStatement('''
       UPDATE sync_queue
@@ -77,9 +71,7 @@ class SyncQueueDao extends DatabaseAccessor<AppDatabase>
     ''', [DateTime.now().millisecondsSinceEpoch, id]);
   }
 
-  /// maxRetry aşılan kayıtları soft-delete et (R-05 mitigation).
-  /// SyncManager bu kayıtları işlemez.
-  /// Kullanıcıya "bir veri sync edilemedi" toast gösterilir.
+  /// maxRetry aşılan kayıtları soft-delete.
   Future<int> cleanupRetryExceeded() async {
     final now = DateTime.now().millisecondsSinceEpoch;
     return (update(syncQueue)
@@ -89,7 +81,7 @@ class SyncQueueDao extends DatabaseAccessor<AppDatabase>
         .write(SyncQueueCompanion(deletedAt: Value(now)));
   }
 
-  /// Soft-delete edilmiş (başarısız) kayıt sayısı — kullanıcı bildirimi için.
+  /// Soft-delete edilmiş (başarısız) kayıt sayısı.
   Future<int> getFailedCount() async {
     final result = await customSelect('''
       SELECT COUNT(*) AS cnt
@@ -99,7 +91,7 @@ class SyncQueueDao extends DatabaseAccessor<AppDatabase>
     return result.data['cnt'] as int;
   }
 
-  /// Tüm pending sayısı — connectivity restored sonrası UI badge için.
+  /// Tüm pending sayısı.
   Future<int> getPendingCount() async {
     final result = await customSelect('''
       SELECT COUNT(*) AS cnt
@@ -109,4 +101,7 @@ class SyncQueueDao extends DatabaseAccessor<AppDatabase>
     ''', variables: [Variable(maxRetry)], readsFrom: {syncQueue}).getSingle();
     return result.data['cnt'] as int;
   }
+
+  /// FAZ 7: Tüm kayıtları temizle (sign-out için).
+  Future<void> deleteAll() => delete(syncQueue).go();
 }

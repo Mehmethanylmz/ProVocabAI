@@ -1,9 +1,9 @@
 // lib/features/auth/presentation/state/auth_bloc.dart
 //
-// T-15: AuthBloc — FirebaseAuthService üzerinden tüm auth akışları
-// REPLACES: auth_view_model.dart (Provider/ChangeNotifier)
-//
-// git rm lib/features/auth/presentation/viewmodel/auth_view_model.dart
+// FAZ 3 FIX:
+//   F3-02: authStateChanges stream dinleme (mevcut — korunuyor)
+//   F3-03: AuthAuthenticated → UserProfile bilgisi taşır (displayName, totalXp, weeklyXp)
+//   F3-04: Sign-in sonrası → SyncManager.syncAll() + profil Firestore'dan çekilir
 
 import 'dart:async';
 
@@ -12,6 +12,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:pratikapp/firebase/auth/firebase_auth_service.dart';
+import 'package:pratikapp/firebase/sync/sync_manager.dart';
 
 // ── Events ────────────────────────────────────────────────────────────────────
 
@@ -63,14 +64,33 @@ class AuthLoading extends AuthState {
   const AuthLoading();
 }
 
-/// Kimlik doğrulandı
+/// F3-03: Kimlik doğrulandı — profil verileri ile zenginleştirildi.
+///
+/// [user]    : FirebaseAuth User nesnesi (uid, email, photoURL)
+/// [profile] : Firestore'dan çekilen profil (displayName, totalXp, weeklyXp, streakDays)
+/// [isGuest] : Anonim kullanıcı mı
 class AuthAuthenticated extends AuthState {
   final User user;
+  final UserProfile profile;
   final bool isGuest;
-  const AuthAuthenticated({required this.user, required this.isGuest});
+
+  const AuthAuthenticated({
+    required this.user,
+    required this.profile,
+    required this.isGuest,
+  });
+
+  /// Kolay erişim helper'ları
+  String get uid => user.uid;
+  String get displayName => profile.displayName;
+  String? get photoUrl => profile.photoUrl;
+  int get totalXp => profile.totalXp;
+  int get weeklyXp => profile.weeklyXp;
+  int get streakDays => profile.streakDays;
 
   @override
-  List<Object?> get props => [user.uid, isGuest];
+  List<Object?> get props =>
+      [user.uid, isGuest, profile.totalXp, profile.weeklyXp];
 }
 
 /// Oturum kapalı
@@ -91,8 +111,11 @@ class AuthError extends AuthState {
 // ── BLoC ──────────────────────────────────────────────────────────────────────
 
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
-  AuthBloc({required FirebaseAuthService authService})
-      : _authService = authService,
+  AuthBloc({
+    required FirebaseAuthService authService,
+    SyncManager? syncManager,
+  })  : _authService = authService,
+        _syncManager = syncManager,
         super(const AuthInitial()) {
     on<AuthStarted>(_onAuthStarted);
     on<GuestSignInRequested>(_onGuestSignIn);
@@ -103,6 +126,11 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   }
 
   final FirebaseAuthService _authService;
+
+  /// F3-04: SyncManager — sign-in sonrası Firestore ↔ Drift senkronizasyonu.
+  /// null olabilir (test ortamında).
+  final SyncManager? _syncManager;
+
   StreamSubscription<User?>? _authSubscription;
 
   // ── Handlers ──────────────────────────────────────────────────────────────
@@ -114,7 +142,17 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     // Mevcut kullanıcıya bak
     final user = _authService.currentUser;
     if (user != null) {
-      emit(AuthAuthenticated(user: user, isGuest: user.isAnonymous));
+      final profile = await _authService.fetchUserProfile(user);
+      emit(AuthAuthenticated(
+        user: user,
+        profile: profile,
+        isGuest: user.isAnonymous,
+      ));
+
+      // F3-04 + FAZ 7: Uygulama açılışında push + pull sync
+      _syncManager?.syncAll().then((_) {
+        _syncManager?.pullFromFirestore();
+      }).catchError((_) {});
     } else {
       emit(const AuthUnauthenticated());
     }
@@ -122,9 +160,26 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     // Stream dinle — uygulama süresince
     await emit.forEach<User?>(
       _authService.authStateChanges,
-      onData: (user) => user != null
-          ? AuthAuthenticated(user: user, isGuest: user.isAnonymous)
-          : const AuthUnauthenticated(),
+      onData: (user) {
+        if (user != null) {
+          // Not: Stream callback'te async profil çekimi yapamıyoruz.
+          // _postSignIn çağrıları sign-in handler'larında yapılıyor.
+          // Stream sadece oturum durumunu izler.
+          // Eğer mevcut state zaten AuthAuthenticated ise profili koru.
+          final currentState = state;
+          if (currentState is AuthAuthenticated &&
+              currentState.user.uid == user.uid) {
+            return currentState; // Profil zaten yüklü, tekrar emit etme
+          }
+          // Farklı kullanıcı veya henüz profil yüklenmemiş → fallback
+          return AuthAuthenticated(
+            user: user,
+            profile: UserProfile.fromFirebaseUser(user),
+            isGuest: user.isAnonymous,
+          );
+        }
+        return const AuthUnauthenticated();
+      },
       onError: (_, __) => const AuthUnauthenticated(),
     );
   }
@@ -136,10 +191,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     emit(const AuthLoading());
     try {
       final cred = await _authService.signInAsGuest();
-      emit(AuthAuthenticated(
-        user: cred.user!,
-        isGuest: true,
-      ));
+      await _postSignIn(cred.user!, emit);
     } on AuthException catch (e) {
       emit(AuthError(failure: e.failure, message: e.message));
     }
@@ -152,10 +204,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     emit(const AuthLoading());
     try {
       final cred = await _authService.signInWithGoogle();
-      emit(AuthAuthenticated(
-        user: cred.user!,
-        isGuest: false,
-      ));
+      await _postSignIn(cred.user!, emit);
     } on AuthException catch (e) {
       emit(AuthError(failure: e.failure, message: e.message));
     }
@@ -168,10 +217,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     emit(const AuthLoading());
     try {
       final cred = await _authService.signInWithApple();
-      emit(AuthAuthenticated(
-        user: cred.user!,
-        isGuest: false,
-      ));
+      await _postSignIn(cred.user!, emit);
     } on AuthException catch (e) {
       emit(AuthError(failure: e.failure, message: e.message));
     }
@@ -184,15 +230,13 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     emit(const AuthLoading());
     try {
       final cred = await _authService.signInWithFacebook();
-      emit(AuthAuthenticated(
-        user: cred.user!,
-        isGuest: false,
-      ));
+      await _postSignIn(cred.user!, emit);
     } on AuthException catch (e) {
       emit(AuthError(failure: e.failure, message: e.message));
     }
   }
 
+  /// F3-04: Sign-out → Drift temizleme FirebaseAuthService içinde yapılır.
   Future<void> _onSignOut(
     SignOutRequested event,
     Emitter<AuthState> emit,
@@ -200,10 +244,38 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     emit(const AuthLoading());
     try {
       await _authService.signOut();
+      // signOut() içinde _clearLocalUserData() çalışır
       emit(const AuthUnauthenticated());
     } on AuthException catch (e) {
       emit(AuthError(failure: e.failure, message: e.message));
     }
+  }
+
+  // ── F3-04: Post sign-in akışı ────────────────────────────────────────────
+
+  /// Sign-in başarılı sonrası:
+  /// 1. Firestore'dan profil çek (displayName, totalXp, weeklyXp)
+  /// 2. SyncManager: push (local → Firestore) + pull (Firestore → local)
+  /// 3. AuthAuthenticated state emit et
+  ///
+  /// FAZ 7: pullFromFirestore eklendi — sign-in sonrası remote progress'ler çekilir.
+  Future<void> _postSignIn(User user, Emitter<AuthState> emit) async {
+    // 1. Profil çek
+    final profile = await _authService.fetchUserProfile(user);
+
+    // 2. Sync: önce push (local bekleyenler), sonra pull (remote → local)
+    // fire-and-forget — hata sign-in'i bloklamaz
+    _syncManager?.syncAll().then((_) {
+      // Push bitti → şimdi pull
+      _syncManager?.pullFromFirestore();
+    }).catchError((_) {});
+
+    // 3. State emit
+    emit(AuthAuthenticated(
+      user: user,
+      profile: profile,
+      isGuest: user.isAnonymous,
+    ));
   }
 
   @override

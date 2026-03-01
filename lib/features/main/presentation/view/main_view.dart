@@ -15,6 +15,7 @@ import '../../../../core/di/injection_container.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/extensions/responsive_extension.dart';
 import '../../../dashboard/presentation/views/dashboard_view.dart';
+import '../../../leaderboard/presentation/views/leaderboard_screen.dart';
 import '../../../profile/presentation/view/profile_view.dart';
 import '../../../study_zone/presentation/state/study_zone_bloc.dart';
 import '../../../study_zone/presentation/views/study_zone_screen.dart';
@@ -41,13 +42,12 @@ class _MainViewState extends State<MainView> {
         index: _selectedIndex,
         children: [
           const DashboardView(), // 0: Ana Ekran
-          // Atölye: StudyZoneScreen kendi BloC'unu NavigationRoute'ta alır,
-          // ama MainView içinde de BlocProvider ile sarmak gerekiyor.
           BlocProvider(
             create: (_) => getIt<StudyZoneBloc>(),
             child: const StudyZoneScreen(),
           ), // 1: Atölye
-          const ProfileView(), // 2: Profil
+          const LeaderboardScreen(), // 2: Liderlik Tablosu
+          const ProfileView(), // 3: Profil
         ],
       ),
       bottomNavigationBar: _ModernBottomNav(
@@ -108,6 +108,12 @@ class _ModernBottomNav extends StatelessWidget {
               selectedIcon:
                   Icon(Icons.school_rounded, color: context.colors.primary),
               label: 'nav_study'.tr(),
+            ),
+            NavigationDestination(
+              icon: const Icon(Icons.emoji_events_outlined),
+              selectedIcon: Icon(Icons.emoji_events_rounded,
+                  color: context.colors.primary),
+              label: 'Liderlik',
             ),
             NavigationDestination(
               icon: const Icon(Icons.person_outline_rounded),

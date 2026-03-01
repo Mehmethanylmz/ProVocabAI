@@ -2,20 +2,16 @@
 /**
  * functions/src/index.ts
  *
- * T-18: Cloud Functions Deploy (4 Function)
- * Blueprint F.5:
- *   calculateWeeklyLeaderboard  — Cron: Pazartesi 00:01 UTC
- *   checkStreaks                — Cron: Her gün 03:00 UTC
- *   sendStreakReminder          — Cron: Her gün 18:00 UTC
- *   validateXPUpdate            — Firestore onUpdate trigger
+ * FAZ 4 + FAZ 6 GÜNCELLEME:
+ *   calculateWeeklyLeaderboard — Artık root users dokümanını da sıfırlar
+ *   checkStreaks               — Root + profile dual update
+ *   sendDailyReminders         — YENİ: Her gün 06:00 UTC (09:00 TR)
+ *   sendStreakReminder          — Root users dokümanından oku
+ *   validateXPUpdate           — Değişiklik yok
  *
  * Deploy:
  *   cd functions && npm install && npm run build
  *   firebase deploy --only functions
- *
- * Test (emulator):
- *   firebase emulators:start --only functions,firestore
- *   cd functions && npm test
  */
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
@@ -51,7 +47,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.validateXPUpdate = exports.sendStreakReminder = exports.checkStreaks = exports.calculateWeeklyLeaderboard = void 0;
+exports.validateXPUpdate = exports.sendStreakReminder = exports.sendDailyReminders = exports.checkStreaks = exports.calculateWeeklyLeaderboard = void 0;
 const admin = __importStar(require("firebase-admin"));
 const firestore_1 = require("firebase-functions/v2/firestore");
 const scheduler_1 = require("firebase-functions/v2/scheduler");
@@ -59,63 +55,59 @@ const v2_1 = require("firebase-functions/v2");
 // ── Init ──────────────────────────────────────────────────────────────────────
 admin.initializeApp();
 const db = admin.firestore();
-// ── Helper: today date string ─────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
 function todayString() {
-    return new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+    return new Date().toISOString().slice(0, 10);
 }
 function yesterdayString() {
     const d = new Date();
     d.setDate(d.getDate() - 1);
     return d.toISOString().slice(0, 10);
 }
-/** ISO week identifier: "2025-W04" */
-function currentWeekId() {
-    const now = new Date();
-    const jan4 = new Date(now.getFullYear(), 0, 4);
-    const dayOfYear = Math.floor((now.getTime() - new Date(now.getFullYear(), 0, 0).getTime()) /
-        86400000);
-    const weekNum = Math.ceil((dayOfYear + jan4.getDay()) / 7);
-    return `${now.getFullYear()}-W${String(weekNum).padStart(2, "0")}`;
+function currentWeekId(date = new Date()) {
+    const dayOfWeek = date.getDay();
+    const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+    const thursday = new Date(date);
+    thursday.setDate(date.getDate() + mondayOffset + 3);
+    const yearStart = new Date(thursday.getFullYear(), 0, 1);
+    const weekNum = Math.ceil(((thursday.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
+    return `${thursday.getFullYear()}-W${String(weekNum).padStart(2, "0")}`;
 }
 // ── F1: calculateWeeklyLeaderboard ────────────────────────────────────────────
 //
-// Pazartesi 00:01 UTC'de:
-//   1. Tüm users/*/profile dökümanlarından weeklyXp topla
+// Pazartesi 00:01 UTC:
+//   1. Root users dokümanlarından weeklyXp topla
 //   2. weeklyXp azalan → rank ata
-//   3. leaderboard/weekly/{weekId} koleksiyonuna yaz (top 100)
-//   4. Tüm kullanıcıların weeklyXp → 0 sıfırla
+//   3. leaderboard/weekly/{weekId} koleksiyonuna yaz (top 100 — arşiv amaçlı)
+//   4. Root + profile: weeklyXp → 0 sıfırla
 exports.calculateWeeklyLeaderboard = (0, scheduler_1.onSchedule)({
-    schedule: "1 0 * * 1", // Pazartesi 00:01 UTC
+    schedule: "1 0 * * 1",
     timeZone: "UTC",
     region: "us-central1",
 }, async () => {
     v2_1.logger.info("calculateWeeklyLeaderboard started");
     const weekId = currentWeekId();
-    const profilesSnap = await db.collectionGroup("profile").get();
+    // Root users dokümanlarını oku (FAZ 4: leaderboard buradan sorgulanır)
+    const usersSnap = await db.collection("users").get();
     const entries = [];
-    for (const doc of profilesSnap.docs) {
+    for (const doc of usersSnap.docs) {
         const data = doc.data();
         if ((data.weeklyXp ?? 0) > 0) {
             entries.push({
-                uid: data.uid ?? doc.ref.parent.parent?.id ?? "",
+                uid: doc.id,
                 displayName: data.displayName ?? "Anonymous",
                 weeklyXp: data.weeklyXp ?? 0,
             });
         }
     }
-    // Sort descending by weeklyXp
     entries.sort((a, b) => b.weeklyXp - a.weeklyXp);
-    // Write top 100 to leaderboard
     const top100 = entries.slice(0, 100);
     const batch = db.batch();
-    const weekRef = db.collection("leaderboard").doc("weekly")
+    const weekRef = db
+        .collection("leaderboard")
+        .doc("weekly")
         .collection(weekId);
-    // Clear previous week entries first
-    const prevSnap = await weekRef.get();
-    for (const doc of prevSnap.docs) {
-        batch.delete(doc.ref);
-    }
-    // Write new rankings
+    // Arşiv: top 100'ü leaderboard koleksiyonuna yaz
     top100.forEach((entry, idx) => {
         const leaderboardEntry = {
             uid: entry.uid,
@@ -126,17 +118,25 @@ exports.calculateWeeklyLeaderboard = (0, scheduler_1.onSchedule)({
         };
         batch.set(weekRef.doc(entry.uid), leaderboardEntry);
     });
-    // Reset weeklyXp for all users
+    // Root + profile: weeklyXp sıfırla
+    for (const doc of usersSnap.docs) {
+        const data = doc.data();
+        if ((data.weeklyXp ?? 0) > 0) {
+            batch.update(doc.ref, { weeklyXp: 0 });
+        }
+    }
+    // Profile alt dokümanları da sıfırla
+    const profilesSnap = await db.collectionGroup("profile").get();
     for (const doc of profilesSnap.docs) {
-        batch.update(doc.ref, { weeklyXp: 0 });
+        const data = doc.data();
+        if ((data.weeklyXp ?? 0) > 0) {
+            batch.update(doc.ref, { weeklyXp: 0 });
+        }
     }
     await batch.commit();
     v2_1.logger.info(`Leaderboard written: ${top100.length} entries for ${weekId}`);
 });
 // ── F2: checkStreaks ──────────────────────────────────────────────────────────
-//
-// Her gün 03:00 UTC:
-//   lastActiveDate < dün olan kullanıcıların streak = 0
 exports.checkStreaks = (0, scheduler_1.onSchedule)({
     schedule: "0 3 * * *",
     timeZone: "UTC",
@@ -144,86 +144,186 @@ exports.checkStreaks = (0, scheduler_1.onSchedule)({
 }, async () => {
     v2_1.logger.info("checkStreaks started");
     const yesterday = yesterdayString();
-    const profilesSnap = await db.collectionGroup("profile").get();
     const batch = db.batch();
     let resetCount = 0;
-    for (const doc of profilesSnap.docs) {
+    // Root users dokümanlarını kontrol et
+    const usersSnap = await db.collection("users").get();
+    for (const doc of usersSnap.docs) {
         const data = doc.data();
         const lastActive = data.lastActiveDate ?? "";
         const streak = data.streak ?? 0;
-        // Dün aktif olmayan ve streaki olan kullanıcılar sıfırlanır
         if (streak > 0 && lastActive < yesterday) {
             batch.update(doc.ref, { streak: 0 });
             resetCount++;
         }
     }
+    // Profile alt dokümanları da sıfırla
+    const profilesSnap = await db.collectionGroup("profile").get();
+    for (const doc of profilesSnap.docs) {
+        const data = doc.data();
+        const lastActive = data.lastActiveDate ?? "";
+        const streak = data.streak ?? 0;
+        if (streak > 0 && lastActive < yesterday) {
+            batch.update(doc.ref, { streak: 0 });
+        }
+    }
     await batch.commit();
     v2_1.logger.info(`Streaks reset: ${resetCount} users`);
 });
-// ── F3: sendStreakReminder ────────────────────────────────────────────────────
+// ── F3: sendDailyReminders (YENİ — FAZ 6) ──────────────────────────────────
 //
-// Her gün 18:00 UTC:
-//   streak > 0 AND lastActiveDate < bugün olan kullanıcılara FCM push
+// Her gün 06:00 UTC (09:00 Türkiye):
+//   Bugün hiç çalışmamış kullanıcılara push bildirim
+exports.sendDailyReminders = (0, scheduler_1.onSchedule)({
+    schedule: "0 6 * * *", // 06:00 UTC = 09:00 TR
+    timeZone: "UTC",
+    region: "us-central1",
+}, async () => {
+    v2_1.logger.info("sendDailyReminders started");
+    const today = todayString();
+    const messaging = admin.messaging();
+    let sentCount = 0;
+    // Root users dokümanlarını oku
+    const usersSnap = await db.collection("users").get();
+    const messages = [];
+    for (const doc of usersSnap.docs) {
+        const data = doc.data();
+        const lastActive = data.lastActiveDate ?? "";
+        const fcmToken = data.fcmToken;
+        // Bugün çalışmamış + token var
+        if (lastActive !== today && fcmToken) {
+            messages.push({
+                token: fcmToken,
+                notification: {
+                    title: "Bugün çalışmayı unutma! 📚",
+                    body: "Günlük kelime hedefiniz sizi bekliyor.",
+                },
+                data: {
+                    route: "/study_zone",
+                    type: "daily_reminder",
+                },
+                android: {
+                    priority: "high",
+                    notification: {
+                        channelId: "provocalai_main",
+                    },
+                },
+                apns: {
+                    payload: {
+                        aps: {
+                            badge: 1,
+                            sound: "default",
+                        },
+                    },
+                },
+            });
+        }
+    }
+    // Batch send (500'lük gruplar — FCM limiti)
+    const chunkSize = 500;
+    for (let i = 0; i < messages.length; i += chunkSize) {
+        const chunk = messages.slice(i, i + chunkSize);
+        try {
+            const result = await messaging.sendEach(chunk);
+            sentCount += result.successCount;
+            // Geçersiz token'ları temizle
+            result.responses.forEach((resp, idx) => {
+                if (resp.error?.code === "messaging/registration-token-not-registered" ||
+                    resp.error?.code === "messaging/invalid-registration-token") {
+                    const failedToken = chunk[idx].token;
+                    // Token'ı Firestore'dan sil
+                    usersSnap.docs
+                        .filter((d) => d.data().fcmToken === failedToken)
+                        .forEach((d) => {
+                        d.ref.update({ fcmToken: admin.firestore.FieldValue.delete() });
+                    });
+                }
+            });
+        }
+        catch (err) {
+            v2_1.logger.warn("Batch send error:", err);
+        }
+    }
+    v2_1.logger.info(`Daily reminders sent: ${sentCount}/${messages.length}`);
+});
+// ── F4: sendStreakReminder ────────────────────────────────────────────────────
+//
+// Her gün 17:00 UTC (20:00 TR):
+//   streak > 0 AND bugün çalışmamış → push bildirimi
 exports.sendStreakReminder = (0, scheduler_1.onSchedule)({
-    schedule: "0 18 * * *",
+    schedule: "0 17 * * *", // 17:00 UTC = 20:00 TR
     timeZone: "UTC",
     region: "us-central1",
 }, async () => {
     v2_1.logger.info("sendStreakReminder started");
     const today = todayString();
-    const profilesSnap = await db.collectionGroup("profile").get();
     const messaging = admin.messaging();
     let sentCount = 0;
-    for (const doc of profilesSnap.docs) {
+    // Root users dokümanlarını oku (FAZ 4 yapısı)
+    const usersSnap = await db.collection("users").get();
+    const messages = [];
+    for (const doc of usersSnap.docs) {
         const data = doc.data();
         const streak = data.streak ?? 0;
         const lastActive = data.lastActiveDate ?? "";
         const fcmToken = data.fcmToken;
-        // streak aktif ama bugün gelmemiş → reminder gönder
-        if (streak > 0 && lastActive < today && fcmToken) {
-            try {
-                await messaging.send({
-                    token: fcmToken,
+        const weeklyXp = data.weeklyXp ?? 0;
+        // Streak aktif veya bu hafta çalışmış AMA bugün gelmemiş + token var
+        if ((streak > 0 || weeklyXp > 0) && lastActive !== today && fcmToken) {
+            const title = streak > 0
+                ? `🔥 ${streak} günlük serini kaybetme!`
+                : "📖 Bu haftaki çalışmana devam et!";
+            const body = streak > 0
+                ? "Bu haftaki çalışma serisini korumak için hemen başla."
+                : "Günlük kelime hedefiniz sizi bekliyor.";
+            messages.push({
+                token: fcmToken,
+                notification: { title, body },
+                data: {
+                    route: "/study_zone",
+                    type: "streak_reminder",
+                },
+                android: {
+                    priority: "normal",
                     notification: {
-                        title: "🔥 Serinizi Koruyun!",
-                        body: `${streak} günlük seriniz tehlikede. Bugün çalışmayı unutmayın!`,
+                        channelId: "provocalai_main",
                     },
-                    data: {
-                        route: "/study_zone",
-                        type: "streak_reminder",
+                },
+                apns: {
+                    payload: {
+                        aps: { badge: 1 },
                     },
-                    android: {
-                        priority: "normal",
-                        notification: {
-                            channelId: "streak_reminder",
-                        },
-                    },
-                    apns: {
-                        payload: {
-                            aps: {
-                                badge: 1,
-                            },
-                        },
-                    },
-                });
-                sentCount++;
-            }
-            catch (err) {
-                v2_1.logger.warn(`FCM send failed for uid ${data.uid}:`, err);
-                // Geçersiz token → temizle
-                if (err.code ===
-                    "messaging/registration-token-not-registered") {
-                    await doc.ref.update({ fcmToken: admin.firestore.FieldValue.delete() });
-                }
-            }
+                },
+            });
         }
     }
-    v2_1.logger.info(`Streak reminders sent: ${sentCount}`);
+    // Batch send
+    const chunkSize = 500;
+    for (let i = 0; i < messages.length; i += chunkSize) {
+        const chunk = messages.slice(i, i + chunkSize);
+        try {
+            const result = await messaging.sendEach(chunk);
+            sentCount += result.successCount;
+            // Geçersiz token temizleme
+            result.responses.forEach((resp, idx) => {
+                if (resp.error?.code === "messaging/registration-token-not-registered" ||
+                    resp.error?.code === "messaging/invalid-registration-token") {
+                    const failedToken = chunk[idx].token;
+                    usersSnap.docs
+                        .filter((d) => d.data().fcmToken === failedToken)
+                        .forEach((d) => {
+                        d.ref.update({ fcmToken: admin.firestore.FieldValue.delete() });
+                    });
+                }
+            });
+        }
+        catch (err) {
+            v2_1.logger.warn("Batch send error:", err);
+        }
+    }
+    v2_1.logger.info(`Streak reminders sent: ${sentCount}/${messages.length}`);
 });
-// ── F4: validateXPUpdate ──────────────────────────────────────────────────────
-//
-// Firestore trigger: users/{userId}/profile/{profileId} onUpdate
-//   weeklyXp delta > 500 → revert + suspiciousActivity = true
+// ── F5: validateXPUpdate ──────────────────────────────────────────────────────
 exports.validateXPUpdate = (0, firestore_1.onDocumentUpdated)({
     document: "users/{userId}/profile/{profileId}",
     region: "us-central1",
@@ -239,11 +339,9 @@ exports.validateXPUpdate = (0, firestore_1.onDocumentUpdated)({
     const xpBefore = beforeData.weeklyXp ?? 0;
     const xpAfter = afterData.weeklyXp ?? 0;
     const delta = xpAfter - xpBefore;
-    // Blueprint: delta > 500 → şüpheli aktivite
     if (delta > 500) {
         v2_1.logger.warn(`Suspicious XP update: userId=${event.params.userId}, ` +
             `delta=${delta} (${xpBefore} → ${xpAfter})`);
-        // Eski değere döndür + suspiciousActivity flag koy
         await after.ref.update({
             weeklyXp: xpBefore,
             suspiciousActivity: true,

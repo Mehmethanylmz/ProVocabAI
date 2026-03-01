@@ -1,17 +1,20 @@
 // lib/features/leaderboard/presentation/views/leaderboard_screen.dart
 //
-// T-20: LeaderboardScreen
-// Blueprint:
-//   - Haftalık / Global tab (TabBar)
-//   - Top 100 liste
-//   - Kullanıcı kendi sırası → sticky bottom row
-//   - leaderboard_enabled feature flag kontrolü
+// FAZ 4 FIX:
+//   - LeaderboardService DI → getIt (doğrudan new yerine)
+//   - RefreshIndicator.onRefresh bağlandı
+//   - Podium top 3 tasarımı
+//   - Deprecated API: withOpacity → withValues
+//   - FirebaseAuth.instance.currentUser direkt erişim (screen seviyesinde kabul edilebilir)
+//   - getWeeklyLeaderboard() artık users collection'dan sorgu yapar
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
-import '../../../../../firebase/firestore/leaderboard_service.dart';
-import '../../../../../core/utils/week_id_helper.dart';
+import '../../../../core/di/injection_container.dart';
+import '../../../../core/utils/week_id_helper.dart';
+import '../../../../firebase/firestore/leaderboard_service.dart';
 
 class LeaderboardScreen extends StatefulWidget {
   const LeaderboardScreen({super.key});
@@ -37,7 +40,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    _service = LeaderboardService();
+    _service = getIt<LeaderboardService>();
     _weekId = WeekIdHelper.currentWeekId();
     _load();
   }
@@ -54,12 +57,14 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
       _error = null;
     });
     try {
-      final entries = await _service.getWeeklyLeaderboard(_weekId);
-      final myEntry = await _service.getUserRank(_currentUid, _weekId);
+      final results = await Future.wait([
+        _service.getWeeklyLeaderboard(_weekId),
+        _service.getUserRank(_currentUid, _weekId),
+      ]);
       if (mounted) {
         setState(() {
-          _weeklyEntries = entries;
-          _myEntry = myEntry;
+          _weeklyEntries = results[0] as List<LeaderboardEntry>;
+          _myEntry = results[1] as LeaderboardEntry?;
           _loading = false;
         });
       }
@@ -75,11 +80,21 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Liderlik Tablosu'),
+        title: Text(
+          'Liderlik Tablosu',
+          style: GoogleFonts.poppins(fontWeight: FontWeight.w700),
+        ),
+        centerTitle: true,
         bottom: TabBar(
           controller: _tabController,
+          labelStyle: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+          unselectedLabelStyle:
+              GoogleFonts.poppins(fontWeight: FontWeight.w400),
+          indicatorSize: TabBarIndicatorSize.label,
           tabs: const [
             Tab(text: 'Bu Hafta'),
             Tab(text: 'Tüm Zamanlar'),
@@ -97,9 +112,9 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
                       entries: _weeklyEntries,
                       myEntry: _myEntry,
                       currentUid: _currentUid,
+                      onRefresh: _load,
+                      weekId: _weekId,
                     ),
-                    // Global tab: Cloud Function'dan ayrı hesaplanır
-                    // Sprint 4 sonunda açılır (leaderboard_enabled flag)
                     const _ComingSoonTab(),
                   ],
                 ),
@@ -114,53 +129,109 @@ class _WeeklyTab extends StatelessWidget {
     required this.entries,
     required this.myEntry,
     required this.currentUid,
+    required this.onRefresh,
+    required this.weekId,
   });
 
   final List<LeaderboardEntry> entries;
   final LeaderboardEntry? myEntry;
   final String currentUid;
+  final Future<void> Function() onRefresh;
+  final String weekId;
 
   @override
   Widget build(BuildContext context) {
     if (entries.isEmpty) {
-      return const Center(
+      return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.emoji_events_outlined, size: 64, color: Colors.amber),
-            SizedBox(height: 16),
+            Icon(Icons.emoji_events_outlined,
+                size: 64, color: Colors.amber.withValues(alpha: 0.6)),
+            const SizedBox(height: 16),
             Text(
               'Bu hafta henüz kimse XP kazanmadı.\nİlk sen ol!',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 16),
+              style: GoogleFonts.poppins(fontSize: 16, color: Colors.grey),
             ),
           ],
         ),
       );
     }
 
+    // Top 3 podium + geri kalan liste
+    final podiumEntries = entries.take(3).toList();
+    final listEntries =
+        entries.length > 3 ? entries.sublist(3) : <LeaderboardEntry>[];
+
     return Column(
       children: [
-        // Scrollable top 100 liste
         Expanded(
           child: RefreshIndicator(
-            onRefresh: () async {},
-            child: ListView.builder(
-              itemCount: entries.length,
-              itemBuilder: (ctx, i) {
-                final entry = entries[i];
-                final isMe = entry.uid == currentUid;
-                return _LeaderboardTile(
-                  entry: entry,
-                  isCurrentUser: isMe,
-                );
-              },
+            onRefresh: onRefresh,
+            child: CustomScrollView(
+              slivers: [
+                // Hafta bilgisi
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                    child: Center(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .secondaryContainer
+                              .withValues(alpha: 0.5),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          '📅 $weekId',
+                          style: GoogleFonts.poppins(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSecondaryContainer,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+
+                // Podium (top 3)
+                SliverToBoxAdapter(
+                  child: _PodiumSection(
+                    entries: podiumEntries,
+                    currentUid: currentUid,
+                  ),
+                ),
+
+                // Geri kalan liste (4+)
+                if (listEntries.isNotEmpty)
+                  SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      (ctx, i) {
+                        final entry = listEntries[i];
+                        final isMe = entry.uid == currentUid;
+                        return _LeaderboardTile(
+                          entry: entry,
+                          isCurrentUser: isMe,
+                        );
+                      },
+                      childCount: listEntries.length,
+                    ),
+                  ),
+              ],
             ),
           ),
         ),
 
         // Sticky bottom: kullanıcının kendi sırası
-        if (myEntry != null) ...[
+        if (myEntry != null &&
+            !entries.any((e) => e.uid == myEntry!.uid && e.rank <= 3)) ...[
           const Divider(height: 1),
           _StickyMyRankRow(entry: myEntry!),
         ],
@@ -169,7 +240,183 @@ class _WeeklyTab extends StatelessWidget {
   }
 }
 
-// ── Leaderboard Tile ──────────────────────────────────────────────────────────
+// ── Podium Section (Top 3) ────────────────────────────────────────────────────
+
+class _PodiumSection extends StatelessWidget {
+  const _PodiumSection({
+    required this.entries,
+    required this.currentUid,
+  });
+
+  final List<LeaderboardEntry> entries;
+  final String currentUid;
+
+  @override
+  Widget build(BuildContext context) {
+    // Podium sırası: 2nd | 1st | 3rd (ortada 1.)
+    final first = entries.isNotEmpty ? entries[0] : null;
+    final second = entries.length > 1 ? entries[1] : null;
+    final third = entries.length > 2 ? entries[2] : null;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          // 2nd place
+          if (second != null)
+            Expanded(
+              child: _PodiumItem(
+                entry: second,
+                medal: '🥈',
+                height: 90,
+                isCurrentUser: second.uid == currentUid,
+              ),
+            )
+          else
+            const Expanded(child: SizedBox()),
+          const SizedBox(width: 8),
+
+          // 1st place (tallest)
+          if (first != null)
+            Expanded(
+              child: _PodiumItem(
+                entry: first,
+                medal: '🥇',
+                height: 120,
+                isCurrentUser: first.uid == currentUid,
+              ),
+            )
+          else
+            const Expanded(child: SizedBox()),
+          const SizedBox(width: 8),
+
+          // 3rd place
+          if (third != null)
+            Expanded(
+              child: _PodiumItem(
+                entry: third,
+                medal: '🥉',
+                height: 70,
+                isCurrentUser: third.uid == currentUid,
+              ),
+            )
+          else
+            const Expanded(child: SizedBox()),
+        ],
+      ),
+    );
+  }
+}
+
+class _PodiumItem extends StatelessWidget {
+  const _PodiumItem({
+    required this.entry,
+    required this.medal,
+    required this.height,
+    required this.isCurrentUser,
+  });
+
+  final LeaderboardEntry entry;
+  final String medal;
+  final double height;
+  final bool isCurrentUser;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Medal
+        Text(medal, style: const TextStyle(fontSize: 28)),
+        const SizedBox(height: 4),
+
+        // Avatar
+        CircleAvatar(
+          radius: 22,
+          backgroundColor:
+              isCurrentUser ? scheme.primary : scheme.surfaceContainerHighest,
+          child: Text(
+            entry.displayName.isNotEmpty
+                ? entry.displayName[0].toUpperCase()
+                : '?',
+            style: TextStyle(
+              fontWeight: FontWeight.w700,
+              color: isCurrentUser ? scheme.onPrimary : scheme.onSurface,
+            ),
+          ),
+        ),
+        const SizedBox(height: 6),
+
+        // Name
+        Text(
+          entry.displayName,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: GoogleFonts.poppins(
+            fontSize: 12,
+            fontWeight: isCurrentUser ? FontWeight.w700 : FontWeight.w500,
+            color: isCurrentUser ? scheme.primary : null,
+          ),
+        ),
+
+        // Podium bar
+        Container(
+          height: height,
+          width: double.infinity,
+          margin: const EdgeInsets.only(top: 6),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: isCurrentUser
+                  ? [
+                      scheme.primary.withValues(alpha: 0.3),
+                      scheme.primary.withValues(alpha: 0.1)
+                    ]
+                  : [
+                      scheme.surfaceContainerHighest,
+                      scheme.surfaceContainerHighest.withValues(alpha: 0.5)
+                    ],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+            ),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+            border: isCurrentUser
+                ? Border.all(color: scheme.primary.withValues(alpha: 0.3))
+                : null,
+          ),
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.star_rounded, color: Colors.amber, size: 18),
+                const SizedBox(height: 2),
+                Text(
+                  '${entry.weeklyXp}',
+                  style: GoogleFonts.poppins(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                Text(
+                  'XP',
+                  style: GoogleFonts.poppins(
+                    fontSize: 10,
+                    color: scheme.onSurface.withValues(alpha: 0.5),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ── Leaderboard Tile (4th+) ──────────────────────────────────────────────────
 
 class _LeaderboardTile extends StatelessWidget {
   const _LeaderboardTile({
@@ -182,55 +429,53 @@ class _LeaderboardTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final scheme = Theme.of(context).colorScheme;
 
-    Widget rankBadge;
-    switch (entry.rank) {
-      case 1:
-        rankBadge = const Text('🥇', style: TextStyle(fontSize: 24));
-      case 2:
-        rankBadge = const Text('🥈', style: TextStyle(fontSize: 24));
-      case 3:
-        rankBadge = const Text('🥉', style: TextStyle(fontSize: 24));
-      default:
-        rankBadge = SizedBox(
-          width: 36,
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
+      decoration: BoxDecoration(
+        color: isCurrentUser
+            ? scheme.primaryContainer.withValues(alpha: 0.3)
+            : null,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: ListTile(
+        dense: true,
+        leading: SizedBox(
+          width: 32,
           child: Text(
             '${entry.rank}',
             textAlign: TextAlign.center,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              fontWeight: FontWeight.bold,
+            style: GoogleFonts.poppins(
+              fontWeight: FontWeight.w700,
+              fontSize: 14,
               color: Colors.grey,
             ),
           ),
-        );
-    }
-
-    return ListTile(
-      leading: rankBadge,
-      title: Text(
-        entry.displayName,
-        style: TextStyle(
-          fontWeight: isCurrentUser ? FontWeight.bold : FontWeight.normal,
-          color: isCurrentUser ? theme.colorScheme.primary : null,
+        ),
+        title: Text(
+          entry.displayName,
+          style: GoogleFonts.poppins(
+            fontWeight: isCurrentUser ? FontWeight.w700 : FontWeight.w500,
+            fontSize: 14,
+            color: isCurrentUser ? scheme.primary : null,
+          ),
+        ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.star_rounded, color: Colors.amber, size: 16),
+            const SizedBox(width: 4),
+            Text(
+              '${entry.weeklyXp} XP',
+              style: GoogleFonts.poppins(
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+              ),
+            ),
+          ],
         ),
       ),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.star, color: Colors.amber, size: 18),
-          const SizedBox(width: 4),
-          Text(
-            '${entry.weeklyXp} XP',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
-      tileColor: isCurrentUser
-          ? theme.colorScheme.primaryContainer.withOpacity(0.3)
-          : null,
     );
   }
 }
@@ -244,32 +489,32 @@ class _StickyMyRankRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return ColoredBox(
-      color: theme.colorScheme.primaryContainer.withOpacity(0.5),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Row(
-          children: [
-            const Icon(Icons.person_pin, size: 20),
-            const SizedBox(width: 8),
-            Text(
-              'Sıran: #${entry.rank}',
-              style: theme.textTheme.bodyLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      color: scheme.primaryContainer.withValues(alpha: 0.5),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Row(
+        children: [
+          const Icon(Icons.person_pin_rounded, size: 20),
+          const SizedBox(width: 8),
+          Text(
+            'Sıran: #${entry.rank}',
+            style: GoogleFonts.poppins(
+              fontWeight: FontWeight.w700,
+              fontSize: 14,
             ),
-            const Spacer(),
-            const Icon(Icons.star, color: Colors.amber, size: 18),
-            const SizedBox(width: 4),
-            Text(
-              '${entry.weeklyXp} XP',
-              style: theme.textTheme.bodyLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+          ),
+          const Spacer(),
+          const Icon(Icons.star_rounded, color: Colors.amber, size: 18),
+          const SizedBox(width: 4),
+          Text(
+            '${entry.weeklyXp} XP',
+            style: GoogleFonts.poppins(
+              fontWeight: FontWeight.w700,
+              fontSize: 14,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -282,13 +527,14 @@ class _ComingSoonTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
+    return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.construction, size: 64, color: Colors.grey),
-          SizedBox(height: 16),
-          Text('Yakında', style: TextStyle(fontSize: 18, color: Colors.grey)),
+          const Icon(Icons.construction_rounded, size: 64, color: Colors.grey),
+          const SizedBox(height: 16),
+          Text('Yakında',
+              style: GoogleFonts.poppins(fontSize: 18, color: Colors.grey)),
         ],
       ),
     );
@@ -309,13 +555,15 @@ class _ErrorView extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.error_outline, size: 48, color: Colors.red),
+          const Icon(Icons.error_outline_rounded, size: 48, color: Colors.red),
           const SizedBox(height: 12),
-          Text('Yüklenemedi', style: Theme.of(context).textTheme.titleMedium),
+          Text('Yüklenemedi',
+              style: GoogleFonts.poppins(
+                  fontSize: 16, fontWeight: FontWeight.w600)),
           const SizedBox(height: 8),
-          ElevatedButton.icon(
+          FilledButton.tonalIcon(
             onPressed: onRetry,
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Icons.refresh_rounded),
             label: const Text('Tekrar Dene'),
           ),
         ],

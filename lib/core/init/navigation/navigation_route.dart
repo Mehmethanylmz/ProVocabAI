@@ -1,8 +1,10 @@
 // lib/core/init/navigation/navigation_route.dart
 //
-// REWRITE: Tüm legacy route'lar kaldırıldı.
-// Yeni BLoC'lar BlocProvider ile route'ta sağlanıyor:
-//   SplashBloc, AuthBloc, OnboardingBloc, DashboardBloc (MainView içinde)
+// FAZ 1 FIX:
+//   F1-11: QUIZ route kaldırıldı — quiz artık study_zone_screen içinden
+//          BlocProvider.value ile TEK push yapılıyor.
+//   NOT: NavigationConstants.QUIZ hâlâ tanımlı (geriye dönük uyumluluk)
+//        ama buradan case kaldırıldı.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -12,6 +14,7 @@ import '../../../core/di/injection_container.dart';
 import '../../../features/auth/presentation/state/auth_bloc.dart';
 import '../../../features/auth/presentation/view/login_view.dart';
 import '../../../features/dashboard/presentation/state/dashboard_bloc.dart';
+import '../../../features/leaderboard/presentation/views/leaderboard_screen.dart';
 import '../../../features/main/presentation/view/main_view.dart';
 import '../../../features/onboarding/presentation/state/onboarding_bloc.dart';
 import '../../../features/onboarding/presentation/view/onboarding_view.dart';
@@ -19,7 +22,6 @@ import '../../../features/settings/presentation/view/settings_view.dart';
 import '../../../features/splash/presentation/state/splash_bloc.dart';
 import '../../../features/splash/presentation/view/splash_view.dart';
 import '../../../features/study_zone/presentation/state/study_zone_bloc.dart';
-import '../../../features/study_zone/presentation/views/quiz_screen.dart';
 import '../../../features/study_zone/presentation/views/session_result_screen.dart';
 import '../../../features/study_zone/presentation/views/study_zone_screen.dart';
 
@@ -58,7 +60,6 @@ class NavigationRoute {
         );
 
       // ── Main (Dashboard + StudyZone + Profile) ────────────────────────
-      // DashboardBloc + AuthBloc MainView'a BlocProvider ile sağlanır
       case NavigationConstants.MAIN:
         return _slide(
           MultiBlocProvider(
@@ -86,15 +87,16 @@ class NavigationRoute {
           ),
         );
 
-      case NavigationConstants.QUIZ:
-        // Bu route artık kullanılmıyor.
-        // Quiz: study_zone_screen.dart içinden BlocProvider.value ile açılıyor.
-        return _slide(const Scaffold(
-          body: Center(child: Text('Quiz route deprecated')),
-        ));
+      // F1-11: QUIZ route KALDIRILDI
+      // Quiz artık study_zone_screen.dart içinden BlocProvider.value ile
+      // tek seferlik push yapılıyor. Bu route'a gelen istekler 404 döner.
 
       case NavigationConstants.SESSION_RESULT:
         return _slide(const SessionResultScreen());
+
+      // ── Leaderboard ─────────────────────────────────────────────────────
+      case NavigationConstants.LEADERBOARD:
+        return _slide(const LeaderboardScreen());
 
       default:
         return _slide(const Scaffold(

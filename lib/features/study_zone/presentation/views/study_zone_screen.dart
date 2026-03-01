@@ -1,16 +1,23 @@
 // lib/features/study_zone/presentation/views/study_zone_screen.dart
 //
-// Blueprint T-13: DailyProgressCard (plan.dueCount, progress bar,
-// estimatedMinutes), ModeSelectorRow (MCQ/Dinleme/Konuşma),
-// CategoryFilterChips, LeechWarningBanner (varsa), "Hızlı 5 dk" mini session.
+// FAZ 1 FIX: F1-01, F1-09, F1-10 (korunuyor)
+// FAZ 2 FIX:
+//   F2-01: Mod seçici chip bar (MCQ / Dinleme / Konuşma) plan kartı altında
+//   F2-05: Disabled state — yeni kartlarda listening/speaking soluk + tooltip
+//   F2-06: Streak göstergesi plan kartı üzerinde
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../core/di/injection_container.dart';
+import '../../../../features/dashboard/presentation/state/dashboard_bloc.dart';
+import '../../../../features/settings/domain/repositories/i_settings_repository.dart';
+import '../../../../srs/mode_selector.dart';
 import '../../../../srs/plan_models.dart';
 import '../state/study_zone_bloc.dart';
 import '../state/study_zone_event.dart';
 import '../state/study_zone_state.dart';
+import 'mini_session_screen.dart';
 import 'quiz_screen.dart';
 
 // ── StudyZoneScreen ───────────────────────────────────────────────────────────
@@ -26,14 +33,31 @@ class _StudyZoneScreenState extends State<StudyZoneScreen> {
   String _targetLang = 'en';
   final List<String> _selectedCategories = [];
   int _newWordsGoal = 10;
+  int _sessionCardLimit = 10;
+
+  /// F2-01: Kullanıcının seçtiği mod (chip bar'dan)
+  StudyMode? _selectedMode;
 
   static const _allCategories = ['a1', 'a2', 'b1', 'b2', 'c1', 'oxford'];
 
   @override
   void initState() {
     super.initState();
-    // Ekran açılınca plan yükle
-    WidgetsBinding.instance.addPostFrameCallback((_) => _loadPlan());
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final repo = getIt<ISettingsRepository>();
+
+      final goalResult = await repo.getDailyGoal();
+      goalResult.fold((_) {}, (g) {
+        if (mounted) setState(() => _newWordsGoal = g);
+      });
+
+      final batchResult = await repo.getBatchSize();
+      batchResult.fold((_) {}, (b) {
+        if (mounted) setState(() => _sessionCardLimit = b);
+      });
+
+      if (mounted) _loadPlan();
+    });
   }
 
   void _loadPlan() {
@@ -41,13 +65,20 @@ class _StudyZoneScreenState extends State<StudyZoneScreen> {
           targetLang: _targetLang,
           categories: _selectedCategories,
           newWordsGoal: _newWordsGoal,
+          sessionCardLimit: _sessionCardLimit,
         ));
+  }
+
+  /// F2-01: Mod değişikliğini BLoC'a bildir
+  void _onModeSelected(StudyMode? mode) {
+    setState(() => _selectedMode = mode);
+    context.read<StudyZoneBloc>().add(StudyModeManuallyChanged(mode));
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.background,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: AppBar(
         title:
             const Text('Çalış', style: TextStyle(fontWeight: FontWeight.w800)),
@@ -61,8 +92,16 @@ class _StudyZoneScreenState extends State<StudyZoneScreen> {
         ],
       ),
       body: BlocConsumer<StudyZoneBloc, StudyZoneState>(
-        listenWhen: (_, curr) =>
-            curr is StudyZoneInSession || curr is StudyZoneError,
+        listenWhen: (prev, curr) {
+          if (prev is StudyZoneReady && curr is StudyZoneInSession) return true;
+          if (curr is StudyZoneError) return true;
+          if (curr is StudyZoneIdle &&
+              prev is! StudyZoneIdle &&
+              prev is! StudyZonePlanning) {
+            return true;
+          }
+          return false;
+        },
         listener: (context, state) {
           if (state is StudyZoneInSession) {
             final bloc = context.read<StudyZoneBloc>();
@@ -71,10 +110,11 @@ class _StudyZoneScreenState extends State<StudyZoneScreen> {
                 value: bloc,
                 child: const QuizScreen(),
               ),
-              transitionsBuilder: (_, animation, __, child) => SlideTransition(
-                position: Tween(begin: const Offset(1.0, 0.0), end: Offset.zero)
-                    .animate(CurvedAnimation(
-                        parent: animation, curve: Curves.easeInOut)),
+              transitionsBuilder: (_, animation, __, child) => FadeTransition(
+                opacity: CurvedAnimation(
+                  parent: animation,
+                  curve: Curves.easeInOut,
+                ),
                 child: child,
               ),
               transitionDuration: const Duration(milliseconds: 250),
@@ -86,6 +126,13 @@ class _StudyZoneScreenState extends State<StudyZoneScreen> {
                 backgroundColor: Colors.red,
               ),
             );
+          } else if (state is StudyZoneIdle) {
+            _loadPlan();
+            try {
+              context
+                  .read<DashboardBloc>()
+                  .add(const DashboardRefreshRequested());
+            } catch (_) {}
           }
         },
         builder: (context, state) => _buildBody(context, state),
@@ -94,11 +141,19 @@ class _StudyZoneScreenState extends State<StudyZoneScreen> {
   }
 
   Widget _buildBody(BuildContext context, StudyZoneState state) {
+    // Plan'dan kart bilgisi (mod seçici için)
+    final bool hasReviewCards;
+    if (state is StudyZoneReady) {
+      hasReviewCards = state.plan.dueCount > 0 || state.plan.leechCount > 0;
+    } else {
+      hasReviewCards = false;
+    }
+
     return RefreshIndicator(
       onRefresh: () async => _loadPlan(),
       child: CustomScrollView(
         slivers: [
-          // Filtre: hedef dil + kategoriler
+          // Filtre: kategoriler
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
@@ -117,13 +172,26 @@ class _StudyZoneScreenState extends State<StudyZoneScreen> {
             ),
           ),
 
-          // Plan kartı veya skeleton
+          // Plan kartı
           SliverPadding(
             padding: const EdgeInsets.all(16),
             sliver: SliverToBoxAdapter(
               child: _buildPlanCard(context, state),
             ),
           ),
+
+          // F2-01: Mod seçici chip bar (plan hazır ise göster)
+          if (state is StudyZoneReady)
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+              sliver: SliverToBoxAdapter(
+                child: _ModeChipBar(
+                  selectedMode: _selectedMode,
+                  onModeSelected: _onModeSelected,
+                  advancedEnabled: hasReviewCards,
+                ),
+              ),
+            ),
 
           // Leech uyarısı
           if (state is StudyZoneReady && state.plan.leechCount > 0)
@@ -141,10 +209,21 @@ class _StudyZoneScreenState extends State<StudyZoneScreen> {
               child: _MiniSessionButton(
                 enabled: state is StudyZoneReady,
                 onTap: () {
-                  // TODO T-14: mini session parametresi (isMiniSession=true)
-                  if (state is StudyZoneReady) {
-                    context.read<StudyZoneBloc>().add(const SessionStarted());
-                  }
+                  Navigator.of(context).push(PageRouteBuilder(
+                    pageBuilder: (_, __, ___) => MiniSessionScreen(
+                      targetLang: _targetLang,
+                    ),
+                    transitionsBuilder: (_, animation, __, child) =>
+                        SlideTransition(
+                      position: Tween(
+                        begin: const Offset(0.0, 1.0),
+                        end: Offset.zero,
+                      ).animate(CurvedAnimation(
+                          parent: animation, curve: Curves.easeInOut)),
+                      child: child,
+                    ),
+                    transitionDuration: const Duration(milliseconds: 280),
+                  ));
                 },
               ),
             ),
@@ -181,6 +260,194 @@ class _StudyZoneScreenState extends State<StudyZoneScreen> {
   }
 }
 
+// ── _ModeChipBar (F2-01 + F2-05) ─────────────────────────────────────────────
+
+/// Mod seçici chip bar — MCQ / Dinleme / Konuşma
+///
+/// [selectedMode] null → "Otomatik" seçili
+/// [advancedEnabled] false → listening/speaking chip'leri disabled + tooltip
+class _ModeChipBar extends StatelessWidget {
+  final StudyMode? selectedMode;
+  final ValueChanged<StudyMode?> onModeSelected;
+  final bool advancedEnabled;
+
+  const _ModeChipBar({
+    required this.selectedMode,
+    required this.onModeSelected,
+    required this.advancedEnabled,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Text(
+            'Çalışma Modu',
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  color: scheme.onSurface.withValues(alpha: 0.6),
+                  fontWeight: FontWeight.w600,
+                ),
+          ),
+        ),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              // Otomatik chip
+              _ModeChipItem(
+                label: 'Otomatik',
+                icon: '🔄',
+                isSelected: selectedMode == null,
+                isEnabled: true,
+                onTap: () => onModeSelected(null),
+              ),
+              const SizedBox(width: 8),
+
+              // MCQ — her zaman aktif
+              _ModeChipItem(
+                label: StudyMode.mcq.label,
+                icon: StudyMode.mcq.icon,
+                isSelected: selectedMode == StudyMode.mcq,
+                isEnabled: true,
+                onTap: () => onModeSelected(StudyMode.mcq),
+              ),
+              const SizedBox(width: 8),
+
+              // Dinleme — F2-05: review kartı yoksa disabled
+              _ModeChipItem(
+                label: StudyMode.listening.label,
+                icon: StudyMode.listening.icon,
+                isSelected: selectedMode == StudyMode.listening,
+                isEnabled: advancedEnabled,
+                disabledTooltip: 'Dinleme modu için tekrar kartları gerekli',
+                onTap: () => onModeSelected(StudyMode.listening),
+              ),
+              const SizedBox(width: 8),
+
+              // Konuşma — F2-05: review kartı yoksa disabled
+              _ModeChipItem(
+                label: StudyMode.speaking.label,
+                icon: StudyMode.speaking.icon,
+                isSelected: selectedMode == StudyMode.speaking,
+                isEnabled: advancedEnabled,
+                disabledTooltip: 'Konuşma modu için tekrar kartları gerekli',
+                onTap: () => onModeSelected(StudyMode.speaking),
+              ),
+            ],
+          ),
+        ),
+
+        // F2-05: Seçili mod açıklaması
+        if (selectedMode != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Text(
+              _modeDescription(selectedMode!),
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: scheme.onSurface.withValues(alpha: 0.5),
+                    fontStyle: FontStyle.italic,
+                  ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  String _modeDescription(StudyMode mode) {
+    return switch (mode) {
+      StudyMode.mcq => 'Çoktan seçmeli — tüm kartlarda kullanılır',
+      StudyMode.listening =>
+        'Kelimeyi dinle, anlamını seç — yeni kartlarda MCQ\'ya döner',
+      StudyMode.speaking =>
+        'Kelimeyi söyle, telaffuzun değerlendirilir — yeni kartlarda MCQ\'ya döner',
+    };
+  }
+}
+
+/// Tekil mod chip'i
+class _ModeChipItem extends StatelessWidget {
+  final String label;
+  final String icon;
+  final bool isSelected;
+  final bool isEnabled;
+  final String? disabledTooltip;
+  final VoidCallback onTap;
+
+  const _ModeChipItem({
+    required this.label,
+    required this.icon,
+    required this.isSelected,
+    required this.isEnabled,
+    required this.onTap,
+    this.disabledTooltip,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    final chip = AnimatedContainer(
+      duration: const Duration(milliseconds: 180),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        color: isSelected
+            ? scheme.primary.withValues(alpha: 0.15)
+            : isEnabled
+                ? scheme.surfaceContainerHighest.withValues(alpha: 0.6)
+                : scheme.surfaceContainerHighest.withValues(alpha: 0.3),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isSelected
+              ? scheme.primary
+              : isEnabled
+                  ? scheme.outline.withValues(alpha: 0.2)
+                  : scheme.outline.withValues(alpha: 0.1),
+          width: isSelected ? 1.5 : 1,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(icon,
+              style: TextStyle(
+                  fontSize: 14, color: isEnabled ? null : Colors.grey)),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+              color: isSelected
+                  ? scheme.primary
+                  : isEnabled
+                      ? scheme.onSurface
+                      : scheme.onSurface.withValues(alpha: 0.35),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    // F2-05: Disabled durumda tooltip göster
+    if (!isEnabled && disabledTooltip != null) {
+      return Tooltip(
+        message: disabledTooltip!,
+        child: chip,
+      );
+    }
+
+    return GestureDetector(
+      onTap: isEnabled ? onTap : null,
+      child: chip,
+    );
+  }
+}
+
 // ── DailyProgressCard ─────────────────────────────────────────────────────────
 
 class DailyProgressCard extends StatelessWidget {
@@ -201,28 +468,39 @@ class DailyProgressCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final total = plan.totalCards;
-    final done = 0; // sprint 3'te progress sayacı eklenir
+    final done = plan.completedCount;
 
     return Container(
       key: const Key('daily_progress_card'),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: scheme.primaryContainer.withOpacity(0.4),
+        color: scheme.primaryContainer.withValues(alpha: 0.4),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: scheme.primary.withOpacity(0.2)),
+        border: Border.all(
+          color: scheme.primary.withValues(alpha: 0.2),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Başlık + tahminî süre
+          // Başlık + tahminî süre + streak (F2-06)
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Günlük Plan',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w800,
-                    ),
+              Row(
+                children: [
+                  Text(
+                    'Günlük Plan',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                  ),
+                  // F2-06: Streak göstergesi (completedCount > 0 ise)
+                  if (done > 0) ...[
+                    const SizedBox(width: 8),
+                    _StreakBadge(count: done),
+                  ],
+                ],
               ),
               _TimeChip(minutes: plan.estimatedMinutes),
             ],
@@ -254,21 +532,21 @@ class DailyProgressCard extends StatelessWidget {
           ),
           const SizedBox(height: 16),
 
-          // Progress bar (session içi dolacak)
+          // Progress bar
           ClipRRect(
             borderRadius: BorderRadius.circular(4),
             child: LinearProgressIndicator(
               key: const Key('plan_progress_bar'),
               value: total == 0 ? 0 : done / total,
               minHeight: 6,
-              backgroundColor: scheme.surfaceVariant,
+              backgroundColor: scheme.surfaceContainerHighest,
             ),
           ),
           const SizedBox(height: 4),
           Text(
             '$done / $total kart',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: scheme.onSurface.withOpacity(0.5),
+                  color: scheme.onSurface.withValues(alpha: 0.5),
                 ),
           ),
           const SizedBox(height: 20),
@@ -286,6 +564,40 @@ class DailyProgressCard extends StatelessWidget {
               ),
               child: const Text('Başla',
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── _StreakBadge (F2-06) ──────────────────────────────────────────────────────
+
+class _StreakBadge extends StatelessWidget {
+  final int count;
+  const _StreakBadge({required this.count});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFF7043).withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.local_fire_department,
+              color: Color(0xFFFF7043), size: 14),
+          const SizedBox(width: 3),
+          Text(
+            '$count',
+            style: const TextStyle(
+              color: Color(0xFFFF7043),
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
             ),
           ),
         ],
@@ -351,9 +663,10 @@ class LeechWarningBanner extends StatelessWidget {
       key: const Key('leech_warning_banner'),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: BoxDecoration(
-        color: const Color(0xFFE53935).withOpacity(0.10),
+        color: const Color(0xFFE53935).withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE53935).withOpacity(0.3)),
+        border:
+            Border.all(color: const Color(0xFFE53935).withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [
@@ -410,7 +723,10 @@ class _PlanCardSkeleton extends StatelessWidget {
       key: const Key('plan_skeleton'),
       height: 200,
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
+        color: Theme.of(context)
+            .colorScheme
+            .surfaceContainerHighest
+            .withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(20),
       ),
       child: const Center(child: CircularProgressIndicator()),
@@ -427,9 +743,10 @@ class _AllDoneCard extends StatelessWidget {
       key: const Key('all_done_card'),
       padding: const EdgeInsets.all(32),
       decoration: BoxDecoration(
-        color: const Color(0xFF43A047).withOpacity(0.1),
+        color: const Color(0xFF43A047).withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFF43A047).withOpacity(0.3)),
+        border:
+            Border.all(color: const Color(0xFF43A047).withValues(alpha: 0.3)),
       ),
       child: const Column(
         children: [
@@ -464,7 +781,10 @@ class _EmptyCard extends StatelessWidget {
       key: const Key('empty_card'),
       padding: const EdgeInsets.all(32),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.4),
+        color: Theme.of(context)
+            .colorScheme
+            .surfaceContainerHighest
+            .withValues(alpha: 0.4),
         borderRadius: BorderRadius.circular(20),
       ),
       child: const Column(
@@ -534,7 +854,7 @@ class _PlanStat extends StatelessWidget {
         Text(label,
             style: TextStyle(
                 fontSize: 11,
-                color: color.withOpacity(0.75),
+                color: color.withValues(alpha: 0.75),
                 fontWeight: FontWeight.w500)),
       ],
     );

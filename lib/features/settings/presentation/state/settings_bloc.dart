@@ -1,7 +1,9 @@
 // lib/features/settings/presentation/state/settings_bloc.dart
 //
-// REPLACES: lib/features/settings/presentation/viewmodel/settings_view_model.dart
-// Sorumluluk: Uygulama ayarlarını yükle ve kaydet.
+// FAZ 6 FIX — Bildirim ayarı:
+//   - SettingsNotificationsChanged event
+//   - notificationsEnabled state alanı
+//   - _onNotifications handler
 
 import 'package:equatable/equatable.dart';
 import 'package:flutter/material.dart';
@@ -70,6 +72,14 @@ class SettingsThemeModeChanged extends SettingsEvent {
   List<Object?> get props => [mode.index];
 }
 
+/// FAZ 6: Bildirim açma/kapama
+class SettingsNotificationsChanged extends SettingsEvent {
+  final bool enabled;
+  const SettingsNotificationsChanged(this.enabled);
+  @override
+  List<Object?> get props => [enabled];
+}
+
 // ── State ─────────────────────────────────────────────────────────────────────
 
 class SettingsState extends Equatable {
@@ -81,6 +91,7 @@ class SettingsState extends Equatable {
   final int batchSize;
   final bool autoPlaySound;
   final ThemeMode themeMode;
+  final bool notificationsEnabled;
 
   const SettingsState({
     this.isLoading = true,
@@ -91,6 +102,7 @@ class SettingsState extends Equatable {
     this.batchSize = 10,
     this.autoPlaySound = true,
     this.themeMode = ThemeMode.system,
+    this.notificationsEnabled = true,
   });
 
   SettingsState copyWith({
@@ -102,6 +114,7 @@ class SettingsState extends Equatable {
     int? batchSize,
     bool? autoPlaySound,
     ThemeMode? themeMode,
+    bool? notificationsEnabled,
   }) =>
       SettingsState(
         isLoading: isLoading ?? this.isLoading,
@@ -112,6 +125,7 @@ class SettingsState extends Equatable {
         batchSize: batchSize ?? this.batchSize,
         autoPlaySound: autoPlaySound ?? this.autoPlaySound,
         themeMode: themeMode ?? this.themeMode,
+        notificationsEnabled: notificationsEnabled ?? this.notificationsEnabled,
       );
 
   @override
@@ -124,6 +138,7 @@ class SettingsState extends Equatable {
         batchSize,
         autoPlaySound,
         themeMode,
+        notificationsEnabled,
       ];
 }
 
@@ -141,6 +156,7 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
     on<SettingsBatchSizeChanged>(_onBatchSize);
     on<SettingsAutoPlayChanged>(_onAutoPlay);
     on<SettingsThemeModeChanged>(_onThemeMode);
+    on<SettingsNotificationsChanged>(_onNotifications);
   }
 
   final ISettingsRepository _repo;
@@ -164,6 +180,9 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
     final themeModeResult = await _repo.getThemeMode();
     final themeMode = themeModeResult.fold((_) => ThemeMode.system, (v) => v);
 
+    final notifResult = await _repo.getNotificationsEnabled();
+    final notifEnabled = notifResult.fold((_) => true, (v) => v);
+
     emit(state.copyWith(
       isLoading: false,
       sourceLang: lang['source'] ?? 'tr',
@@ -173,6 +192,7 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
       batchSize: batchSize,
       autoPlaySound: autoPlay,
       themeMode: themeMode,
+      notificationsEnabled: notifEnabled,
     ));
   }
 
@@ -216,5 +236,11 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
       SettingsThemeModeChanged event, Emitter<SettingsState> emit) async {
     emit(state.copyWith(themeMode: event.mode));
     await _repo.saveThemeMode(event.mode);
+  }
+
+  Future<void> _onNotifications(
+      SettingsNotificationsChanged event, Emitter<SettingsState> emit) async {
+    emit(state.copyWith(notificationsEnabled: event.enabled));
+    await _repo.saveNotificationsEnabled(event.enabled);
   }
 }
