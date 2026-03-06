@@ -29,6 +29,11 @@ class SubmitReviewParams {
   final int xpEarned;
   final bool isNew;
 
+  /// F9-03: MCQ şık seçiminden gelen doğru/yanlış sonucu.
+  /// rating != again mantığı YERİNE bu alan kullanılır.
+  /// review_events.was_correct bu değerden set edilir.
+  final bool isCorrect;
+
   const SubmitReviewParams({
     required this.wordId,
     required this.targetLang,
@@ -40,6 +45,7 @@ class SubmitReviewParams {
     required this.responseMs,
     required this.xpEarned,
     required this.isNew,
+    required this.isCorrect,
   });
 }
 
@@ -93,7 +99,7 @@ class SubmitReview {
             rating: p.rating.name,
             responseMs: p.responseMs,
             mode: p.mode.key,
-            wasCorrect: p.rating != ReviewRating.again,
+            wasCorrect: p.isCorrect, // F9-03: MCQ sonucundan, rating'den değil
             stabilityBefore: p.stabilityBefore,
             stabilityAfter: p.updatedFSRS.stability,
             reviewedAt: now,

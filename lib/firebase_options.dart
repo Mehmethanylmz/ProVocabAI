@@ -48,19 +48,20 @@ class DefaultFirebaseOptions {
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyAoGTrsNjO697PXNu7AG5d1D-jEaoWT5b8',
-    appId: '1:157264766220:android:3d6b01a7716059e90d5529',
-    messagingSenderId: '157264766220',
-    projectId: 'improvevocabulary-d4181',
-    storageBucket: 'improvevocabulary-d4181.firebasestorage.app',
+    apiKey: 'AIzaSyChURZ92RZU4sv-3Q5z00jJ5Bxf6eZXAhU',
+    appId: '1:192901392737:android:cc0be71e8e8c8fd49a7d20',
+    messagingSenderId: '192901392737',
+    projectId: 'savgolearnvocabulary',
+    storageBucket: 'savgolearnvocabulary.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyAVADmp3DLW_ycWTmeYX5uhoRw7Lz1vkus',
-    appId: '1:157264766220:ios:1e5f16f82c065fe20d5529',
-    messagingSenderId: '157264766220',
-    projectId: 'improvevocabulary-d4181',
-    storageBucket: 'improvevocabulary-d4181.firebasestorage.app',
-    iosBundleId: 'com.example.pratikapp',
+    apiKey: 'AIzaSyAWpEYez6XQdPqZ4ipGmyYwnH69au-_HZI',
+    appId: '1:192901392737:ios:9d200c2bf667ae4e9a7d20',
+    messagingSenderId: '192901392737',
+    projectId: 'savgolearnvocabulary',
+    storageBucket: 'savgolearnvocabulary.firebasestorage.app',
+    iosBundleId: 'com.furtem.savgolearnvocabulary',
   );
+
 }

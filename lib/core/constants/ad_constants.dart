@@ -18,6 +18,7 @@ class AdConstants {
   /// Günlük maksimum rewarded gösterimi.
   static const int maxRewardedPerDay = 5;
 
+
   /// İki reklam arası minimum süre (saniye).
   static const int minSecondsBetweenAds = 120;
 
@@ -39,8 +40,11 @@ class AdConstants {
   /// iOS test rewarded.
   static const String iosTestRewardedId =
       'ca-app-pub-3940256099942544/1712485313';
+  static const String androidProdInterstitialId = 'ca-app-pub-5992029426417649/9576669047';
+
+  static const String androidProdRewardedId = 'ca-app-pub-5992029426417649/9576669047';
 
   // ── Günlük XP cap ─────────────────────────────────────────────────────────
   /// Rewarded ad ile kazanılabilecek maksimum bonus XP (günlük).
-  static const int maxRewardedBonusXPPerDay = 500;
+  static const int maxRewardedBonusXPPerDay = 1000;
 }

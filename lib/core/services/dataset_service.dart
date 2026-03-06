@@ -23,7 +23,7 @@ import 'dart:isolate';
 
 import 'package:drift/drift.dart';
 import 'package:flutter/services.dart' show rootBundle;
-import 'package:pratikapp/database/app_database.dart' show WordsCompanion;
+import 'package:savgolearnvocabulary/database/app_database.dart' show WordsCompanion;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../database/daos/word_dao.dart';

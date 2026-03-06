@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">ProVocab AI</string>
+    <string name="app_name">Savgo Learn Vocabulary</string>
     <!-- Facebook App ID ve Client Token -->
     <!-- TODO: Facebook Developer Portal'dan alın ve buraya ekleyin -->
     <string name="facebook_app_id">YOUR_FACEBOOK_APP_ID</string>

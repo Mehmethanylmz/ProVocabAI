@@ -1,5 +1,5 @@
 # ═══════════════════════════════════════════════════════════════════════════════
-# ProVocabAI — .gitignore
+# savgolearnvocabulary — .gitignore
 # Flutter + Drift + BLoC + Firebase + Cloud Functions (Node.js)
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -47,6 +47,7 @@ lib/firebase_options.dart
 *.env
 service-account*.json
 firebase-adminsdk*.json
+firebase.json
 
 
 # ── CLOUD FUNCTIONS (Node.js) ─────────────────────────────────────────────────
@@ -77,6 +78,12 @@ android/key.properties          # storeFile/storePassword/keyAlias/keyPassword
 # Android Studio
 /android/.idea/
 /android/*.iml
+
+.claude/*
+.claude/config.md
+ai/.local/
+ai/.cache/
+ai/*.log
 
 
 # ── iOS ───────────────────────────────────────────────────────────────────────

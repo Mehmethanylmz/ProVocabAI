@@ -205,7 +205,7 @@ exports.sendDailyReminders = (0, scheduler_1.onSchedule)({
                 android: {
                     priority: "high",
                     notification: {
-                        channelId: "provocalai_main",
+                        channelId: "savgo_main",
                     },
                 },
                 apns: {
@@ -286,7 +286,7 @@ exports.sendStreakReminder = (0, scheduler_1.onSchedule)({
                 android: {
                     priority: "normal",
                     notification: {
-                        channelId: "provocalai_main",
+                        channelId: "savgo_main",
                     },
                 },
                 apns: {

@@ -11,8 +11,8 @@ import 'package:equatable/equatable.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import 'package:pratikapp/firebase/auth/firebase_auth_service.dart';
-import 'package:pratikapp/firebase/sync/sync_manager.dart';
+import 'package:savgolearnvocabulary/firebase/auth/firebase_auth_service.dart';
+import 'package:savgolearnvocabulary/firebase/sync/sync_manager.dart';
 
 // ── Events ────────────────────────────────────────────────────────────────────
 

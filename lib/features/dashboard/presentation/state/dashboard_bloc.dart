@@ -80,9 +80,9 @@ class DashboardLoaded extends DashboardState {
     if (stats.todayQuestions == 0 &&
         stats.weekQuestions == 0 &&
         stats.monthQuestions == 0) return null;
-    return '🎓 ProVocabAI\'da ${stats.weekQuestions} kelime çalıştım! '
+    return '🎓 Savgo Learn Vocabulary\'da ${stats.weekQuestions} kelime çalıştım! '
         'Bu hafta başarı oranım: %${stats.weekSuccessRate.toStringAsFixed(0)}. '
-        'Sen de dene! #ProVocabAI';
+        'Sen de dene! #SavgoLearnVocabulary';
   }
 }
 

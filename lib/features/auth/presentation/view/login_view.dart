@@ -187,7 +187,7 @@ class LoginView extends StatelessWidget {
         ),
         const SizedBox(height: 20),
         Text(
-          'ProVocab AI',
+          'Savgo Learn Vocabulary',
           style: GoogleFonts.inter(
             color: Colors.white,
             fontSize: 28,

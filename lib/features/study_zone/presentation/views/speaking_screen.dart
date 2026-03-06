@@ -16,8 +16,8 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:pratikapp/core/constants/navigation/navigation_constants.dart';
 
+import '../../../../core/constants/navigation/navigation_constants.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/services/speech_service.dart';
 import '../../../../core/utils/levenshtein.dart';
@@ -106,6 +106,7 @@ class _SpeakingScreenState extends State<SpeakingScreen> {
     context.read<StudyZoneBloc>().add(AnswerSubmitted(
           rating: rating,
           responseMs: responseMs,
+          isCorrect: correct,
         ));
   }
 

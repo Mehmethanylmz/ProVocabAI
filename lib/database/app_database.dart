@@ -23,7 +23,7 @@ import 'daos/sync_queue_dao.dart';
 
 part 'app_database.g.dart';
 
-/// ProVocabAI ana Drift veritabanı.
+/// savgolearnvocabulary ana Drift veritabanı.
 ///
 /// Eski sistem: ProductDatabaseManager (sqflite, 4 tablo) — SİLİNDİ.
 /// Yeni sistem: AppDatabase (Drift, 6 tablo, type-safe, codegen).
@@ -142,7 +142,7 @@ class AppDatabase extends _$AppDatabase {
 LazyDatabase _openConnection() {
   return LazyDatabase(() async {
     final dbFolder = await getApplicationDocumentsDirectory();
-    final file = File(p.join(dbFolder.path, 'provocalai_v1.db'));
+    final file = File(p.join(dbFolder.path, 'savgo_v1.db'));
     return NativeDatabase.createInBackground(file);
   });
 }

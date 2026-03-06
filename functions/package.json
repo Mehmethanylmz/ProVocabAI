@@ -1,5 +1,5 @@
 {
-  "name": "provocalai-functions",
+  "name": "savgo-functions",
   "scripts": {
     "lint": "eslint --ext .js,.ts .",
     "build": "tsc",

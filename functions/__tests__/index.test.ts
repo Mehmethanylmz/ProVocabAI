@@ -19,7 +19,7 @@ const EMULATOR = process.env.FIRESTORE_EMULATOR_HOST;
 
 // Jest'te firebase-admin'i initialize et
 if (!admin.apps.length) {
-  admin.initializeApp({ projectId: "demo-provocalai" });
+  admin.initializeApp({ projectId: "demo-savgo" });
 }
 
 const db = admin.firestore();

@@ -4,6 +4,8 @@
 // FIX: "Ana Sayfa" butonu crash → NavigationService.navigateToPageClear(/main)
 // FIX: "Tekrar Çalış" → popUntil(study_zone)
 
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -11,6 +13,7 @@ import '../../../../ads/ad_service.dart';
 import '../../../../core/constants/navigation/navigation_constants.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/init/navigation/navigation_service.dart';
+import '../../../../database/app_database.dart';
 import '../state/study_zone_bloc.dart' hide AdService;
 import '../state/study_zone_event.dart';
 import '../state/study_zone_state.dart';
@@ -212,11 +215,14 @@ class _ResultBodyState extends State<_ResultBody> {
               ),
 
             // ── Yanlış kelimeler ─────────────────────────────────────────
-            if (state.wrongWordIds.isNotEmpty)
+            if (state.wrongWords.isNotEmpty)
               SliverPadding(
                 padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
                 sliver: SliverToBoxAdapter(
-                  child: _WrongWordsAccordion(wordIds: state.wrongWordIds),
+                  child: _WrongWordsAccordion(
+                    words: state.wrongWords,
+                    targetLang: state.targetLang,
+                  ),
                 ),
               ),
 
@@ -417,23 +423,65 @@ class _StatCard extends StatelessWidget {
 
 // ── Wrong Words Accordion ─────────────────────────────────────────────────────
 
+/// F9-11: Yanlış kelimelerin adlarını gösterir — artık "Kelime #ID" değil.
 class _WrongWordsAccordion extends StatelessWidget {
-  final List<int> wordIds;
-  const _WrongWordsAccordion({required this.wordIds});
+  final List<Word> words;
+  final String targetLang;
+
+  const _WrongWordsAccordion({
+    required this.words,
+    required this.targetLang,
+  });
+
+  String _parseWordText(Word word) {
+    try {
+      final content = jsonDecode(word.contentJson) as Map<String, dynamic>;
+      final langData = content[targetLang] as Map<String, dynamic>?;
+      final wordText = (langData?['word'] as String?) ??
+          (langData?['term'] as String?) ??
+          '';
+      if (wordText.isNotEmpty) return wordText;
+      // Fallback: ilk dildeki kelimeyi döndür
+      for (final entry in content.entries) {
+        if (entry.value is Map) {
+          final w = (entry.value as Map)['word'] as String?;
+          if (w != null && w.isNotEmpty) return w;
+        }
+      }
+      return '#${word.id}';
+    } catch (_) {
+      return '#${word.id}';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return ExpansionTile(
-      title: Text('Yanlış Kelimeler (${wordIds.length})',
+      title: Text('Yanlış Kelimeler (${words.length})',
           style: const TextStyle(fontWeight: FontWeight.w700)),
       leading: const Icon(Icons.warning_amber_rounded, color: Colors.orange),
-      children: wordIds
-          .map((id) => ListTile(
+      children: words
+          .map((word) => ListTile(
                 dense: true,
                 leading:
                     const Icon(Icons.circle, size: 8, color: Colors.orange),
-                title:
-                    Text('Kelime #$id', style: const TextStyle(fontSize: 13)),
+                title: Text(
+                  _parseWordText(word),
+                  style: const TextStyle(
+                      fontSize: 13, fontWeight: FontWeight.w500),
+                ),
+                trailing: word.partOfSpeech.isNotEmpty
+                    ? Text(
+                        word.partOfSpeech,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Theme.of(context)
+                              .colorScheme
+                              .onSurface
+                              .withValues(alpha: 0.5),
+                        ),
+                      )
+                    : null,
               ))
           .toList(),
     );

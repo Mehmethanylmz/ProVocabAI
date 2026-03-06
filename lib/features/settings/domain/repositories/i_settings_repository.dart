@@ -30,4 +30,12 @@ abstract class ISettingsRepository {
 
   Future<Either<Failure, bool>> getNotificationsEnabled();
   Future<Either<Failure, void>> saveNotificationsEnabled(bool enabled);
+
+  /// F10-07: Üst üste günlük hedef tutturma serisi.
+  Future<Either<Failure, int>> getDailyGoalStreak();
+  Future<Either<Failure, void>> saveDailyGoalStreak(int streak);
+
+  /// F10-07: En son hedef tutturulan gün ('YYYY-MM-DD').
+  Future<Either<Failure, String?>> getLastGoalMetDate();
+  Future<Either<Failure, void>> saveLastGoalMetDate(String date);
 }

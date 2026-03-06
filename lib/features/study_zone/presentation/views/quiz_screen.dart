@@ -1,10 +1,12 @@
 // lib/features/study_zone/presentation/views/quiz_screen.dart
 //
-// FAZ 1 FIX:
-//   F1-02: PopScope(canPop: false) → SessionAborted → tek Navigator.pop()
-//   F1-03: AnimatedSwitcher + ValueKey(cardIndex) → fade soru geçişi
-//   F1-05: Cevap bekleme 1500ms → 800ms
-//   Deprecated API düzeltmeleri
+// FAZ 9:
+//   F9-06: Answered phase inline — timeout ve bottom sheet kaldırıldı.
+//          Cevap seçilince anlam + cümleler + rating inline gösterilir.
+//   F9-07: Part of speech chip + genişleyebilir örnek cümleler (3 seviye).
+//   F9-08: Rating butonları inline — review_rating_sheet.dart artık kullanılmıyor.
+//   F9-09: XP + tekrar günü BlocConsumer listener'da SnackBar olarak gösterilir.
+//   F9-10: TTS otomatik okuma (MCQ) + session-scoped 🔊 toggle + tap-to-replay.
 
 import 'dart:convert';
 import 'dart:math';
@@ -19,14 +21,12 @@ import '../../../../core/services/speech_service.dart';
 import '../../../../core/services/tts_service.dart';
 import '../../../../core/utils/levenshtein.dart';
 import '../../../../database/app_database.dart';
-import '../../../../database/daos/word_dao.dart';
 import '../../../../srs/fsrs_state.dart';
 import '../../../../srs/mode_selector.dart';
 import '../../../../srs/plan_models.dart';
 import '../state/study_zone_bloc.dart';
 import '../state/study_zone_event.dart';
 import '../state/study_zone_state.dart';
-import '../widgets/review_rating_sheet.dart';
 import 'session_result_screen.dart';
 
 // ── AnswerPhase ───────────────────────────────────────────────────────────────
@@ -35,22 +35,31 @@ enum AnswerPhase { question, answered }
 
 // ── QuizScreen ────────────────────────────────────────────────────────────────
 
-class QuizScreen extends StatelessWidget {
+class QuizScreen extends StatefulWidget {
   const QuizScreen({super.key});
 
   @override
+  State<QuizScreen> createState() => _QuizScreenState();
+}
+
+class _QuizScreenState extends State<QuizScreen> {
+  /// Son geçerli InSession snapshot — StudyZoneReviewing sırasında da
+  /// QuizBody'yi aynı kart görüntüsüyle tutmak için saklanır.
+  StudyZoneInSession? _lastSession;
+
+  @override
   Widget build(BuildContext context) {
-    // F1-02: PopScope — geri tuşu quiz'i kapatmaz, SessionAborted gönderir
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
         if (didPop) return;
-        // Kullanıcıya onay sor
         _showAbortDialog(context);
       },
       child: BlocConsumer<StudyZoneBloc, StudyZoneState>(
         listenWhen: (prev, curr) =>
-            curr is StudyZoneCompleted || curr is StudyZoneIdle,
+            curr is StudyZoneCompleted ||
+            curr is StudyZoneIdle ||
+            curr is StudyZoneReviewing,
         listener: (context, state) {
           if (state is StudyZoneCompleted) {
             final bloc = context.read<StudyZoneBloc>();
@@ -64,16 +73,50 @@ class QuizScreen extends StatelessWidget {
                   FadeTransition(opacity: animation, child: child),
             ));
           } else if (state is StudyZoneIdle) {
-            // Session aborted → pop quiz route (tek pop)
             Navigator.of(context).pop();
+          } else if (state is StudyZoneReviewing) {
+            // F9-09: XP + tekrar tarihi SnackBar olarak göster
+            final days =
+                state.updatedFSRS.nextReview.difference(DateTime.now()).inDays;
+            final reviewText = days <= 0
+                ? 'bugün'
+                : days == 1
+                    ? 'yarın'
+                    : '$days gün sonra';
+            ScaffoldMessenger.of(context)
+              ..clearSnackBars()
+              ..showSnackBar(SnackBar(
+                content: Text(
+                  '+${state.xpJustEarned} XP · Tekrar: $reviewText',
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+                duration: const Duration(milliseconds: 1200),
+                behavior: SnackBarBehavior.floating,
+                margin:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ));
+            // 500ms sonra sonraki kart
+            Future.delayed(const Duration(milliseconds: 500), () {
+              if (mounted) {
+                context
+                    .read<StudyZoneBloc>()
+                    .add(const NextCardRequested());
+              }
+            });
           }
         },
         builder: (context, state) {
           if (state is StudyZoneInSession) {
+            _lastSession = state;
             return _QuizBody(state: state);
           }
+          // F9-06: StudyZoneReviewing geldiğinde son InSession snapshot'ıyla
+          // aynı body'yi göster — kullanıcı answered phase'de rating bekler.
           if (state is StudyZoneReviewing) {
-            return _ReviewingOverlay(state: state);
+            final snap = _lastSession;
+            if (snap != null) return _QuizBody(state: snap);
           }
           if (state is StudyZonePaused) {
             return _PausedOverlay(snapshot: state.snapshot);
@@ -86,7 +129,6 @@ class QuizScreen extends StatelessWidget {
     );
   }
 
-  /// Çıkış onay diyalogu
   static void _showAbortDialog(BuildContext context) {
     showDialog<bool>(
       context: context,
@@ -125,8 +167,14 @@ class _QuizBody extends StatefulWidget {
 class _QuizBodyState extends State<_QuizBody> {
   AnswerPhase _phase = AnswerPhase.question;
   String? _selectedOption;
+  bool _isCorrect = false;
+  late int _responseMs;
   late DateTime _cardShownAt;
   late List<_McqOption> _options;
+
+  // F9-10: session-scoped TTS toggle
+  bool _ttsEnabled = true;
+  final TtsService _ttsService = getIt<TtsService>();
 
   @override
   void initState() {
@@ -142,11 +190,31 @@ class _QuizBodyState extends State<_QuizBody> {
     }
   }
 
+  @override
+  void dispose() {
+    _ttsService.stop();
+    super.dispose();
+  }
+
   void _resetCard() {
     _phase = AnswerPhase.question;
     _selectedOption = null;
+    _isCorrect = false;
+    _responseMs = 0;
     _cardShownAt = DateTime.now();
     _options = _buildMcqOptions(widget.state);
+    // F9-10: MCQ modunda yeni kart gelince kelimeyi otomatik oku
+    WidgetsBinding.instance.addPostFrameCallback((_) => _autoPlayTts());
+  }
+
+  // F9-10: TTS otomatik okuma — sadece MCQ modunda.
+  // Listening modu kendi kartında yönetir; speaking modunda TTS yok.
+  void _autoPlayTts() {
+    if (!_ttsEnabled) return;
+    if (widget.state.currentMode != StudyMode.mcq) return;
+    final text = widget.state.currentWordText ?? '';
+    if (text.isEmpty) return;
+    _ttsService.speak(text, widget.state.targetLang);
   }
 
   List<_McqOption> _buildMcqOptions(StudyZoneInSession s) {
@@ -175,7 +243,7 @@ class _QuizBodyState extends State<_QuizBody> {
       final Map<String, dynamic> content = jsonDecode(word.contentJson);
       final trData = content['tr'] as Map<String, dynamic>?;
       if (trData != null) {
-        final trWord = (trData['word'] as String?);
+        final trWord = trData['word'] as String?;
         if (trWord != null && trWord.isNotEmpty) return trWord;
       }
       final langData = content[targetLang] as Map<String, dynamic>?;
@@ -185,20 +253,78 @@ class _QuizBodyState extends State<_QuizBody> {
     }
   }
 
+  /// Ana dil (Türkçe) anlamını döner — answered bölümünde "📖 Anlam" için.
+  String _parseSourceMeaning(Word? word) {
+    if (word == null) return '';
+    try {
+      final Map<String, dynamic> content = jsonDecode(word.contentJson);
+      final trData = content['tr'] as Map<String, dynamic>?;
+      if (trData != null) {
+        final meaning = trData['meaning'] as String?;
+        if (meaning != null && meaning.isNotEmpty) return meaning;
+        final trWord = trData['word'] as String?;
+        if (trWord != null && trWord.isNotEmpty) return trWord;
+      }
+      return '';
+    } catch (_) {
+      return '';
+    }
+  }
+
+  /// sentencesJson'dan hedef dil cümlelerini çıkarır.
+  /// Dönen map: {'beginner': '...', 'intermediate': '...', 'advanced': '...'}
+  Map<String, String> _parseSentences(Word? word, String targetLang) {
+    if (word == null) return {};
+    try {
+      final Map<String, dynamic> sentences = jsonDecode(word.sentencesJson);
+      final result = <String, String>{};
+      for (final level in ['beginner', 'intermediate', 'advanced']) {
+        final levelData = sentences[level];
+        if (levelData is Map) {
+          final text = (levelData[targetLang] as String?)?.trim() ?? '';
+          if (text.isNotEmpty) result[level] = text;
+        }
+      }
+      return result;
+    } catch (_) {
+      return {};
+    }
+  }
+
   void _onAnswerSelected(String option, bool isCorrect) {
     if (_phase == AnswerPhase.answered) return;
+    _responseMs = DateTime.now().difference(_cardShownAt).inMilliseconds;
     setState(() {
       _phase = AnswerPhase.answered;
       _selectedOption = option;
+      _isCorrect = isCorrect;
     });
+    // F9-06: timeout yok, bottom sheet yok — answered bölümü inline açılır
+  }
 
-    // F1-05: Cevap bekleme 1500ms → 800ms
-    final responseMs = DateTime.now().difference(_cardShownAt).inMilliseconds;
-    Future.delayed(const Duration(milliseconds: 800), () {
-      if (mounted) {
-        ReviewRatingSheet.show(context, responseMs: responseMs);
-      }
+  void _onSpeakingAnswered(int responseMs, bool isCorrect) {
+    if (_phase == AnswerPhase.answered) return;
+    _responseMs = responseMs;
+    setState(() {
+      _phase = AnswerPhase.answered;
+      _isCorrect = isCorrect;
     });
+  }
+
+  // F9-08: Rating seçilince BLoC'a gönder
+  void _onRating(ReviewRating rating) {
+    context.read<StudyZoneBloc>().add(AnswerSubmitted(
+          rating: rating,
+          responseMs: _responseMs,
+          isCorrect: _isCorrect,
+        ));
+  }
+
+  // F9-10: Tap-to-replay
+  void _replayTts() {
+    final text = widget.state.currentWordText ?? '';
+    if (text.isEmpty) return;
+    _ttsService.speak(text, widget.state.targetLang);
   }
 
   @override
@@ -213,13 +339,14 @@ class _QuizBodyState extends State<_QuizBody> {
         cardIndex: s.cardIndex,
         totalCards: s.totalCards,
         sessionId: s.sessionId,
+        ttsEnabled: _ttsEnabled,
+        onToggleTts: () => setState(() => _ttsEnabled = !_ttsEnabled),
       ),
       body: SafeArea(
         child: Column(
           children: [
             _ProgressBar(current: s.cardIndex, total: s.totalCards),
             Expanded(
-              // F1-03: AnimatedSwitcher — her kart geçişinde fade animasyonu
               child: AnimatedSwitcher(
                 duration: const Duration(milliseconds: 220),
                 switchInCurve: Curves.easeIn,
@@ -227,9 +354,8 @@ class _QuizBodyState extends State<_QuizBody> {
                 transitionBuilder: (child, anim) =>
                     FadeTransition(opacity: anim, child: child),
                 child: SingleChildScrollView(
-                  // ValueKey → cardIndex değişince yeni widget sayılır
                   key: ValueKey('card_${s.cardIndex}'),
-                  padding: const EdgeInsets.all(20),
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
@@ -254,6 +380,16 @@ class _QuizBodyState extends State<_QuizBody> {
                                     _onAnswerSelected(opt.text, opt.isCorrect),
                               ),
                             )),
+                      // F9-06: Answered inline bölümü
+                      if (_phase == AnswerPhase.answered)
+                        _InlineAnsweredSection(
+                          word: word,
+                          targetLang: s.targetLang,
+                          sourceMeaning: _parseSourceMeaning(word),
+                          sentences: _parseSentences(word, s.targetLang),
+                          onReplayTts: _replayTts,
+                          onRating: _onRating,
+                        ),
                     ],
                   ),
                 ),
@@ -286,18 +422,336 @@ class _QuizBodyState extends State<_QuizBody> {
           word: word,
           targetLang: s.targetLang,
           cardShownAt: _cardShownAt,
-          onAnswered: (responseMs) {
-            if (_phase == AnswerPhase.answered) return;
-            setState(() => _phase = AnswerPhase.answered);
-            // F1-05: 1500ms → 800ms
-            Future.delayed(const Duration(milliseconds: 800), () {
-              if (mounted) {
-                ReviewRatingSheet.show(context, responseMs: responseMs);
-              }
-            });
-          },
+          onAnswered: _onSpeakingAnswered,
         );
     }
+  }
+}
+
+// ── _InlineAnsweredSection ────────────────────────────────────────────────────
+
+/// F9-06/07/08: Cevap sonrası inline gösterim.
+/// Anlam + POS chip + genişleyebilir cümleler + TTS replay + rating butonları.
+class _InlineAnsweredSection extends StatefulWidget {
+  final Word? word;
+  final String targetLang;
+  final String sourceMeaning;
+  final Map<String, String> sentences;
+  final VoidCallback onReplayTts;
+  final void Function(ReviewRating) onRating;
+
+  const _InlineAnsweredSection({
+    required this.word,
+    required this.targetLang,
+    required this.sourceMeaning,
+    required this.sentences,
+    required this.onReplayTts,
+    required this.onRating,
+  });
+
+  @override
+  State<_InlineAnsweredSection> createState() => _InlineAnsweredSectionState();
+}
+
+class _InlineAnsweredSectionState extends State<_InlineAnsweredSection> {
+  bool _sentencesExpanded = false;
+
+  static const _levelEmoji = {
+    'beginner': '🌱',
+    'intermediate': '🌿',
+    'advanced': '🌳',
+  };
+
+  static const _levelLabel = {
+    'beginner': 'Başlangıç',
+    'intermediate': 'Orta',
+    'advanced': 'İleri',
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final word = widget.word;
+    final partOfSpeech = word?.partOfSpeech ?? '';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SizedBox(height: 8),
+        Divider(color: scheme.outline.withValues(alpha: 0.25)),
+        const SizedBox(height: 12),
+
+        // F9-07: Anlam satırı
+        if (widget.sourceMeaning.isNotEmpty) ...[
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('📖 ',
+                  style: Theme.of(context).textTheme.bodyMedium),
+              Expanded(
+                child: Text(
+                  widget.sourceMeaning,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+        ],
+
+        // F9-07: Part of speech chip
+        if (partOfSpeech.isNotEmpty) ...[
+          Wrap(
+            spacing: 6,
+            children: [
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                decoration: BoxDecoration(
+                  color: scheme.secondaryContainer.withValues(alpha: 0.5),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                      color: scheme.secondary.withValues(alpha: 0.35)),
+                ),
+                child: Text(
+                  partOfSpeech,
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: scheme.onSecondaryContainer,
+                        fontWeight: FontWeight.w600,
+                      ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+        ],
+
+        // F9-10: TTS tekrar dinle butonu
+        OutlinedButton.icon(
+          onPressed: widget.onReplayTts,
+          icon: const Icon(Icons.volume_up_rounded, size: 18),
+          label: const Text('Tekrar Dinle'),
+          style: OutlinedButton.styleFrom(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            side: BorderSide(color: scheme.outline.withValues(alpha: 0.4)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            visualDensity: VisualDensity.compact,
+          ),
+        ),
+
+        // F9-07: Genişleyebilir örnek cümleler
+        if (widget.sentences.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          InkWell(
+            onTap: () =>
+                setState(() => _sentencesExpanded = !_sentencesExpanded),
+            borderRadius: BorderRadius.circular(10),
+            child: Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                    color: scheme.outline.withValues(alpha: 0.2)),
+              ),
+              child: Row(
+                children: [
+                  const Text('💬 ', style: TextStyle(fontSize: 14)),
+                  Expanded(
+                    child: Text(
+                      'Örnek Cümleler',
+                      style:
+                          Theme.of(context).textTheme.bodySmall?.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: scheme.onSurface
+                                    .withValues(alpha: 0.75),
+                              ),
+                    ),
+                  ),
+                  Icon(
+                    _sentencesExpanded
+                        ? Icons.keyboard_arrow_up_rounded
+                        : Icons.keyboard_arrow_down_rounded,
+                    size: 18,
+                    color: scheme.onSurface.withValues(alpha: 0.5),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (_sentencesExpanded) ...[
+            const SizedBox(height: 6),
+            ...['beginner', 'intermediate', 'advanced']
+                .where((l) => widget.sentences.containsKey(l))
+                .map((level) => Padding(
+                      padding: const EdgeInsets.only(bottom: 6),
+                      child: Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: scheme.surfaceContainerHighest
+                              .withValues(alpha: 0.35),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('${_levelEmoji[level] ?? '•'} ',
+                                style: const TextStyle(fontSize: 13)),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment:
+                                    CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    _levelLabel[level] ?? level,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .labelSmall
+                                        ?.copyWith(
+                                          color: scheme.onSurface
+                                              .withValues(alpha: 0.5),
+                                        ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    widget.sentences[level]!,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodySmall
+                                        ?.copyWith(
+                                          fontStyle: FontStyle.italic,
+                                        ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )),
+          ],
+        ],
+
+        const SizedBox(height: 20),
+
+        // F9-08: Rating sorusu ve butonları inline
+        Text(
+          'Bu kelimeyi ne kadar hatırladın?',
+          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _InlineRatingButton(
+                label: 'Çok Zor',
+                sublabel: 'Unutmuştum',
+                color: ColorPalette.error,
+                onTap: () => widget.onRating(ReviewRating.again),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _InlineRatingButton(
+                label: 'Zor',
+                sublabel: 'Zorlandım',
+                color: ColorPalette.tertiary,
+                onTap: () => widget.onRating(ReviewRating.hard),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: _InlineRatingButton(
+                label: 'İyi',
+                sublabel: 'Hatırladım',
+                color: ColorPalette.success,
+                isDefault: true,
+                onTap: () => widget.onRating(ReviewRating.good),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _InlineRatingButton(
+                label: 'Kolay',
+                sublabel: 'Çok kolaydı',
+                color: ColorPalette.secondary,
+                onTap: () => widget.onRating(ReviewRating.easy),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+      ],
+    );
+  }
+}
+
+// ── _InlineRatingButton ───────────────────────────────────────────────────────
+
+class _InlineRatingButton extends StatelessWidget {
+  final String label;
+  final String sublabel;
+  final Color color;
+  final bool isDefault;
+  final VoidCallback onTap;
+
+  const _InlineRatingButton({
+    required this.label,
+    required this.sublabel,
+    required this.color,
+    required this.onTap,
+    this.isDefault = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: color.withValues(alpha: 0.12),
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            border: isDefault ? Border.all(color: color, width: 2) : null,
+          ),
+          child: Column(
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 15,
+                  color: color,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                sublabel,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: color.withValues(alpha: 0.75),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -335,9 +789,6 @@ class _AnswerOptionTile extends StatelessWidget {
 
     if (phase == AnswerPhase.answered) {
       if (isCorrect) {
-        bgColor = scheme.primary
-            .withValues(alpha: 0.0); // ext kullanılamaz, aşağıda override
-        // success renk: tema extension'dan
         final ext = Theme.of(context).extension<AppThemeExtension>();
         final successColor = ext?.success ?? Colors.green;
         bgColor = successColor.withValues(alpha: 0.12);
@@ -399,7 +850,6 @@ class _McqWordCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     String wordText = '...';
-    String example = '';
 
     if (word != null) {
       try {
@@ -408,7 +858,6 @@ class _McqWordCard extends StatelessWidget {
         wordText = (langData?['word'] as String?) ??
             (langData?['term'] as String?) ??
             '?';
-        example = (langData?['example'] as String?) ?? '';
       } catch (_) {}
     }
 
@@ -441,19 +890,6 @@ class _McqWordCard extends StatelessWidget {
                     color: scheme.onSurface.withValues(alpha: 0.55),
                     fontStyle: FontStyle.italic,
                   ),
-            ),
-          ],
-          if (example.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            const Divider(),
-            const SizedBox(height: 8),
-            Text(
-              example,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: scheme.onSurface.withValues(alpha: 0.65),
-                    fontStyle: FontStyle.italic,
-                  ),
-              textAlign: TextAlign.center,
             ),
           ],
         ],
@@ -612,7 +1048,8 @@ class _ListeningWordCardState extends State<_ListeningWordCard> {
 class _SpeakingWordCard extends StatefulWidget {
   final Word? word;
   final String targetLang;
-  final void Function(int responseMs) onAnswered;
+  // F9-10: isCorrect de callback'e eklendi
+  final void Function(int responseMs, bool isCorrect) onAnswered;
   final DateTime cardShownAt;
 
   const _SpeakingWordCard({
@@ -677,7 +1114,9 @@ class _SpeakingWordCardState extends State<_SpeakingWordCard> {
     final ok = await _speech.init();
     if (!ok) {
       widget.onAnswered(
-          DateTime.now().difference(widget.cardShownAt).inMilliseconds);
+        DateTime.now().difference(widget.cardShownAt).inMilliseconds,
+        false,
+      );
       return;
     }
     setState(() {
@@ -702,7 +1141,9 @@ class _SpeakingWordCardState extends State<_SpeakingWordCard> {
       _answered = true;
     });
     widget.onAnswered(
-        DateTime.now().difference(widget.cardShownAt).inMilliseconds);
+      DateTime.now().difference(widget.cardShownAt).inMilliseconds,
+      correct,
+    );
   }
 
   @override
@@ -736,7 +1177,6 @@ class _SpeakingWordCardState extends State<_SpeakingWordCard> {
               textAlign: TextAlign.center),
           const SizedBox(height: 20),
 
-          // Sonuç banner
           if (_phase == _SpeakPhase.result) ...[
             Container(
               padding: const EdgeInsets.all(12),
@@ -799,7 +1239,6 @@ class _SpeakingWordCardState extends State<_SpeakingWordCard> {
             const SizedBox(height: 16),
           ],
 
-          // Mikrofon butonu
           if (!_answered)
             GestureDetector(
               onTap: _phase == _SpeakPhase.listening
@@ -850,98 +1289,6 @@ class _SpeakingWordCardState extends State<_SpeakingWordCard> {
   }
 }
 
-// ── _ReviewingOverlay ─────────────────────────────────────────────────────────
-
-class _ReviewingOverlay extends StatelessWidget {
-  final StudyZoneReviewing state;
-  const _ReviewingOverlay({required this.state});
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-
-    return Scaffold(
-      backgroundColor: scheme.surface,
-      appBar: _QuizAppBar(
-        cardIndex: state.cardIndex,
-        totalCards: state.totalCards,
-        sessionId: state.sessionId,
-      ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            _ProgressBar(current: state.cardIndex, total: state.totalCards),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Card(
-                  elevation: 0,
-                  color: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        _RatingBadge(rating: state.lastRating),
-                        const SizedBox(height: 16),
-                        if (state.xpJustEarned > 0) ...[
-                          _XPBadge(xp: state.xpJustEarned),
-                          const SizedBox(height: 8),
-                        ],
-                        Text(
-                          _nextReviewText(state.updatedFSRS),
-                          style: Theme.of(context)
-                              .textTheme
-                              .bodyMedium
-                              ?.copyWith(
-                                color: scheme.onSurface.withValues(alpha: 0.6),
-                              ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-              child: SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  key: const Key('next_card_button'),
-                  onPressed: () => context
-                      .read<StudyZoneBloc>()
-                      .add(const NextCardRequested()),
-                  style: FilledButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
-                  child: const Text(
-                    'Devam',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  String _nextReviewText(FSRSState fsrs) {
-    final days = fsrs.nextReview.difference(DateTime.now()).inDays;
-    if (days <= 0) return 'Tekrar: bugün';
-    if (days == 1) return 'Tekrar: yarın';
-    return 'Tekrar: $days gün sonra';
-  }
-}
-
 // ── _PausedOverlay ────────────────────────────────────────────────────────────
 
 class _PausedOverlay extends StatelessWidget {
@@ -979,11 +1326,16 @@ class _QuizAppBar extends StatelessWidget implements PreferredSizeWidget {
   final int cardIndex;
   final int totalCards;
   final String sessionId;
+  // F9-10: TTS toggle
+  final bool ttsEnabled;
+  final VoidCallback onToggleTts;
 
   const _QuizAppBar({
     required this.cardIndex,
     required this.totalCards,
     required this.sessionId,
+    required this.ttsEnabled,
+    required this.onToggleTts,
   });
 
   @override
@@ -996,8 +1348,18 @@ class _QuizAppBar extends StatelessWidget implements PreferredSizeWidget {
       centerTitle: true,
       leading: IconButton(
         icon: const Icon(Icons.close),
-        onPressed: () => QuizScreen._showAbortDialog(context),
+        onPressed: () => _QuizScreenState._showAbortDialog(context),
       ),
+      actions: [
+        // F9-10: session-scoped TTS toggle butonu
+        IconButton(
+          icon: Icon(
+            ttsEnabled ? Icons.volume_up_rounded : Icons.volume_off_rounded,
+          ),
+          tooltip: ttsEnabled ? 'Sesi Kapat' : 'Sesi Aç',
+          onPressed: onToggleTts,
+        ),
+      ],
     );
   }
 }
@@ -1095,37 +1457,6 @@ class _ModeChip extends StatelessWidget {
   }
 }
 
-class _RatingBadge extends StatelessWidget {
-  final ReviewRating rating;
-  const _RatingBadge({required this.rating});
-
-  @override
-  Widget build(BuildContext context) {
-    final ext = Theme.of(context).extension<AppThemeExtension>();
-    final scheme = Theme.of(context).colorScheme;
-
-    final (label, color) = switch (rating) {
-      ReviewRating.again => ('Tekrar', scheme.error),
-      ReviewRating.hard => ('Zor', ext?.warning ?? Colors.orange),
-      ReviewRating.good => ('İyi', ext?.success ?? Colors.green),
-      ReviewRating.easy => ('Kolay', scheme.primary),
-    };
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withValues(alpha: 0.4)),
-      ),
-      child: Text(
-        label,
-        style:
-            TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 16),
-      ),
-    );
-  }
-}
-
 class _SessionStatusBar extends StatelessWidget {
   final int streak;
   final bool hasBonus;
@@ -1169,31 +1500,6 @@ class _SessionStatusBar extends StatelessWidget {
               ),
             ),
         ],
-      ),
-    );
-  }
-}
-
-class _XPBadge extends StatelessWidget {
-  final int xp;
-  const _XPBadge({required this.xp});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.amber.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.amber.withValues(alpha: 0.5)),
-      ),
-      child: Text(
-        '+$xp XP',
-        style: const TextStyle(
-          color: Colors.amber,
-          fontWeight: FontWeight.w800,
-          fontSize: 18,
-        ),
       ),
     );
   }

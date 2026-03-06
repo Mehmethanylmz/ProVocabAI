@@ -90,10 +90,15 @@ class DailyPlanner {
         .toList();
 
     // 3. Yeni kartlar (bugün görülenler düşülür)
+    // F10-03: newWordsGoal artık soft cap — istatistik eşiği olarak kullanılır.
+    // goalMet = true → UI "Hedefini tamamladın!" banner'ı gösterir.
+    // Kullanıcı "Devam et" seçerse ContinueBeyondGoal event'i tetiklenir
+    // ve newWordsGoal=999 ile plan yeniden oluşturulur.
     final doneToday = await _progressDao.getNewCardsDoneToday(
       targetLang: targetLang,
       todayStartMs: todayStartMs,
     );
+    final goalMet = doneToday >= newWordsGoal;
     final remaining = (newWordsGoal - doneToday).clamp(0, newWordsGoal);
     final newWords = remaining > 0
         ? await _wordDao.getNewCards(
@@ -127,6 +132,7 @@ class DailyPlanner {
       leechCount: leechCards.length,
       estimatedMinutes: _estimateMinutes(ordered.length),
       createdAt: now,
+      goalMet: goalMet,
     );
   }
 

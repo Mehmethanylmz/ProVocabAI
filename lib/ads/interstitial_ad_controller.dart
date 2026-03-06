@@ -26,7 +26,7 @@ class InterstitialAdController {
     // Şimdilik test ID — deploy öncesinde replace edilmeli
     return Platform.isIOS
         ? AdConstants.iosTestInterstitialId
-        : AdConstants.androidTestInterstitialId;
+        : AdConstants.androidProdInterstitialId;
   }
 
   /// Interstitial'ı önceden yükle.

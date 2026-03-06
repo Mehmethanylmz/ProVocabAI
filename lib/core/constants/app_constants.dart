@@ -1,7 +1,7 @@
 class AppConstants {
   // Uygulama Bilgileri
-  static const String appName = 'Global Kelime';
-  static const String packageName = 'com.seninuygulaman.pratikapp';
+  static const String appName = 'Savgo Learn Vocabulary';
+  static const String packageName = 'com.furtem.savgolearnvocabulary';
 
   // Database
   static const String dbName = 'vocab_app_v2.db';

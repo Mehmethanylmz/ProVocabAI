@@ -66,6 +66,11 @@ Future<void> main() async {
   // ── AdMob init — Firebase'den sonra, runApp'tan önce (F2-03) ────────────
   // fire-and-forget: hata olsa da uygulamayı bloklamasın
   unawaited(MobileAds.instance.initialize());
+  MobileAds.instance.updateRequestConfiguration(
+  RequestConfiguration(
+    testDeviceIds: ['666193E7316EB33C53A1B6987572DDD6'],
+  ),
+);
 
   // ── DI ──────────────────────────────────────────────────────────────────
   await configureDependencies();

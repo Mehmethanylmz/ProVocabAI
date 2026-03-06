@@ -50,13 +50,20 @@ class AnswerSubmitted extends StudyZoneEvent {
   final ReviewRating rating;
   final int responseMs;
 
+  /// F9-01: MCQ şık seçiminden gelen doğru/yanlış sonucu.
+  /// rating'den bağımsız olarak istatistik için kullanılır.
+  /// MCQ doğru seçim + hard rating → isCorrect: true, rating: hard
+  /// MCQ yanlış seçim + good rating → isCorrect: false, rating: good
+  final bool isCorrect;
+
   const AnswerSubmitted({
     required this.rating,
     required this.responseMs,
+    required this.isCorrect,
   });
 
   @override
-  List<Object?> get props => [rating, responseMs];
+  List<Object?> get props => [rating, responseMs, isCorrect];
 }
 
 // ── 4. NextCardRequested ──────────────────────────────────────────────────────
@@ -121,6 +128,15 @@ class StudyModeManuallyChanged extends StudyZoneEvent {
 
   @override
   List<Object?> get props => [mode];
+}
+
+// ── 10. ContinueBeyondGoal (FAZ 10 — F10-05) ──────────────────────────────────
+/// Kullanıcı günlük hedefini tamamladıktan sonra "Devam et" seçti.
+///
+/// Handler: _onContinueBeyondGoal → newWordsGoal=999 ile plan yeniden oluşturulur.
+/// goalMet durumundaki UI banner'ından tetiklenir.
+class ContinueBeyondGoal extends StudyZoneEvent {
+  const ContinueBeyondGoal();
 }
 
 // ── RewardedBonus ─────────────────────────────────────────────────────────────

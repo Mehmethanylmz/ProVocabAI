@@ -1,5 +1,9 @@
 // lib/features/study_zone/presentation/widgets/review_rating_sheet.dart
 //
+// @deprecated FAZ 9 (F9-08/F9-12):
+//   Rating butonları quiz_screen.dart'a taşındı — inline answered bölümü.
+//   Bu dosya artık kullanılmıyor. Gelecek bir fazda silinecek.
+//
 // FAZ 1 FIX:
 //   F1-05: Countdown 3 saniye → 2 saniye (daha hızlı akış)
 //   Deprecated API düzeltmeleri: withOpacity→withValues
@@ -85,7 +89,7 @@ class _ReviewRatingSheetState extends State<ReviewRatingSheet>
     _timer?.cancel();
     if (!mounted) return;
     context.read<StudyZoneBloc>().add(
-          AnswerSubmitted(rating: rating, responseMs: widget.responseMs),
+          AnswerSubmitted(rating: rating, responseMs: widget.responseMs, isCorrect: rating != ReviewRating.again),
         );
     Navigator.of(context).pop();
   }

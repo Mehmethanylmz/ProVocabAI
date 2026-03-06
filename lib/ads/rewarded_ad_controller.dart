@@ -38,7 +38,7 @@ class RewardedAdController {
     }
     return Platform.isIOS
         ? AdConstants.iosTestRewardedId
-        : AdConstants.androidTestRewardedId;
+        : AdConstants.androidProdRewardedId;
   }
 
   /// Rewarded ad'i önceden yükle.

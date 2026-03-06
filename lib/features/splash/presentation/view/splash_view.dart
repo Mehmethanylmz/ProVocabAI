@@ -154,7 +154,7 @@ class _SplashViewState extends State<SplashView> {
 
                           // App name
                           Text(
-                            'ProVocab AI',
+                            'Savgo Learn Vocabulary',
                             style: GoogleFonts.inter(
                               color: Colors.white,
                               fontSize: 32,

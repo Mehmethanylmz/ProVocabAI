@@ -18,7 +18,6 @@ import '../../../../srs/plan_models.dart';
 import '../state/study_zone_bloc.dart';
 import '../state/study_zone_event.dart';
 import '../state/study_zone_state.dart';
-import 'mini_session_screen.dart';
 import 'quiz_screen.dart';
 
 // ── StudyZoneScreen ───────────────────────────────────────────────────────────
@@ -203,32 +202,19 @@ class _StudyZoneScreenState extends State<StudyZoneScreen> {
               ),
             ),
 
-          // Hızlı 5 dk mini session
-          SliverPadding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-            sliver: SliverToBoxAdapter(
-              child: _MiniSessionButton(
-                enabled: state is StudyZoneReady,
-                onTap: () {
-                  Navigator.of(context).push(PageRouteBuilder(
-                    pageBuilder: (_, __, ___) => MiniSessionScreen(
-                      targetLang: _targetLang,
-                    ),
-                    transitionsBuilder: (_, animation, __, child) =>
-                        SlideTransition(
-                      position: Tween(
-                        begin: const Offset(0.0, 1.0),
-                        end: Offset.zero,
-                      ).animate(CurvedAnimation(
-                          parent: animation, curve: Curves.easeInOut)),
-                      child: child,
-                    ),
-                    transitionDuration: const Duration(milliseconds: 280),
-                  ));
-                },
+          // F10-06: Günlük hedef tamamlandı banner'ı
+          if (state is StudyZoneReady && state.goalMet)
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              sliver: SliverToBoxAdapter(
+                child: _GoalMetBanner(
+                  hasPendingCards: !state.plan.isEmpty,
+                  onContinue: () => context
+                      .read<StudyZoneBloc>()
+                      .add(const ContinueBeyondGoal()),
+                ),
               ),
             ),
-          ),
         ],
       ),
     );
@@ -239,6 +225,11 @@ class _StudyZoneScreenState extends State<StudyZoneScreen> {
       return const _PlanCardSkeleton();
     }
     if (state is StudyZoneReady) {
+      // F10-06: goalMet + plan boş → sadece hedef tamamlandı kartı göster
+      // (banner ayrıca gösteriliyor, burada plan kartı gizlenir)
+      if (state.goalMet && state.plan.isEmpty) {
+        return const SizedBox.shrink();
+      }
       return DailyProgressCard(
         plan: state.plan,
         onStart: () =>
@@ -688,25 +679,81 @@ class LeechWarningBanner extends StatelessWidget {
   }
 }
 
-// ── _MiniSessionButton ────────────────────────────────────────────────────────
+// ── _GoalMetBanner (F10-06) ───────────────────────────────────────────────────
 
-class _MiniSessionButton extends StatelessWidget {
-  final bool enabled;
-  final VoidCallback onTap;
+/// Günlük yeni kelime hedefine ulaşıldığında gösterilen banner.
+///
+/// [hasPendingCards] true → due kartlar hâlâ var, "Devam Et" sadece ek yeni kelime
+///   için geçerli. Banner bilgi niteliğinde gösterilir.
+/// [hasPendingCards] false → plan boş, "Devam Et" tek aksiyon.
+class _GoalMetBanner extends StatelessWidget {
+  final bool hasPendingCards;
+  final VoidCallback onContinue;
 
-  const _MiniSessionButton({required this.enabled, required this.onTap});
+  const _GoalMetBanner({
+    required this.hasPendingCards,
+    required this.onContinue,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return OutlinedButton.icon(
-      key: const Key('mini_session_button'),
-      onPressed: enabled ? onTap : null,
-      icon: const Icon(Icons.bolt_rounded, size: 20),
-      label: const Text('Hızlı 5 dk',
-          style: TextStyle(fontWeight: FontWeight.w600)),
-      style: OutlinedButton.styleFrom(
-        minimumSize: const Size(double.infinity, 48),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      key: const Key('goal_met_banner'),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: ColorPalette.success.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(16),
+        border:
+            Border.all(color: ColorPalette.success.withValues(alpha: 0.35)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Text('🎯', style: TextStyle(fontSize: 20)),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Günlük hedefini tamamladın!',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        color: ColorPalette.success,
+                        fontWeight: FontWeight.w700,
+                      ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            hasPendingCards
+                ? 'Tekrar kartlarını da bitirdikten sonra ek kelimeler ekleyebilirsin.'
+                : 'Bugün için tüm kartları tamamladın. Devam etmek ister misin?',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: scheme.onSurface.withValues(alpha: 0.65),
+                ),
+          ),
+          if (!hasPendingCards) ...[
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                key: const Key('continue_beyond_goal_button'),
+                onPressed: onContinue,
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: ColorPalette.success),
+                  foregroundColor: ColorPalette.success,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                ),
+                child: const Text('Devam Et',
+                    style: TextStyle(fontWeight: FontWeight.w700)),
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }

@@ -5,6 +5,7 @@
 //          selectModeWithValidation() kullanımı — kart uygunluğuna göre fallback
 
 import 'dart:convert';
+import 'dart:math';
 
 import 'package:flutter/widgets.dart' show AppLifecycleState;
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -51,6 +52,7 @@ class StudyZoneBloc extends Bloc<StudyZoneEvent, StudyZoneState> {
 
   String _targetLang = 'en';
   int _sessionCardLimit = 10;
+  List<String> _sessionCategories = []; // F10-05: ContinueBeyondGoal için
 
   /// F2-03: Kullanıcının seçtiği tercih edilen mod.
   /// null → otomatik (ModeSelector.selectMode kendi karar verir)
@@ -84,6 +86,7 @@ class StudyZoneBloc extends Bloc<StudyZoneEvent, StudyZoneState> {
     on<RewardedAdCompleted>(_onRewardedAdCompleted);
     on<PlanDateChanged>(_onPlanDateChanged);
     on<StudyModeManuallyChanged>(_onModeChanged); // F2-03
+    on<ContinueBeyondGoal>(_onContinueBeyondGoal); // F10-05
   }
 
   /// F2-03: Dışarıdan kullanıcının tercih ettiği modu okuma (UI chip bar için).
@@ -97,6 +100,7 @@ class StudyZoneBloc extends Bloc<StudyZoneEvent, StudyZoneState> {
   ) async {
     _targetLang = event.targetLang;
     _sessionCardLimit = event.sessionCardLimit;
+    _sessionCategories = event.categories; // F10-05: ContinueBeyondGoal için
     emit(const StudyZonePlanning());
 
     try {
@@ -107,10 +111,12 @@ class StudyZoneBloc extends Bloc<StudyZoneEvent, StudyZoneState> {
         planDate: _todayDate(),
       );
 
-      if (plan.isEmpty) {
+      // F10-04: goalMet true ise plan boş olsa bile StudyZoneReady emit et.
+      // Kullanıcı "Devam et?" seçebilmeli — noCardsAvailable gösterme.
+      if (plan.isEmpty && !plan.goalMet) {
         emit(const StudyZoneIdle(emptyReason: EmptyReason.noCardsAvailable));
       } else {
-        emit(StudyZoneReady(plan: plan));
+        emit(StudyZoneReady(plan: plan, goalMet: plan.goalMet));
       }
     } catch (e, st) {
       addError(e, st);
@@ -127,7 +133,13 @@ class StudyZoneBloc extends Bloc<StudyZoneEvent, StudyZoneState> {
     final ready = state;
     if (ready is! StudyZoneReady) return;
 
-    _planCards = List.of(ready.plan.cards).take(_sessionCardLimit).toList();
+    // F9-05: Leech kartları başa al, geri kalanı karıştır.
+    // Leech kartlar önce gelir → kullanıcı zor kelimeleri başta görür.
+    final allCards = List.of(ready.plan.cards).take(_sessionCardLimit).toList();
+    final leechCards = allCards.where((c) => c.source == CardSource.leech).toList();
+    final otherCards = allCards.where((c) => c.source != CardSource.leech).toList();
+    otherCards.shuffle(Random());
+    _planCards = [...leechCards, ...otherCards];
     _modeHistory.clear();
     _sessionXP = 0;
     _wrongWordIds.clear();
@@ -222,11 +234,13 @@ class StudyZoneBloc extends Bloc<StudyZoneEvent, StudyZoneState> {
       responseMs: event.responseMs,
       xpEarned: xp,
       isNew: card.source == CardSource.newCard,
+      isCorrect: event.isCorrect, // F9-02: MCQ sonucundan, rating'den değil
     ));
 
     _sessionXP += xp;
     _answerCount++;
-    if (rating == ReviewRating.again) {
+    // F9-02: isCorrect MCQ seçimine göre — rating'den bağımsız
+    if (!event.isCorrect) {
       _wrongWordIds.add(card.wordId);
     } else {
       _correctCards++;
@@ -358,6 +372,34 @@ class StudyZoneBloc extends Bloc<StudyZoneEvent, StudyZoneState> {
     }
   }
 
+  // ── Handler: _onContinueBeyondGoal (F10-05) ──────────────────────────────
+
+  /// Kullanıcı günlük hedef sonrası "Devam et" seçti.
+  /// newWordsGoal=999 ile plan yeniden oluşturulur → pratik olarak sınırsız yeni kart.
+  /// goalMet=false ile emit edilir (banner tekrar gösterilmez).
+  Future<void> _onContinueBeyondGoal(
+    ContinueBeyondGoal event,
+    Emitter<StudyZoneState> emit,
+  ) async {
+    emit(const StudyZonePlanning());
+    try {
+      final plan = await _dailyPlanner.buildPlan(
+        targetLang: _targetLang,
+        categories: _sessionCategories,
+        newWordsGoal: 999, // Soft cap bypass
+        planDate: _todayDate(),
+      );
+      if (plan.isEmpty) {
+        emit(const StudyZoneIdle(emptyReason: EmptyReason.noCardsAvailable));
+      } else {
+        emit(StudyZoneReady(plan: plan, goalMet: false));
+      }
+    } catch (e, st) {
+      addError(e, st);
+      emit(StudyZoneError(message: e.toString()));
+    }
+  }
+
   // ── Handler: _onPlanDateChanged ───────────────────────────────────────────
 
   void _onPlanDateChanged(
@@ -455,13 +497,22 @@ class StudyZoneBloc extends Bloc<StudyZoneEvent, StudyZoneState> {
       xpEarned: _sessionXP,
     ));
 
+    // F9-04: Yanlış kelime nesnelerini DB'den al (session_result_screen için)
+    final wrongWords = <Word>[];
+    for (final id in _wrongWordIds) {
+      final word = await _wordDao.getWordById(id);
+      if (word != null) wrongWords.add(word);
+    }
+
     emit(StudyZoneCompleted(
       totalCards: _answerCount,
       correctCards: _correctCards,
       totalTimeMs: totalTimeMs,
       xpEarned: _sessionXP,
       wrongWordIds: List.unmodifiable(_wrongWordIds),
+      wrongWords: List.unmodifiable(wrongWords),
       sessionId: reviewing.sessionId,
+      targetLang: _targetLang,
     ));
   }
 

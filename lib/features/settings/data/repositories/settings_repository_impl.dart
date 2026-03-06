@@ -31,6 +31,49 @@ class SettingsRepositoryImpl implements ISettingsRepository {
 
   static const _keyNotificationsEnabled = 'notifications_enabled';
 
+  // ── Günlük Hedef Serisi (FAZ 10) ────────────────────────────────────────────
+
+  static const _keyDailyGoalStreak = 'daily_goal_streak';
+  static const _keyLastGoalMetDate = 'last_goal_met_date';
+
+  @override
+  Future<Either<Failure, int>> getDailyGoalStreak() async {
+    try {
+      return Right(_prefs.getInt(_keyDailyGoalStreak) ?? 0);
+    } catch (e) {
+      return Left(CacheFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> saveDailyGoalStreak(int streak) async {
+    try {
+      await _prefs.setInt(_keyDailyGoalStreak, streak);
+      return const Right(null);
+    } catch (e) {
+      return Left(CacheFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, String?>> getLastGoalMetDate() async {
+    try {
+      return Right(_prefs.getString(_keyLastGoalMetDate));
+    } catch (e) {
+      return Left(CacheFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> saveLastGoalMetDate(String date) async {
+    try {
+      await _prefs.setString(_keyLastGoalMetDate, date);
+      return const Right(null);
+    } catch (e) {
+      return Left(CacheFailure(e.toString()));
+    }
+  }
+
   @override
   Future<Either<Failure, bool>> getNotificationsEnabled() async {
     try {

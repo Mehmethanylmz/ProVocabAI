@@ -6,7 +6,7 @@
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN"/>
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT"/>
     <application
-        android:label="pratikapp"
+        android:label="Savgo Learn Vocabulary"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:enableOnBackInvokedCallback="true">
@@ -14,7 +14,7 @@
         <!-- AdMob - Test App ID (Sprint 4'te gercek ID ile degistirilecek) -->
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
-            android:value="ca-app-pub-3940256099942544~3347511713"/>
+            android:value="ca-app-pub-5992029426417649~8083148612"/>
 
         <activity
             android:name=".MainActivity"

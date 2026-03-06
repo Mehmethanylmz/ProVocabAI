@@ -98,6 +98,7 @@ class _ListeningScreenState extends State<ListeningScreen> {
     context.read<StudyZoneBloc>().add(AnswerSubmitted(
           rating: rating,
           responseMs: responseMs,
+          isCorrect: correct,
         ));
   }
 

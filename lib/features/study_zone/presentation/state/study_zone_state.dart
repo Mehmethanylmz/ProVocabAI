@@ -42,10 +42,16 @@ class StudyZonePlanning extends StudyZoneState {
 class StudyZoneReady extends StudyZoneState {
   final DailyPlan plan;
 
-  const StudyZoneReady({required this.plan});
+  /// F10-04: Günlük yeni kelime hedefine ulaşıldı mı?
+  /// true → UI'da "Hedefini tamamladın! Devam et?" banner'ı gösterilir.
+  /// plan.isEmpty && goalMet → due kart yok, sadece hedef tamamlandı mesajı.
+  /// plan.isEmpty && !goalMet → noCardsAvailable (normal boş durum).
+  final bool goalMet;
+
+  const StudyZoneReady({required this.plan, this.goalMet = false});
 
   @override
-  List<Object?> get props => [plan];
+  List<Object?> get props => [plan, goalMet];
 }
 
 // ── 4. StudyZoneInSession ─────────────────────────────────────────────────────
@@ -239,7 +245,16 @@ class StudyZoneCompleted extends StudyZoneState {
   final int totalTimeMs;
   final int xpEarned;
   final List<int> wrongWordIds;
+
+  /// F9-04: Yanlış kelimelerin tam Word nesneleri (session_result_screen'de
+  /// kelime adını göstermek için). wrongWordIds ile aynı sırada.
+  final List<Word> wrongWords;
+
   final String sessionId;
+
+  /// F9-04: Session'da kullanılan hedef dil.
+  /// session_result_screen'de word text parse için gerekli.
+  final String targetLang;
 
   const StudyZoneCompleted({
     required this.totalCards,
@@ -247,7 +262,9 @@ class StudyZoneCompleted extends StudyZoneState {
     required this.totalTimeMs,
     required this.xpEarned,
     required this.wrongWordIds,
+    required this.wrongWords,
     required this.sessionId,
+    required this.targetLang,
   });
 
   double get accuracy => totalCards == 0 ? 0.0 : correctCards / totalCards;
@@ -259,7 +276,9 @@ class StudyZoneCompleted extends StudyZoneState {
         totalTimeMs,
         xpEarned,
         wrongWordIds,
+        wrongWords,
         sessionId,
+        targetLang,
       ];
 }
 

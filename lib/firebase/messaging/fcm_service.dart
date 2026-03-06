@@ -40,8 +40,8 @@ class FCMService {
   final _navigationController = StreamController<String>.broadcast();
   Stream<String> get onNavigate => _navigationController.stream;
 
-  static const _channelId = 'provocalai_main';
-  static const _channelName = 'ProVocabAI Notifications';
+  static const _channelId = 'savgo_main';
+  static const _channelName = 'Savgo Learn Vocabulary Notifications';
 
   // ── Public API ────────────────────────────────────────────────────────────
 

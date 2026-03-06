@@ -71,7 +71,7 @@ class _PratikAppState extends State<PratikApp> {
         fallbackLocale: LanguageManager.instance.supportedLocales[1],
         child: Builder(
           builder: (ctx) => MaterialApp(
-            title: 'ProVocabAI',
+            title: 'Savgo Learn Vocabulary',
             debugShowCheckedModeBanner: false,
             localizationsDelegates: ctx.localizationDelegates,
             supportedLocales: ctx.supportedLocales,

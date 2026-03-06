@@ -66,6 +66,12 @@ class DailyPlan {
   /// hesaplayıp bu alana yazar. Henüz implement edilmediyse default 0.
   final int completedCount;
 
+  /// F10-03: Günlük yeni kelime hedefine ulaşıldı mı?
+  /// doneToday >= newWordsGoal ise true.
+  /// UI'da "Hedefini tamamladın!" banner'ı için kullanılır.
+  /// true olsa bile due kartlar varsa plan boş olmayabilir.
+  final bool goalMet;
+
   const DailyPlan({
     required this.targetLang,
     required this.planDate,
@@ -76,6 +82,7 @@ class DailyPlan {
     required this.estimatedMinutes,
     required this.createdAt,
     this.completedCount = 0,
+    this.goalMet = false,
   });
 
   int get totalCards => cards.length;
@@ -87,5 +94,5 @@ class DailyPlan {
   @override
   String toString() => 'DailyPlan($planDate/$targetLang '
       'total=$totalCards due=$dueCount new=$newCount leech=$leechCount '
-      'completed=$completedCount ~${estimatedMinutes}min)';
+      'completed=$completedCount goalMet=$goalMet ~${estimatedMinutes}min)';
 }
