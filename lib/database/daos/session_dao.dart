@@ -119,6 +119,33 @@ class SessionDao extends DatabaseAccessor<AppDatabase> with _$SessionDaoMixin {
     return result.data['total_xp'] as int? ?? 0;
   }
 
+  // ── F12-04: Dashboard heatmap ─────────────────────────────────────────────
+
+  /// Belirtilen aralıkta gün bazlı oturum süresi (dakika).
+  ///
+  /// Dönen map: key = 'yyyy-MM-dd', value = toplam dakika.
+  /// Heatmap ve takvim görünümü için kullanılır.
+  Future<Map<String, int>> getDailySessionStats(int fromMs, int toMs) async {
+    final result = await customSelect('''
+      SELECT
+        date(started_at / 1000, 'unixepoch') AS day,
+        COALESCE(
+          SUM(CASE WHEN ended_at IS NOT NULL THEN (ended_at - started_at) ELSE 0 END),
+          0
+        ) / 60000 AS time_minutes
+      FROM sessions
+      WHERE started_at >= ? AND started_at <= ?
+      GROUP BY date(started_at / 1000, 'unixepoch')
+    ''',
+        variables: [Variable(fromMs), Variable(toMs)],
+        readsFrom: {sessions}).get();
+
+    return Map.fromEntries(result.map((row) => MapEntry(
+          row.data['day'] as String,
+          (row.data['time_minutes'] as num?)?.toInt() ?? 0,
+        )));
+  }
+
   /// Bu haftaki toplam kart sayısı — Leaderboard XP hesabında kullanılır.
   Future<Map<String, int>> getWeeklyStats({
     required String targetLang,

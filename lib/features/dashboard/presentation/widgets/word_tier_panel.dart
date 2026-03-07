@@ -26,7 +26,7 @@ class WordTierPanel extends StatelessWidget {
     final tierInfo = {
       'Expert': {
         'color': context.ext.success,
-        'gradient': [context.ext.success, context.ext.success.withOpacity(0.7)],
+        'gradient': [context.ext.success, context.ext.success.withValues(alpha:0.7)],
         'icon': Icons.workspace_premium,
         'label': 'expert'.tr()
       },
@@ -38,7 +38,7 @@ class WordTierPanel extends StatelessWidget {
       },
       'Novice': {
         'color': context.ext.warning,
-        'gradient': [context.ext.warning, context.ext.warning.withOpacity(0.7)],
+        'gradient': [context.ext.warning, context.ext.warning.withValues(alpha:0.7)],
         'icon': Icons.school,
         'label': 'novice'.tr()
       },
@@ -46,7 +46,7 @@ class WordTierPanel extends StatelessWidget {
         'color': context.colors.error,
         'gradient': [
           context.colors.error,
-          context.colors.error.withOpacity(0.7)
+          context.colors.error.withValues(alpha:0.7)
         ],
         'icon': Icons.priority_high,
         'label': 'struggling'.tr()
@@ -96,7 +96,7 @@ class WordTierPanel extends StatelessWidget {
                       Container(
                         padding: EdgeInsets.all(context.responsive.spacingXS),
                         decoration: BoxDecoration(
-                          color: context.colors.primary.withOpacity(0.1),
+                          color: context.colors.primary.withValues(alpha:0.1),
                           borderRadius: BorderRadius.circular(
                               context.responsive.borderRadiusM),
                         ),
@@ -121,11 +121,11 @@ class WordTierPanel extends StatelessWidget {
                       vertical: context.responsive.spacingXS,
                     ),
                     decoration: BoxDecoration(
-                      color: context.colors.primaryContainer.withOpacity(0.5),
+                      color: context.colors.primaryContainer.withValues(alpha:0.5),
                       borderRadius: BorderRadius.circular(
                           context.responsive.borderRadiusXL),
                       border: Border.all(
-                        color: context.colors.primary.withOpacity(0.3),
+                        color: context.colors.primary.withValues(alpha:0.3),
                         width: 1,
                       ),
                     ),
@@ -177,7 +177,7 @@ class WordTierPanel extends StatelessWidget {
                                     context.responsive.borderRadiusM),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: gradientColors[0].withOpacity(0.3),
+                                    color: gradientColors[0].withValues(alpha:0.3),
                                     blurRadius: 8,
                                     offset: const Offset(0, 4),
                                   ),
@@ -209,7 +209,7 @@ class WordTierPanel extends StatelessWidget {
                             ),
                             Text(
                               entry.value.toString(),
-                              style: GoogleFonts.poppins(
+                              style: GoogleFonts.inter(
                                 fontSize: context.responsive.fontSizeH3,
                                 fontWeight: FontWeight.bold,
                                 color: baseColor,

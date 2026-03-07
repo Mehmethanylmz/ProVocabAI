@@ -241,6 +241,9 @@ class LightTheme extends AppTheme {
           glowPrimary: ColorPalette.primary.withValues(alpha: 0.25),
           glowSuccess: ColorPalette.success.withValues(alpha: 0.25),
           glowError: ColorPalette.error.withValues(alpha: 0.25),
+          cardNew: ColorPalette.cardSourceNew,
+          cardLeech: ColorPalette.cardSourceLeech,
+          cardDue: ColorPalette.cardSourceDue,
         ),
       ],
     );

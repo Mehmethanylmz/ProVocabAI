@@ -51,6 +51,7 @@ class StudyZoneBloc extends Bloc<StudyZoneEvent, StudyZoneState> {
   int _answerCount = 0;
 
   String _targetLang = 'en';
+  String _sourceLang = 'tr'; // F15-09: langPair ve _parseWordMeaning için
   int _sessionCardLimit = 10;
   List<String> _sessionCategories = []; // F10-05: ContinueBeyondGoal için
 
@@ -158,6 +159,9 @@ class StudyZoneBloc extends Bloc<StudyZoneEvent, StudyZoneState> {
       return;
     }
 
+    // F15-09: sourceLang from the word's DB column (set during Firestore sync)
+    _sourceLang = word.sourceLang;
+
     final decoys = await _buildDecoys(word);
 
     final sessionId = await _startSession(
@@ -168,7 +172,7 @@ class StudyZoneBloc extends Bloc<StudyZoneEvent, StudyZoneState> {
     _incrementMode(mode);
 
     final wordText = _parseWordText(word, ready.plan.targetLang);
-    final wordMeaning = _parseWordMeaning(word, ready.plan.targetLang);
+    final wordMeaning = _parseWordMeaning(word);
 
     emit(StudyZoneInSession(
       currentCard: firstCard,
@@ -292,7 +296,7 @@ class StudyZoneBloc extends Bloc<StudyZoneEvent, StudyZoneState> {
     }
     final nextDecoys = await _buildDecoys(nextWord);
     final wordText = _parseWordText(nextWord, _targetLang);
-    final wordMeaning = _parseWordMeaning(nextWord, _targetLang);
+    final wordMeaning = _parseWordMeaning(nextWord);
 
     emit(reviewing
         .toInSession(
@@ -324,6 +328,7 @@ class StudyZoneBloc extends Bloc<StudyZoneEvent, StudyZoneState> {
         totalCards: _answerCount,
         correctCards: _correctCards,
         xpEarned: _sessionXP,
+        langPair: '$_sourceLang-$_targetLang', // F15-09
       ));
     }
     emit(const StudyZoneIdle());
@@ -472,11 +477,17 @@ class StudyZoneBloc extends Bloc<StudyZoneEvent, StudyZoneState> {
     }
   }
 
-  String _parseWordMeaning(Word word, String targetLang) {
+  /// F15: MCQ seçenekleri için sourceLang kelimesini döndür.
+  /// quiz sorusu: targetLang kelimesi (ör. "about")
+  /// MCQ seçenekleri: sourceLang çevirisi (ör. "hakkında")
+  String _parseWordMeaning(Word word) {
     try {
       final Map<String, dynamic> content = jsonDecode(word.contentJson);
-      final langData = content[targetLang] as Map<String, dynamic>?;
-      return (langData?['meaning'] as String?) ?? '';
+      // sourceLang kolonu (DB'den) → Türkçe karşılığı
+      final langData = content[word.sourceLang] as Map<String, dynamic>?;
+      return (langData?['word'] as String?) ??
+          (langData?['meaning'] as String?) ??
+          '';
     } catch (_) {
       return '';
     }
@@ -495,6 +506,7 @@ class StudyZoneBloc extends Bloc<StudyZoneEvent, StudyZoneState> {
       totalCards: _answerCount,
       correctCards: _correctCards,
       xpEarned: _sessionXP,
+      langPair: '$_sourceLang-$_targetLang', // F15-09
     ));
 
     // F9-04: Yanlış kelime nesnelerini DB'den al (session_result_screen için)

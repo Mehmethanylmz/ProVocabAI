@@ -17,6 +17,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 
 import '../../../../core/di/injection_container.dart';
+import '../../../../core/init/theme/app_theme_extension.dart';
 import '../../../../core/services/tts_service.dart';
 import '../../../../database/app_database.dart';
 import '../../../../srs/plan_models.dart';
@@ -162,9 +163,9 @@ class _ListeningCardState extends State<ListeningCard> {
         Container(
           padding: const EdgeInsets.all(28),
           decoration: BoxDecoration(
-            color: scheme.secondaryContainer.withOpacity(0.4),
+            color: scheme.secondaryContainer.withValues(alpha:0.4),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: scheme.secondary.withOpacity(0.3)),
+            border: Border.all(color: scheme.secondary.withValues(alpha:0.3)),
           ),
           child: Column(
             children: [
@@ -180,7 +181,7 @@ class _ListeningCardState extends State<ListeningCard> {
                   height: 88,
                   decoration: BoxDecoration(
                     color: _ttsPlaying
-                        ? scheme.secondary.withOpacity(0.2)
+                        ? scheme.secondary.withValues(alpha:0.2)
                         : scheme.secondaryContainer,
                     shape: BoxShape.circle,
                   ),
@@ -198,7 +199,7 @@ class _ListeningCardState extends State<ListeningCard> {
               Text(
                 _ttsPlaying ? 'Çalıyor...' : 'Kelimeyi Dinle',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: scheme.onSurface.withOpacity(0.6),
+                      color: scheme.onSurface.withValues(alpha:0.6),
                     ),
               ),
 
@@ -221,7 +222,7 @@ class _ListeningCardState extends State<ListeningCard> {
         Text(
           'Hangi anlama geliyor?',
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: scheme.onSurface.withOpacity(0.5),
+                color: scheme.onSurface.withValues(alpha:0.5),
               ),
           textAlign: TextAlign.center,
         ),
@@ -273,16 +274,17 @@ class _OptionTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final ext = Theme.of(context).extension<AppThemeExtension>()!;
     Color? bgColor;
-    Color borderColor = scheme.outline.withOpacity(0.3);
+    Color borderColor = scheme.outline.withValues(alpha: 0.3);
 
     if (answered) {
       if (isCorrect) {
-        bgColor = Colors.green.withOpacity(0.13);
-        borderColor = Colors.green;
+        bgColor = ext.success.withValues(alpha: 0.13);
+        borderColor = ext.success;
       } else if (isSelected) {
-        bgColor = Colors.red.withOpacity(0.13);
-        borderColor = Colors.red;
+        bgColor = scheme.error.withValues(alpha: 0.13);
+        borderColor = scheme.error;
       }
     }
 
@@ -308,9 +310,9 @@ class _OptionTile extends StatelessWidget {
                         ?.copyWith(fontWeight: FontWeight.w500)),
               ),
               if (answered && isCorrect)
-                const Icon(Icons.check_circle, color: Colors.green, size: 20),
+                Icon(Icons.check_circle, color: ext.success, size: 20),
               if (answered && isSelected && !isCorrect)
-                const Icon(Icons.cancel, color: Colors.red, size: 20),
+                Icon(Icons.cancel, color: scheme.error, size: 20),
             ],
           ),
         ),
@@ -325,23 +327,24 @@ class _TtsFallbackBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ext = Theme.of(context).extension<AppThemeExtension>()!;
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: BoxDecoration(
-        color: Colors.orange.withOpacity(0.10),
+        color: ext.warning.withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.orange.withOpacity(0.4)),
+        border: Border.all(color: ext.warning.withValues(alpha: 0.4)),
       ),
       child: Row(
         children: [
-          const Icon(Icons.volume_off, color: Colors.orange, size: 18),
+          Icon(Icons.volume_off, color: ext.warning, size: 18),
           const SizedBox(width: 10),
           Expanded(
             child: Text.rich(
               TextSpan(
                 text: 'Ses çalınamadı. Kelime: ',
-                style: const TextStyle(fontSize: 12, color: Colors.orange),
+                style: TextStyle(fontSize: 12, color: ext.warning),
                 children: [
                   TextSpan(
                     text: wordText,
@@ -363,15 +366,16 @@ class _SourceBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ext = Theme.of(context).extension<AppThemeExtension>()!;
     final (label, color) = switch (source) {
-      CardSource.newCard => ('Yeni', const Color(0xFF1E88E5)),
-      CardSource.leech => ('Zor', const Color(0xFFE53935)),
-      CardSource.due => ('Tekrar', const Color(0xFF43A047)),
+      CardSource.newCard => ('Yeni', ext.cardNew),
+      CardSource.leech => ('Zor', ext.cardLeech),
+      CardSource.due => ('Tekrar', ext.cardDue),
     };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
+        color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(6),
       ),
       child: Text(label,

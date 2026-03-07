@@ -44,6 +44,16 @@ service cloud.firestore {
       allow read, write: if isOwner(uid);
     }
 
+    /* ──────────── Word Catalogue (Read: everyone authenticated, Write: upload script only) ──────────── */
+    // NOTE: allow write is intentionally open to any authenticated user so the
+    // one-time upload script (anonymous sign-in) can seed the catalogue.
+    // REMOVE the write rule after the initial upload is complete.
+
+    match /words/{wordId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated(); // TEMPORARY — remove after upload
+    }
+
     /* ──────────── Leaderboard (Admin SDK Only Write) ──────────── */
 
     match /leaderboard/{document=**} {

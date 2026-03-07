@@ -59,6 +59,22 @@ class $WordsTable extends Words with TableInfo<$WordsTable, Word> {
       type: DriftSqlType.int,
       requiredDuringInsert: false,
       defaultValue: const Constant(1));
+  static const VerificationMeta _sourceLangMeta =
+      const VerificationMeta('sourceLang');
+  @override
+  late final GeneratedColumn<String> sourceLang = GeneratedColumn<String>(
+      'source_lang', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('tr'));
+  static const VerificationMeta _targetLangMeta =
+      const VerificationMeta('targetLang');
+  @override
+  late final GeneratedColumn<String> targetLang = GeneratedColumn<String>(
+      'target_lang', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('en'));
   @override
   List<GeneratedColumn> get $columns => [
         id,
@@ -67,7 +83,9 @@ class $WordsTable extends Words with TableInfo<$WordsTable, Word> {
         categoriesJson,
         contentJson,
         sentencesJson,
-        difficultyRank
+        difficultyRank,
+        sourceLang,
+        targetLang,
       ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -118,6 +136,14 @@ class $WordsTable extends Words with TableInfo<$WordsTable, Word> {
           difficultyRank.isAcceptableOrUnknown(
               data['difficulty_rank']!, _difficultyRankMeta));
     }
+    if (data.containsKey('source_lang')) {
+      context.handle(_sourceLangMeta,
+          sourceLang.isAcceptableOrUnknown(data['source_lang']!, _sourceLangMeta));
+    }
+    if (data.containsKey('target_lang')) {
+      context.handle(_targetLangMeta,
+          targetLang.isAcceptableOrUnknown(data['target_lang']!, _targetLangMeta));
+    }
     return context;
   }
 
@@ -141,6 +167,10 @@ class $WordsTable extends Words with TableInfo<$WordsTable, Word> {
           .read(DriftSqlType.string, data['${effectivePrefix}sentences_json'])!,
       difficultyRank: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}difficulty_rank'])!,
+      sourceLang: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}source_lang'])!,
+      targetLang: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}target_lang'])!,
     );
   }
 
@@ -173,6 +203,13 @@ class Word extends DataClass implements Insertable<Word> {
   /// 1=A1, 2=A2, 3=B1, 4=B2, 5=C1, 6=C2
   /// DailyPlanner getNewCards() ORDER BY difficulty_rank ile kullanır.
   final int difficultyRank;
+
+  /// F15-03: Kullanıcının ana dili — bu kelime verisi bu dil için indirildi.
+  final String sourceLang;
+
+  /// F15-03: Kullanıcının öğrendiği dil — quiz sorusu bu dilde gösterilir.
+  final String targetLang;
+
   const Word(
       {required this.id,
       required this.partOfSpeech,
@@ -180,7 +217,9 @@ class Word extends DataClass implements Insertable<Word> {
       required this.categoriesJson,
       required this.contentJson,
       required this.sentencesJson,
-      required this.difficultyRank});
+      required this.difficultyRank,
+      this.sourceLang = 'tr',
+      this.targetLang = 'en'});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -193,6 +232,8 @@ class Word extends DataClass implements Insertable<Word> {
     map['content_json'] = Variable<String>(contentJson);
     map['sentences_json'] = Variable<String>(sentencesJson);
     map['difficulty_rank'] = Variable<int>(difficultyRank);
+    map['source_lang'] = Variable<String>(sourceLang);
+    map['target_lang'] = Variable<String>(targetLang);
     return map;
   }
 
@@ -207,6 +248,8 @@ class Word extends DataClass implements Insertable<Word> {
       contentJson: Value(contentJson),
       sentencesJson: Value(sentencesJson),
       difficultyRank: Value(difficultyRank),
+      sourceLang: Value(sourceLang),
+      targetLang: Value(targetLang),
     );
   }
 
@@ -221,6 +264,8 @@ class Word extends DataClass implements Insertable<Word> {
       contentJson: serializer.fromJson<String>(json['contentJson']),
       sentencesJson: serializer.fromJson<String>(json['sentencesJson']),
       difficultyRank: serializer.fromJson<int>(json['difficultyRank']),
+      sourceLang: serializer.fromJson<String>(json['sourceLang'] ?? 'tr'),
+      targetLang: serializer.fromJson<String>(json['targetLang'] ?? 'en'),
     );
   }
   @override
@@ -234,6 +279,8 @@ class Word extends DataClass implements Insertable<Word> {
       'contentJson': serializer.toJson<String>(contentJson),
       'sentencesJson': serializer.toJson<String>(sentencesJson),
       'difficultyRank': serializer.toJson<int>(difficultyRank),
+      'sourceLang': serializer.toJson<String>(sourceLang),
+      'targetLang': serializer.toJson<String>(targetLang),
     };
   }
 
@@ -244,7 +291,9 @@ class Word extends DataClass implements Insertable<Word> {
           String? categoriesJson,
           String? contentJson,
           String? sentencesJson,
-          int? difficultyRank}) =>
+          int? difficultyRank,
+          String? sourceLang,
+          String? targetLang}) =>
       Word(
         id: id ?? this.id,
         partOfSpeech: partOfSpeech ?? this.partOfSpeech,
@@ -254,6 +303,8 @@ class Word extends DataClass implements Insertable<Word> {
         contentJson: contentJson ?? this.contentJson,
         sentencesJson: sentencesJson ?? this.sentencesJson,
         difficultyRank: difficultyRank ?? this.difficultyRank,
+        sourceLang: sourceLang ?? this.sourceLang,
+        targetLang: targetLang ?? this.targetLang,
       );
   Word copyWithCompanion(WordsCompanion data) {
     return Word(
@@ -275,6 +326,12 @@ class Word extends DataClass implements Insertable<Word> {
       difficultyRank: data.difficultyRank.present
           ? data.difficultyRank.value
           : this.difficultyRank,
+      sourceLang: data.sourceLang.present
+          ? data.sourceLang.value
+          : this.sourceLang,
+      targetLang: data.targetLang.present
+          ? data.targetLang.value
+          : this.targetLang,
     );
   }
 
@@ -287,14 +344,17 @@ class Word extends DataClass implements Insertable<Word> {
           ..write('categoriesJson: $categoriesJson, ')
           ..write('contentJson: $contentJson, ')
           ..write('sentencesJson: $sentencesJson, ')
-          ..write('difficultyRank: $difficultyRank')
+          ..write('difficultyRank: $difficultyRank, ')
+          ..write('sourceLang: $sourceLang, ')
+          ..write('targetLang: $targetLang')
           ..write(')'))
         .toString();
   }
 
   @override
   int get hashCode => Object.hash(id, partOfSpeech, transcription,
-      categoriesJson, contentJson, sentencesJson, difficultyRank);
+      categoriesJson, contentJson, sentencesJson, difficultyRank,
+      sourceLang, targetLang);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -305,7 +365,9 @@ class Word extends DataClass implements Insertable<Word> {
           other.categoriesJson == this.categoriesJson &&
           other.contentJson == this.contentJson &&
           other.sentencesJson == this.sentencesJson &&
-          other.difficultyRank == this.difficultyRank);
+          other.difficultyRank == this.difficultyRank &&
+          other.sourceLang == this.sourceLang &&
+          other.targetLang == this.targetLang);
 }
 
 class WordsCompanion extends UpdateCompanion<Word> {
@@ -316,6 +378,8 @@ class WordsCompanion extends UpdateCompanion<Word> {
   final Value<String> contentJson;
   final Value<String> sentencesJson;
   final Value<int> difficultyRank;
+  final Value<String> sourceLang;
+  final Value<String> targetLang;
   const WordsCompanion({
     this.id = const Value.absent(),
     this.partOfSpeech = const Value.absent(),
@@ -324,6 +388,8 @@ class WordsCompanion extends UpdateCompanion<Word> {
     this.contentJson = const Value.absent(),
     this.sentencesJson = const Value.absent(),
     this.difficultyRank = const Value.absent(),
+    this.sourceLang = const Value.absent(),
+    this.targetLang = const Value.absent(),
   });
   WordsCompanion.insert({
     this.id = const Value.absent(),
@@ -333,6 +399,8 @@ class WordsCompanion extends UpdateCompanion<Word> {
     this.contentJson = const Value.absent(),
     this.sentencesJson = const Value.absent(),
     this.difficultyRank = const Value.absent(),
+    this.sourceLang = const Value.absent(),
+    this.targetLang = const Value.absent(),
   });
   static Insertable<Word> custom({
     Expression<int>? id,
@@ -342,6 +410,8 @@ class WordsCompanion extends UpdateCompanion<Word> {
     Expression<String>? contentJson,
     Expression<String>? sentencesJson,
     Expression<int>? difficultyRank,
+    Expression<String>? sourceLang,
+    Expression<String>? targetLang,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -351,6 +421,8 @@ class WordsCompanion extends UpdateCompanion<Word> {
       if (contentJson != null) 'content_json': contentJson,
       if (sentencesJson != null) 'sentences_json': sentencesJson,
       if (difficultyRank != null) 'difficulty_rank': difficultyRank,
+      if (sourceLang != null) 'source_lang': sourceLang,
+      if (targetLang != null) 'target_lang': targetLang,
     });
   }
 
@@ -361,7 +433,9 @@ class WordsCompanion extends UpdateCompanion<Word> {
       Value<String>? categoriesJson,
       Value<String>? contentJson,
       Value<String>? sentencesJson,
-      Value<int>? difficultyRank}) {
+      Value<int>? difficultyRank,
+      Value<String>? sourceLang,
+      Value<String>? targetLang}) {
     return WordsCompanion(
       id: id ?? this.id,
       partOfSpeech: partOfSpeech ?? this.partOfSpeech,
@@ -370,6 +444,8 @@ class WordsCompanion extends UpdateCompanion<Word> {
       contentJson: contentJson ?? this.contentJson,
       sentencesJson: sentencesJson ?? this.sentencesJson,
       difficultyRank: difficultyRank ?? this.difficultyRank,
+      sourceLang: sourceLang ?? this.sourceLang,
+      targetLang: targetLang ?? this.targetLang,
     );
   }
 
@@ -397,6 +473,12 @@ class WordsCompanion extends UpdateCompanion<Word> {
     if (difficultyRank.present) {
       map['difficulty_rank'] = Variable<int>(difficultyRank.value);
     }
+    if (sourceLang.present) {
+      map['source_lang'] = Variable<String>(sourceLang.value);
+    }
+    if (targetLang.present) {
+      map['target_lang'] = Variable<String>(targetLang.value);
+    }
     return map;
   }
 
@@ -409,7 +491,9 @@ class WordsCompanion extends UpdateCompanion<Word> {
           ..write('categoriesJson: $categoriesJson, ')
           ..write('contentJson: $contentJson, ')
           ..write('sentencesJson: $sentencesJson, ')
-          ..write('difficultyRank: $difficultyRank')
+          ..write('difficultyRank: $difficultyRank, ')
+          ..write('sourceLang: $sourceLang, ')
+          ..write('targetLang: $targetLang')
           ..write(')'))
         .toString();
   }

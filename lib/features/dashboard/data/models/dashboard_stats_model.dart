@@ -10,6 +10,16 @@ class DashboardStatsModel extends DashboardStatsEntity {
     super.monthSuccessRate,
     super.masteredWords,
     super.tierDistribution,
+    super.todayCorrect,
+    super.todayWrong,
+    super.todayTimeMinutes,
+    super.weekCorrect,
+    super.weekWrong,
+    super.weekTimeMinutes,
+    super.monthCorrect,
+    super.monthWrong,
+    super.todayModeDistribution,
+    super.heatmapData,
   });
 
   factory DashboardStatsModel.fromMap(Map<String, dynamic> map) {

@@ -12,7 +12,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../../../../core/constants/app/color_palette.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../dashboard/presentation/views/dashboard_view.dart';
@@ -86,34 +85,25 @@ class _PremiumBottomNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final scheme = Theme.of(context).colorScheme;
 
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
       decoration: BoxDecoration(
-        color: isDark
-            ? ColorPalette.surfaceContainerDark.withValues(alpha: 0.92)
-            : Colors.white.withValues(alpha: 0.95),
+        color: scheme.surfaceContainer.withValues(alpha: 0.95),
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: isDark
-              ? ColorPalette.outlineDark.withValues(alpha: 0.2)
-              : ColorPalette.outlineLight.withValues(alpha: 0.3),
-        ),
+        border: Border.all(color: scheme.outline.withValues(alpha: 0.25)),
         boxShadow: [
           BoxShadow(
-            color: isDark
-                ? Colors.black.withValues(alpha: 0.4)
-                : Colors.black.withValues(alpha: 0.08),
+            color: scheme.shadow.withValues(alpha: 0.15),
             blurRadius: 24,
             offset: const Offset(0, 8),
           ),
-          if (!isDark)
-            BoxShadow(
-              color: ColorPalette.primary.withValues(alpha: 0.04),
-              blurRadius: 40,
-              offset: const Offset(0, 4),
-            ),
+          BoxShadow(
+            color: scheme.primary.withValues(alpha: 0.04),
+            blurRadius: 40,
+            offset: const Offset(0, 4),
+          ),
         ],
       ),
       child: Padding(

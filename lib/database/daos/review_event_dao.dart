@@ -57,6 +57,36 @@ class ReviewEventDao extends DatabaseAccessor<AppDatabase>
         .go();
   }
 
+  // ── F12-03: Heatmap / Takvim ──────────────────────────────────────────────
+
+  /// Belirtilen zaman aralığında gün bazlı aktivite verisi.
+  ///
+  /// Dönen map: key = 'yyyy-MM-dd', value = {questionCount, correctCount}
+  /// Isı haritası ve takvim görünümü için kullanılır.
+  Future<Map<String, Map<String, int>>> getDailyActivityForRange(
+      int fromMs, int toMs) async {
+    final result = await customSelect('''
+      SELECT
+        date(reviewed_at / 1000, 'unixepoch') AS day,
+        COUNT(*) AS question_count,
+        SUM(CASE WHEN was_correct = 1 THEN 1 ELSE 0 END) AS correct_count
+      FROM review_events
+      WHERE reviewed_at >= ? AND reviewed_at <= ?
+      GROUP BY date(reviewed_at / 1000, 'unixepoch')
+      ORDER BY day ASC
+    ''',
+        variables: [Variable(fromMs), Variable(toMs)],
+        readsFrom: {reviewEvents}).get();
+
+    return Map.fromEntries(result.map((row) => MapEntry(
+          row.data['day'] as String,
+          {
+            'questionCount': row.data['question_count'] as int? ?? 0,
+            'correctCount': row.data['correct_count'] as int? ?? 0,
+          },
+        )));
+  }
+
   /// Session bazlı doğruluk istatistiği — SessionResultScreen summary için.
   Future<Map<String, int>> getSessionStats(String sessionId) async {
     final result = await customSelect('''

@@ -210,6 +210,9 @@ class DarkTheme extends AppTheme {
           glowPrimary: ColorPalette.primaryLight.withValues(alpha: 0.2),
           glowSuccess: ColorPalette.successLight.withValues(alpha: 0.2),
           glowError: ColorPalette.errorLight.withValues(alpha: 0.2),
+          cardNew: ColorPalette.cardSourceNewDark,
+          cardLeech: ColorPalette.cardSourceLeechDark,
+          cardDue: ColorPalette.cardSourceDueDark,
         ),
       ],
     );

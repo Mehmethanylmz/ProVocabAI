@@ -36,6 +36,18 @@ class AppThemeExtension extends ThemeExtension<AppThemeExtension> {
   final Color glowSuccess;
   final Color glowError;
 
+  // ── Kart tipi rozet renkleri (FAZ 17 — F17-01) ──────────────────────────────
+  // Dark/light modda otomatik uyum sağlar; hardcoded Color() kullanımı kaldırıldı.
+
+  /// "Yeni" kart rozeti rengi — Sky/Secondary tonu
+  final Color cardNew;
+
+  /// "Zor/Leech" kart rozeti rengi — Error tonu
+  final Color cardLeech;
+
+  /// "Tekrar/Due" kart rozeti rengi — Success/Emerald tonu
+  final Color cardDue;
+
   AppThemeExtension({
     required this.success,
     required this.warning,
@@ -55,6 +67,9 @@ class AppThemeExtension extends ThemeExtension<AppThemeExtension> {
     required this.glowPrimary,
     required this.glowSuccess,
     required this.glowError,
+    required this.cardNew,
+    required this.cardLeech,
+    required this.cardDue,
   });
 
   @override
@@ -77,6 +92,9 @@ class AppThemeExtension extends ThemeExtension<AppThemeExtension> {
     Color? glowPrimary,
     Color? glowSuccess,
     Color? glowError,
+    Color? cardNew,
+    Color? cardLeech,
+    Color? cardDue,
   }) {
     return AppThemeExtension(
       success: success ?? this.success,
@@ -97,6 +115,9 @@ class AppThemeExtension extends ThemeExtension<AppThemeExtension> {
       glowPrimary: glowPrimary ?? this.glowPrimary,
       glowSuccess: glowSuccess ?? this.glowSuccess,
       glowError: glowError ?? this.glowError,
+      cardNew: cardNew ?? this.cardNew,
+      cardLeech: cardLeech ?? this.cardLeech,
+      cardDue: cardDue ?? this.cardDue,
     );
   }
 
@@ -126,6 +147,9 @@ class AppThemeExtension extends ThemeExtension<AppThemeExtension> {
       glowPrimary: Color.lerp(glowPrimary, other.glowPrimary, t)!,
       glowSuccess: Color.lerp(glowSuccess, other.glowSuccess, t)!,
       glowError: Color.lerp(glowError, other.glowError, t)!,
+      cardNew: Color.lerp(cardNew, other.cardNew, t)!,
+      cardLeech: Color.lerp(cardLeech, other.cardLeech, t)!,
+      cardDue: Color.lerp(cardDue, other.cardDue, t)!,
     );
   }
 

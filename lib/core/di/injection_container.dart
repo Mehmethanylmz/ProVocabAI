@@ -12,6 +12,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../ads/ad_service.dart';
 import '../../database/app_database.dart';
 import '../../database/daos/progress_dao.dart';
+import '../../database/daos/review_event_dao.dart';
 import '../../database/daos/session_dao.dart';
 import '../../database/daos/sync_queue_dao.dart';
 import '../../database/daos/word_dao.dart';
@@ -35,6 +36,7 @@ import '../../srs/fsrs_engine.dart';
 import '../services/dataset_service.dart';
 import '../services/speech_service.dart';
 import '../services/tts_service.dart';
+import '../services/word_sync_service.dart';
 
 
 
@@ -51,6 +53,7 @@ Future<void> configureDependencies() async {
   getIt.registerSingleton<ProgressDao>(getIt<AppDatabase>().progressDao);
   getIt.registerSingleton<SyncQueueDao>(getIt<AppDatabase>().syncQueueDao);
   getIt.registerSingleton<SessionDao>(getIt<AppDatabase>().sessionDao);
+  getIt.registerSingleton<ReviewEventDao>(getIt<AppDatabase>().reviewEventDao);
 
   // ── Settings ──────────────────────────────────────────────────────────────
   getIt.registerSingleton<SettingsRepositoryImpl>(
@@ -63,11 +66,20 @@ Future<void> configureDependencies() async {
     FirebaseAuthService(database: getIt<AppDatabase>()),
   );
 
+  // ── F15-10: WordSyncService — Firestore → Drift kelime senkronizasyonu ───────
+  getIt.registerSingleton<WordSyncService>(
+    WordSyncService(
+      wordDao: getIt<WordDao>(),
+      prefs: getIt<SharedPreferences>(),
+    ),
+  );
+
   // ── Dataset seeding ───────────────────────────────────────────────────────
   getIt.registerSingleton<DatasetService>(
     DatasetService(
       wordDao: getIt<WordDao>(),
       prefsOverride: getIt<SharedPreferences>(),
+      wordSyncService: getIt<WordSyncService>(),
     ),
   );
 
@@ -153,11 +165,16 @@ Future<void> configureDependencies() async {
       sessionDao: getIt<SessionDao>(),
       wordDao: getIt<WordDao>(),
       progressDao: getIt<ProgressDao>(),
+      reviewEventDao: getIt<ReviewEventDao>(),
     ),
   );
 
+  // F15-10: SettingsBloc → WordSyncService injected (dil değişiminde arka plan sync)
   getIt.registerFactory<SettingsBloc>(
-    () => SettingsBloc(settingsRepository: getIt<ISettingsRepository>()),
+    () => SettingsBloc(
+      settingsRepository: getIt<ISettingsRepository>(),
+      wordSyncService: getIt<WordSyncService>(),
+    ),
   );
 }
 

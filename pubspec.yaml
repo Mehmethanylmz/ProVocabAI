@@ -90,4 +90,4 @@ flutter:
 
   assets:
     - assets/lang/
-    - assets/data/ # words.json (T-07 DatasetService)
+    - assets/data/ # required by upload_words_to_firestore.dart script; remove before production release

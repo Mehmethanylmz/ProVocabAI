@@ -19,6 +19,7 @@ import 'package:permission_handler/permission_handler.dart';
 
 import '../../../../core/constants/navigation/navigation_constants.dart';
 import '../../../../core/di/injection_container.dart';
+import '../../../../core/init/theme/app_theme_extension.dart';
 import '../../../../core/services/speech_service.dart';
 import '../../../../core/utils/levenshtein.dart';
 import '../../../../srs/fsrs_state.dart';
@@ -259,6 +260,9 @@ class _ResultBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final ext = Theme.of(context).extension<AppThemeExtension>()!;
+    final resultColor = isCorrect ? ext.success : scheme.error;
     return Column(
       children: [
         Row(
@@ -266,14 +270,14 @@ class _ResultBadge extends StatelessWidget {
           children: [
             Icon(
               isCorrect ? Icons.check_circle : Icons.cancel,
-              color: isCorrect ? Colors.green : Colors.red,
+              color: resultColor,
               size: 28,
             ),
             const SizedBox(width: 8),
             Text(
               isCorrect ? 'speaking_perfect'.tr() : 'speaking_try_again'.tr(),
               style: TextStyle(
-                color: isCorrect ? Colors.green : Colors.red,
+                color: resultColor,
                 fontWeight: FontWeight.bold,
                 fontSize: 16,
               ),
@@ -284,14 +288,14 @@ class _ResultBadge extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             'correct_answer'.tr(args: [expected]),
-            style: const TextStyle(color: Colors.red),
+            style: TextStyle(color: scheme.error),
           ),
         ],
         const SizedBox(height: 4),
         Text(
           'Eşleşme: %${(score * 100).toStringAsFixed(0)}',
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Colors.grey,
+                color: scheme.onSurfaceVariant,
               ),
         ),
       ],
@@ -316,8 +320,8 @@ class _MicButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color =
-        isListening ? Colors.red : Theme.of(context).colorScheme.primary;
+    final scheme = Theme.of(context).colorScheme;
+    final color = isListening ? scheme.error : scheme.primary;
 
     return GestureDetector(
       onTapDown: hasPermission ? (_) => onPressStart() : null,
@@ -328,7 +332,7 @@ class _MicButton extends StatelessWidget {
         width: isListening ? 110 : 96,
         height: isListening ? 110 : 96,
         decoration: BoxDecoration(
-          color: color.withOpacity(0.15),
+          color: color.withValues(alpha: 0.15),
           shape: BoxShape.circle,
           border: Border.all(color: color, width: 3),
         ),

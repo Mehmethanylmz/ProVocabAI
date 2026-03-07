@@ -5,6 +5,8 @@
 //   - Glow efektli logo
 //   - Pulsating dot indicator (CircularProgressIndicator yerine)
 //   - Smooth scale + fade animasyonları
+//
+// FAZ 15 — F15-06: SplashDownloading state UI (LinearProgressIndicator)
 
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -56,6 +58,7 @@ class _SplashViewState extends State<SplashView> {
       child: BlocBuilder<SplashBloc, SplashState>(
         builder: (context, state) {
           final isSeedingDb = state is SplashLoading && state.seedingDatabase;
+          final isDownloading = state is SplashDownloading;
 
           return Scaffold(
             body: Container(
@@ -181,10 +184,11 @@ class _SplashViewState extends State<SplashView> {
 
                           const Spacer(flex: 2),
 
-                          // Pulsating dot indicator
-                          _PulsatingDots()
-                              .animate()
-                              .fadeIn(delay: 700.ms, duration: 300.ms),
+                          // Pulsating dot indicator — gizle, indirirken progress göster
+                          if (!isDownloading)
+                            _PulsatingDots()
+                                .animate()
+                                .fadeIn(delay: 700.ms, duration: 300.ms),
 
                           if (isSeedingDb) ...[
                             const SizedBox(height: 16),
@@ -195,6 +199,45 @@ class _SplashViewState extends State<SplashView> {
                                 fontSize: 13,
                               ),
                             ).animate().fadeIn(),
+                          ],
+
+                          // F15-06: İndirme progress UI
+                          if (isDownloading) ...[
+                            const SizedBox(height: 8),
+                            Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 48),
+                              child: Column(
+                                children: [
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: LinearProgressIndicator(
+                                      value: state.total > 0
+                                          ? state.progress
+                                          : null,
+                                      backgroundColor:
+                                          Colors.white.withValues(alpha: 0.15),
+                                      valueColor:
+                                          const AlwaysStoppedAnimation<Color>(
+                                              Colors.white),
+                                      minHeight: 6,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 10),
+                                  Text(
+                                    state.total > 0
+                                        ? '${state.synced} / ${state.total} kelime indiriliyor...'
+                                        : 'Hazırlanıyor...',
+                                    style: GoogleFonts.inter(
+                                      color:
+                                          Colors.white.withValues(alpha: 0.65),
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w400,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ).animate().fadeIn(duration: 300.ms),
                           ],
 
                           const SizedBox(height: 60),

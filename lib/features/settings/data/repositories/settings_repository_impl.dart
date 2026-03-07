@@ -27,9 +27,10 @@ class SettingsRepositoryImpl implements ISettingsRepository {
 
   void dispose() => _themeController.close();
 
-  // ── Bildirim (FAZ 6) ────────────────────────────────────────────────────
+  // ── Bildirim (FAZ 6 + FAZ 14) ────────────────────────────────────────────
 
   static const _keyNotificationsEnabled = 'notifications_enabled';
+  static const _keyNotificationHour = 'notification_hour';
 
   // ── Günlük Hedef Serisi (FAZ 10) ────────────────────────────────────────────
 
@@ -123,6 +124,25 @@ class SettingsRepositoryImpl implements ISettingsRepository {
         }
       }
 
+      return const Right(null);
+    } catch (e) {
+      return Left(CacheFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, int>> getNotificationHour() async {
+    try {
+      return Right(_prefs.getInt(_keyNotificationHour) ?? 20);
+    } catch (e) {
+      return Left(CacheFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> saveNotificationHour(int hour) async {
+    try {
+      await _prefs.setInt(_keyNotificationHour, hour);
       return const Right(null);
     } catch (e) {
       return Left(CacheFailure(e.toString()));

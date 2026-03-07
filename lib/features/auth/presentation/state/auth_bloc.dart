@@ -151,7 +151,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
       // F3-04 + FAZ 7: Uygulama açılışında push + pull sync
       _syncManager?.syncAll().then((_) {
-        _syncManager?.pullFromFirestore();
+        _syncManager.pullFromFirestore();
       }).catchError((_) {});
     } else {
       emit(const AuthUnauthenticated());
@@ -267,7 +267,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     // fire-and-forget — hata sign-in'i bloklamaz
     _syncManager?.syncAll().then((_) {
       // Push bitti → şimdi pull
-      _syncManager?.pullFromFirestore();
+      _syncManager.pullFromFirestore();
     }).catchError((_) {});
 
     // 3. State emit

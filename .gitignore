@@ -48,6 +48,8 @@ lib/firebase_options.dart
 service-account*.json
 firebase-adminsdk*.json
 firebase.json
+lib/firebase_options.dart
+android/app/google-services.json
 
 
 # ── CLOUD FUNCTIONS (Node.js) ─────────────────────────────────────────────────
@@ -119,7 +121,8 @@ ios/Runner.xcodeproj/project.xcworkspace/xcuserdata/
 
 
 # ── IDE / EDITOR ──────────────────────────────────────────────────────────────
-
+strings.xml
+android/app/src/main/res/values/strings.xml
 # IntelliJ / Android Studio
 .idea/
 *.iml

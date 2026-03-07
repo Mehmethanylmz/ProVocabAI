@@ -4,11 +4,18 @@
 //   - SettingsNotificationsChanged event
 //   - notificationsEnabled state alanı
 //   - _onNotifications handler
+//
+// FAZ 14 — Ayarlar profesyonelleşme:
+//   F14-03: notificationHour state + SettingsNotificationHourChanged event
+//   F14-01: Uygulama dili EasyLocalization ile context.setLocale() — BLoC'ta yok
+//
+// FAZ 15 — F15-07: Dil değişiminde WordSyncService.syncLanguageContent() (fire-and-forget)
 
 import 'package:equatable/equatable.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../core/services/word_sync_service.dart';
 import '../../../settings/domain/repositories/i_settings_repository.dart';
 
 // ── Events ────────────────────────────────────────────────────────────────────
@@ -80,6 +87,14 @@ class SettingsNotificationsChanged extends SettingsEvent {
   List<Object?> get props => [enabled];
 }
 
+/// FAZ 14: Bildirim saati değişimi (0-23)
+class SettingsNotificationHourChanged extends SettingsEvent {
+  final int hour;
+  const SettingsNotificationHourChanged(this.hour);
+  @override
+  List<Object?> get props => [hour];
+}
+
 // ── State ─────────────────────────────────────────────────────────────────────
 
 class SettingsState extends Equatable {
@@ -92,6 +107,8 @@ class SettingsState extends Equatable {
   final bool autoPlaySound;
   final ThemeMode themeMode;
   final bool notificationsEnabled;
+  // F14-03: Bildirim saati (varsayılan: 20 = 20:00)
+  final int notificationHour;
 
   const SettingsState({
     this.isLoading = true,
@@ -103,6 +120,7 @@ class SettingsState extends Equatable {
     this.autoPlaySound = true,
     this.themeMode = ThemeMode.system,
     this.notificationsEnabled = true,
+    this.notificationHour = 20,
   });
 
   SettingsState copyWith({
@@ -115,6 +133,7 @@ class SettingsState extends Equatable {
     bool? autoPlaySound,
     ThemeMode? themeMode,
     bool? notificationsEnabled,
+    int? notificationHour,
   }) =>
       SettingsState(
         isLoading: isLoading ?? this.isLoading,
@@ -126,6 +145,7 @@ class SettingsState extends Equatable {
         autoPlaySound: autoPlaySound ?? this.autoPlaySound,
         themeMode: themeMode ?? this.themeMode,
         notificationsEnabled: notificationsEnabled ?? this.notificationsEnabled,
+        notificationHour: notificationHour ?? this.notificationHour,
       );
 
   @override
@@ -139,14 +159,18 @@ class SettingsState extends Equatable {
         autoPlaySound,
         themeMode,
         notificationsEnabled,
+        notificationHour,
       ];
 }
 
 // ── BLoC ──────────────────────────────────────────────────────────────────────
 
 class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
-  SettingsBloc({required ISettingsRepository settingsRepository})
-      : _repo = settingsRepository,
+  SettingsBloc({
+    required ISettingsRepository settingsRepository,
+    WordSyncService? wordSyncService,
+  })  : _repo = settingsRepository,
+        _wordSyncService = wordSyncService,
         super(const SettingsState()) {
     on<SettingsLoadRequested>(_onLoad);
     on<SettingsSourceLangChanged>(_onSourceLang);
@@ -157,9 +181,11 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
     on<SettingsAutoPlayChanged>(_onAutoPlay);
     on<SettingsThemeModeChanged>(_onThemeMode);
     on<SettingsNotificationsChanged>(_onNotifications);
+    on<SettingsNotificationHourChanged>(_onNotificationHour);
   }
 
   final ISettingsRepository _repo;
+  final WordSyncService? _wordSyncService;
 
   Future<void> _onLoad(
       SettingsLoadRequested event, Emitter<SettingsState> emit) async {
@@ -183,6 +209,9 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
     final notifResult = await _repo.getNotificationsEnabled();
     final notifEnabled = notifResult.fold((_) => true, (v) => v);
 
+    final notifHourResult = await _repo.getNotificationHour();
+    final notifHour = notifHourResult.fold((_) => 20, (v) => v);
+
     emit(state.copyWith(
       isLoading: false,
       sourceLang: lang['source'] ?? 'tr',
@@ -193,6 +222,7 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
       autoPlaySound: autoPlay,
       themeMode: themeMode,
       notificationsEnabled: notifEnabled,
+      notificationHour: notifHour,
     ));
   }
 
@@ -200,12 +230,22 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
       SettingsSourceLangChanged event, Emitter<SettingsState> emit) async {
     emit(state.copyWith(sourceLang: event.lang));
     await _repo.saveLanguageSettings(event.lang, state.targetLang);
+    // F15-07: Arka planda yeni dil içeriğini senkronize et (fire-and-forget)
+    _wordSyncService?.syncLanguageContent(
+      sourceLang: event.lang,
+      targetLang: state.targetLang,
+    );
   }
 
   Future<void> _onTargetLang(
       SettingsTargetLangChanged event, Emitter<SettingsState> emit) async {
     emit(state.copyWith(targetLang: event.lang));
     await _repo.saveLanguageSettings(state.sourceLang, event.lang);
+    // F15-07: Arka planda yeni dil içeriğini senkronize et (fire-and-forget)
+    _wordSyncService?.syncLanguageContent(
+      sourceLang: state.sourceLang,
+      targetLang: event.lang,
+    );
   }
 
   Future<void> _onProficiency(
@@ -242,5 +282,11 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
       SettingsNotificationsChanged event, Emitter<SettingsState> emit) async {
     emit(state.copyWith(notificationsEnabled: event.enabled));
     await _repo.saveNotificationsEnabled(event.enabled);
+  }
+
+  Future<void> _onNotificationHour(
+      SettingsNotificationHourChanged event, Emitter<SettingsState> emit) async {
+    emit(state.copyWith(notificationHour: event.hour));
+    await _repo.saveNotificationHour(event.hour);
   }
 }

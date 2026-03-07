@@ -13,8 +13,9 @@ import '../../../../ads/ad_service.dart';
 import '../../../../core/constants/navigation/navigation_constants.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/init/navigation/navigation_service.dart';
+import '../../../../core/init/theme/app_theme_extension.dart';
 import '../../../../database/app_database.dart';
-import '../state/study_zone_bloc.dart' hide AdService;
+import '../state/study_zone_bloc.dart';
 import '../state/study_zone_event.dart';
 import '../state/study_zone_state.dart';
 
@@ -60,10 +61,10 @@ class _ResultBodyState extends State<_ResultBody> {
               .read<StudyZoneBloc>()
               .add(const RewardedAdCompleted(RewardedBonus.doubleXP));
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('🎉 2x XP kazandın!'),
-              backgroundColor: Colors.amber,
-              duration: Duration(seconds: 2),
+            SnackBar(
+              content: const Text('🎉 2x XP kazandın!'),
+              backgroundColor: Theme.of(context).extension<AppThemeExtension>()!.tertiary,
+              duration: const Duration(seconds: 2),
             ),
           );
         }
@@ -85,6 +86,7 @@ class _ResultBodyState extends State<_ResultBody> {
   Widget build(BuildContext context) {
     final state = widget.state;
     final scheme = Theme.of(context).colorScheme;
+    final ext = Theme.of(context).extension<AppThemeExtension>()!;
     final accuracy =
         state.totalCards > 0 ? state.correctCards / state.totalCards : 0.0;
     final emoji = accuracy >= 0.8
@@ -137,7 +139,7 @@ class _ResultBodyState extends State<_ResultBody> {
                                 Text(
                                   '+${state.xpEarned} XP',
                                   style: TextStyle(
-                                    color: scheme.onPrimary.withOpacity(0.6),
+                                    color: scheme.onPrimary.withValues(alpha: 0.6),
                                     fontSize: 14,
                                     decoration: TextDecoration.lineThrough,
                                   ),
@@ -145,8 +147,8 @@ class _ResultBodyState extends State<_ResultBody> {
                                 const SizedBox(width: 8),
                                 Text(
                                   '+$displayXP XP',
-                                  style: const TextStyle(
-                                    color: Colors.amber,
+                                  style: TextStyle(
+                                    color: ext.tertiary,
                                     fontSize: 20,
                                     fontWeight: FontWeight.w800,
                                   ),
@@ -157,7 +159,7 @@ class _ResultBodyState extends State<_ResultBody> {
                               key: const ValueKey('xp_normal'),
                               '+${state.xpEarned} XP kazandın',
                               style: TextStyle(
-                                color: scheme.onPrimary.withOpacity(0.9),
+                                color: scheme.onPrimary.withValues(alpha: 0.9),
                                 fontSize: 16,
                               ),
                             ),
@@ -187,12 +189,12 @@ class _ResultBodyState extends State<_ResultBody> {
                         label: 'Doğru',
                         value: '${state.correctCards}',
                         icon: Icons.check_circle_outline,
-                        color: Colors.green),
+                        color: ext.success),
                     _StatCard(
                         label: 'Başarı',
                         value: '%${(accuracy * 100).toStringAsFixed(0)}',
                         icon: Icons.emoji_events_rounded,
-                        color: Colors.amber),
+                        color: ext.tertiary),
                     _StatCard(
                         label: 'Süre',
                         value: '$minutes dk',
@@ -251,19 +253,20 @@ class _DoubleXPBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ext = Theme.of(context).extension<AppThemeExtension>()!;
     return Container(
       key: const Key('double_xp_banner'),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFFFF8F00), Color(0xFFFFCA28)],
+        gradient: LinearGradient(
+          colors: ext.gradientGold,
           begin: Alignment.centerLeft,
           end: Alignment.centerRight,
         ),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.amber.withOpacity(0.3),
+            color: ext.tertiary.withValues(alpha: 0.3),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -288,7 +291,7 @@ class _DoubleXPBanner extends StatelessWidget {
                 Text(
                   '+$xpEarned XP → +${xpEarned * 2} XP — kısa video izle',
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.85),
+                    color: Colors.white.withValues(alpha: 0.85),
                     fontSize: 12,
                   ),
                 ),
@@ -301,7 +304,7 @@ class _DoubleXPBanner extends StatelessWidget {
             onPressed: onClaim,
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.white,
-              foregroundColor: const Color(0xFFFF8F00),
+              foregroundColor: ext.gradientGold[0],
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10)),
@@ -456,15 +459,16 @@ class _WrongWordsAccordion extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ext = Theme.of(context).extension<AppThemeExtension>()!;
     return ExpansionTile(
       title: Text('Yanlış Kelimeler (${words.length})',
           style: const TextStyle(fontWeight: FontWeight.w700)),
-      leading: const Icon(Icons.warning_amber_rounded, color: Colors.orange),
+      leading: Icon(Icons.warning_amber_rounded, color: ext.warning),
       children: words
           .map((word) => ListTile(
                 dense: true,
                 leading:
-                    const Icon(Icons.circle, size: 8, color: Colors.orange),
+                    Icon(Icons.circle, size: 8, color: ext.warning),
                 title: Text(
                   _parseWordText(word),
                   style: const TextStyle(

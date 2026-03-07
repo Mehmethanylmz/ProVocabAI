@@ -141,6 +141,22 @@ class ColorPalette {
   ];
 
   // ═══════════════════════════════════════════════════════════════════════════
+  // CARD SOURCE — Kart tipi rozet renkleri (CardSource enum)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  /// Yeni kart rozeti — öğrenmeye başlama (Sky, secondary ile uyumlu)
+  static const Color cardSourceNew = Color(0xFF0EA5E9); // Sky 500
+  static const Color cardSourceNewDark = Color(0xFF38BDF8); // Sky 400
+
+  /// Leech kart rozeti — zorlu kelimeler (error rengi ile aynı ton)
+  static const Color cardSourceLeech = Color(0xFFEF4444); // Red 500
+  static const Color cardSourceLeechDark = Color(0xFFF87171); // Red 400
+
+  /// Tekrar (due) kart rozeti — geri dönüş (success rengi ile aynı ton)
+  static const Color cardSourceDue = Color(0xFF10B981); // Emerald 500
+  static const Color cardSourceDueDark = Color(0xFF34D399); // Emerald 400
+
+  // ═══════════════════════════════════════════════════════════════════════════
   // CHART — Grafik renkleri
   // ═══════════════════════════════════════════════════════════════════════════
 

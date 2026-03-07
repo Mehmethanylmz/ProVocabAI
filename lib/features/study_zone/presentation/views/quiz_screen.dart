@@ -12,9 +12,9 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
-import '../../../../core/constants/app/color_palette.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../core/constants/app/app_ui_constants.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/init/theme/app_theme_extension.dart';
 import '../../../../core/services/speech_service.dart';
@@ -68,7 +68,7 @@ class _QuizScreenState extends State<QuizScreen> {
                 value: bloc,
                 child: const SessionResultScreen(),
               ),
-              transitionDuration: const Duration(milliseconds: 300),
+              transitionDuration: AppDuration.pageTransition,
               transitionsBuilder: (_, animation, __, child) =>
                   FadeTransition(opacity: animation, child: child),
             ));
@@ -90,7 +90,7 @@ class _QuizScreenState extends State<QuizScreen> {
                   '+${state.xpJustEarned} XP · Tekrar: $reviewText',
                   style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
-                duration: const Duration(milliseconds: 1200),
+                duration: AppDuration.snackBar,
                 behavior: SnackBarBehavior.floating,
                 margin:
                     const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
@@ -98,7 +98,7 @@ class _QuizScreenState extends State<QuizScreen> {
                     borderRadius: BorderRadius.circular(12)),
               ));
             // 500ms sonra sonraki kart
-            Future.delayed(const Duration(milliseconds: 500), () {
+            Future.delayed(AppDuration.nextCard, () {
               if (mounted) {
                 context
                     .read<StudyZoneBloc>()
@@ -348,7 +348,7 @@ class _QuizBodyState extends State<_QuizBody> {
             _ProgressBar(current: s.cardIndex, total: s.totalCards),
             Expanded(
               child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 220),
+                duration: AppDuration.cardSwitch,
                 switchInCurve: Curves.easeIn,
                 switchOutCurve: Curves.easeOut,
                 transitionBuilder: (child, anim) =>
@@ -471,6 +471,7 @@ class _InlineAnsweredSectionState extends State<_InlineAnsweredSection> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final ext = Theme.of(context).extension<AppThemeExtension>()!;
     final word = widget.word;
     final partOfSpeech = word?.partOfSpeech ?? '';
 
@@ -654,7 +655,7 @@ class _InlineAnsweredSectionState extends State<_InlineAnsweredSection> {
               child: _InlineRatingButton(
                 label: 'Çok Zor',
                 sublabel: 'Unutmuştum',
-                color: ColorPalette.error,
+                color: scheme.error,
                 onTap: () => widget.onRating(ReviewRating.again),
               ),
             ),
@@ -663,7 +664,7 @@ class _InlineAnsweredSectionState extends State<_InlineAnsweredSection> {
               child: _InlineRatingButton(
                 label: 'Zor',
                 sublabel: 'Zorlandım',
-                color: ColorPalette.tertiary,
+                color: ext.warning,
                 onTap: () => widget.onRating(ReviewRating.hard),
               ),
             ),
@@ -676,7 +677,7 @@ class _InlineAnsweredSectionState extends State<_InlineAnsweredSection> {
               child: _InlineRatingButton(
                 label: 'İyi',
                 sublabel: 'Hatırladım',
-                color: ColorPalette.success,
+                color: ext.success,
                 isDefault: true,
                 onTap: () => widget.onRating(ReviewRating.good),
               ),
@@ -686,7 +687,7 @@ class _InlineAnsweredSectionState extends State<_InlineAnsweredSection> {
               child: _InlineRatingButton(
                 label: 'Kolay',
                 sublabel: 'Çok kolaydı',
-                color: ColorPalette.secondary,
+                color: scheme.secondary,
                 onTap: () => widget.onRating(ReviewRating.easy),
               ),
             ),
@@ -790,7 +791,7 @@ class _AnswerOptionTile extends StatelessWidget {
     if (phase == AnswerPhase.answered) {
       if (isCorrect) {
         final ext = Theme.of(context).extension<AppThemeExtension>();
-        final successColor = ext?.success ?? Colors.green;
+        final successColor = ext?.success ?? scheme.primary;
         bgColor = successColor.withValues(alpha: 0.12);
         borderColor = successColor;
       } else if (isSelected && !isCorrect) {
@@ -826,7 +827,7 @@ class _AnswerOptionTile extends StatelessWidget {
                     color: Theme.of(context)
                             .extension<AppThemeExtension>()
                             ?.success ??
-                        Colors.green,
+                        Theme.of(context).colorScheme.primary,
                     size: 20),
               if (phase == AnswerPhase.answered && isSelected && !isCorrect)
                 Icon(Icons.cancel_rounded, color: scheme.error, size: 20),
@@ -969,6 +970,7 @@ class _ListeningWordCardState extends State<_ListeningWordCard> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final ext = Theme.of(context).extension<AppThemeExtension>()!;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(24),
@@ -985,24 +987,24 @@ class _ListeningWordCardState extends State<_ListeningWordCard> {
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               margin: const EdgeInsets.only(bottom: 12),
               decoration: BoxDecoration(
-                color: Colors.orange.withValues(alpha: 0.10),
+                color: ext.warning.withValues(alpha: 0.10),
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: Colors.orange.withValues(alpha: 0.4)),
+                border: Border.all(color: ext.warning.withValues(alpha: 0.4)),
               ),
               child: Row(children: [
-                const Icon(Icons.volume_off, color: Colors.orange, size: 16),
+                Icon(Icons.volume_off, color: ext.warning, size: 16),
                 const SizedBox(width: 8),
                 Expanded(
                     child: Text(
                   'Ses çalınamadı. Kelime: ${_getWordText()}',
-                  style: const TextStyle(color: Colors.orange, fontSize: 12),
+                  style: TextStyle(color: ext.warning, fontSize: 12),
                 )),
               ]),
             ),
           GestureDetector(
             onTap: _ttsPlaying ? null : _play,
             child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
+              duration: AppDuration.scaleIn,
               width: 80,
               height: 80,
               decoration: BoxDecoration(
@@ -1149,6 +1151,7 @@ class _SpeakingWordCardState extends State<_SpeakingWordCard> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final ext = Theme.of(context).extension<AppThemeExtension>()!;
     final meaning = _getMeaning();
 
     return Container(
@@ -1181,11 +1184,11 @@ class _SpeakingWordCardState extends State<_SpeakingWordCard> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: (_isCorrect ? Colors.green : Colors.red)
+                color: (_isCorrect ? ext.success : scheme.error)
                     .withValues(alpha: 0.10),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                    color: (_isCorrect ? Colors.green : Colors.red)
+                    color: (_isCorrect ? ext.success : scheme.error)
                         .withValues(alpha: 0.4)),
               ),
               child: Column(
@@ -1193,26 +1196,26 @@ class _SpeakingWordCardState extends State<_SpeakingWordCard> {
                   children: [
                     Row(children: [
                       Icon(_isCorrect ? Icons.check_circle : Icons.cancel,
-                          color: _isCorrect ? Colors.green : Colors.red,
+                          color: _isCorrect ? ext.success : scheme.error,
                           size: 18),
                       const SizedBox(width: 6),
                       Text(_isCorrect ? 'Doğru!' : 'Yanlış',
                           style: TextStyle(
-                              color: _isCorrect ? Colors.green : Colors.red,
+                              color: _isCorrect ? ext.success : scheme.error,
                               fontWeight: FontWeight.w700)),
                       const Spacer(),
                       Text(
                           '%${(Levenshtein.similarity(_spokenText, _getWordText()) * 100).round()} benzerlik',
                           style: TextStyle(
-                              color: (_isCorrect ? Colors.green : Colors.red)
+                              color: (_isCorrect ? ext.success : scheme.error)
                                   .withValues(alpha: 0.8),
                               fontSize: 12)),
                     ]),
                     const SizedBox(height: 6),
                     Text.rich(TextSpan(children: [
-                      const TextSpan(
+                      TextSpan(
                           text: 'Söylediğiniz: ',
-                          style: TextStyle(color: Colors.grey, fontSize: 12)),
+                          style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12)),
                       TextSpan(
                           text: _spokenText.isEmpty
                               ? '(anlaşılamadı)'
@@ -1223,15 +1226,15 @@ class _SpeakingWordCardState extends State<_SpeakingWordCard> {
                     if (!_isCorrect) ...[
                       const SizedBox(height: 4),
                       Text.rich(TextSpan(children: [
-                        const TextSpan(
+                        TextSpan(
                             text: 'Doğrusu: ',
-                            style: TextStyle(color: Colors.grey, fontSize: 12)),
+                            style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12)),
                         TextSpan(
                             text: _getWordText(),
-                            style: const TextStyle(
+                            style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w700,
-                                color: Colors.green)),
+                                color: ext.success)),
                       ])),
                     ],
                   ]),
@@ -1245,18 +1248,18 @@ class _SpeakingWordCardState extends State<_SpeakingWordCard> {
                   ? _speech.stopListening
                   : _startListening,
               child: AnimatedContainer(
-                duration: const Duration(milliseconds: 250),
+                duration: AppDuration.slideIn,
                 width: _phase == _SpeakPhase.listening ? 90 : 72,
                 height: _phase == _SpeakPhase.listening ? 90 : 72,
                 decoration: BoxDecoration(
                   color: (_phase == _SpeakPhase.listening
-                          ? Colors.red
+                          ? scheme.error
                           : scheme.tertiary)
                       .withValues(alpha: 0.12),
                   shape: BoxShape.circle,
                   border: Border.all(
                       color: _phase == _SpeakPhase.listening
-                          ? Colors.red
+                          ? scheme.error
                           : scheme.tertiary,
                       width: _phase == _SpeakPhase.listening ? 3 : 2),
                 ),
@@ -1266,7 +1269,7 @@ class _SpeakingWordCardState extends State<_SpeakingWordCard> {
                         : Icons.mic_rounded,
                     size: _phase == _SpeakPhase.listening ? 40 : 32,
                     color: _phase == _SpeakPhase.listening
-                        ? Colors.red
+                        ? scheme.error
                         : scheme.tertiary),
               ),
             ),
@@ -1413,7 +1416,7 @@ class _CardTypeBadge extends StatelessWidget {
     final (label, color) = switch (source) {
       CardSource.newCard => ('Yeni', scheme.secondary),
       CardSource.leech => ('Zor', scheme.error),
-      CardSource.due => ('Tekrar', ext?.success ?? Colors.green),
+      CardSource.due => ('Tekrar', ext?.success ?? scheme.primary),
     };
     return Align(
       alignment: Alignment.centerLeft,
@@ -1465,6 +1468,7 @@ class _SessionStatusBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ext = Theme.of(context).extension<AppThemeExtension>()!;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       child: Row(
@@ -1473,8 +1477,8 @@ class _SessionStatusBar extends StatelessWidget {
           if (streak > 0)
             Row(
               children: [
-                const Icon(Icons.local_fire_department,
-                    color: ColorPalette.tertiary, size: 20),
+                Icon(Icons.local_fire_department,
+                    color: ext.tertiary, size: 20),
                 const SizedBox(width: 4),
                 Text('$streak',
                     style: const TextStyle(fontWeight: FontWeight.w700)),
@@ -1486,16 +1490,16 @@ class _SessionStatusBar extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
-                color: Colors.amber.withValues(alpha: 0.2),
+                color: ext.tertiary.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const Row(
+              child: Row(
                 children: [
-                  Icon(Icons.star, color: Colors.amber, size: 16),
-                  SizedBox(width: 4),
+                  Icon(Icons.star, color: ext.tertiary, size: 16),
+                  const SizedBox(width: 4),
                   Text('2x XP',
                       style: TextStyle(
-                          color: Colors.amber, fontWeight: FontWeight.w700)),
+                          color: ext.tertiary, fontWeight: FontWeight.w700)),
                 ],
               ),
             ),

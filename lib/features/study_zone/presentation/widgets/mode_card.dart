@@ -34,7 +34,7 @@ class ModeCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(context.responsive.borderRadiusL),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(enabled ? 0.15 : 0.05),
+              color: Colors.black.withValues(alpha: enabled ? 0.15 : 0.05),
               blurRadius: 16,
               offset: const Offset(0, 8),
             ),
@@ -47,7 +47,7 @@ class ModeCard extends StatelessWidget {
               Container(
                 padding: EdgeInsets.all(context.responsive.spacingM),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
+                  color: Colors.white.withValues(alpha: 0.2),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
@@ -59,7 +59,7 @@ class ModeCard extends StatelessWidget {
               SizedBox(width: context.responsive.spacingL),
               Text(
                 title,
-                style: GoogleFonts.poppins(
+                style: GoogleFonts.inter(
                   fontSize: context.responsive.fontSizeH3,
                   fontWeight: FontWeight.w700,
                   color: Colors.white,

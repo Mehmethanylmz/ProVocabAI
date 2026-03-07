@@ -3,7 +3,7 @@
     <string name="app_name">Savgo Learn Vocabulary</string>
     <!-- Facebook App ID ve Client Token -->
     <!-- TODO: Facebook Developer Portal'dan alın ve buraya ekleyin -->
-    <string name="facebook_app_id">YOUR_FACEBOOK_APP_ID</string>
-    <string name="facebook_client_token">YOUR_FACEBOOK_CLIENT_TOKEN</string>
-    <string name="fb_login_protocol_scheme">fbYOUR_FACEBOOK_APP_ID</string>
+    <string name="facebook_app_id">1203352291879226</string>
+    <string name="facebook_client_token">c2391635fcb66698479cc2b3d5ad1399</string>
+    <string name="fb_login_protocol_scheme">fb1203352291879226</string>
 </resources>

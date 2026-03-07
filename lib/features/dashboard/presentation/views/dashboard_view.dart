@@ -1,11 +1,13 @@
 // lib/features/dashboard/presentation/views/dashboard_view.dart
 //
-// FAZ 8B: Premium Dashboard
-//   - Hero header: Selamlama + günlük ilerleme ring
-//   - Quick stats row: streak, XP, bu hafta
-//   - Stat kartları: glassmorphism gradient border
-//   - Word tier: animated progress bars
-//   - Activity chart: gradient bars
+// FAZ 12 — F12-07, F12-08, F12-11: Dashboard tam yeniden tasarım
+//   - Quick stats row (streak, XP, bu hafta) — korundu
+//   - Bugün detay kartı (DayDetailCard)
+//   - Aktivite Isı Haritası (HeatmapWidget)
+//   - Akıllı koç mesajı
+//   - Bu hafta özet kartı (WeekSummaryCard)
+//   - Aylık arşiv (ActivityHistoryList)
+//   - Takvim görünümü (CalendarStatsView) — genişleyebilir
 
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
@@ -13,13 +15,15 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../../../../core/constants/app/color_palette.dart';
 import '../../../../core/extensions/context_extensions.dart';
-import '../../../../core/extensions/responsive_extension.dart';
+import '../../../../core/init/theme/app_theme_extension.dart';
 import '../../../auth/presentation/state/auth_bloc.dart';
 import '../state/dashboard_bloc.dart';
 import '../widgets/activity_history_list.dart';
+import '../widgets/calendar_stats_view.dart';
 import '../widgets/dashboard_stats_grid.dart';
+import '../widgets/day_detail_card.dart';
+import '../widgets/heatmap_widget.dart';
 import '../widgets/skill_radar_card.dart';
 import '../widgets/word_tier_panel.dart';
 
@@ -31,6 +35,8 @@ class DashboardView extends StatefulWidget {
 }
 
 class _DashboardViewState extends State<DashboardView> {
+  bool _calendarExpanded = false;
+
   @override
   void initState() {
     super.initState();
@@ -58,7 +64,7 @@ class _DashboardViewState extends State<DashboardView> {
                 parent: BouncingScrollPhysics(),
               ),
               slivers: [
-                // ── Hero Header ──────────────────────────────────────
+                // ── Hero Header ──────────────────────────────────────────
                 _buildHeroHeader(context, state),
 
                 if (state is DashboardLoading)
@@ -79,7 +85,7 @@ class _DashboardViewState extends State<DashboardView> {
     );
   }
 
-  // ── Hero Header ─────────────────────────────────────────────────────────────
+  // ── Hero Header ────────────────────────────────────────────────────────────
 
   SliverToBoxAdapter _buildHeroHeader(
       BuildContext context, DashboardState state) {
@@ -88,7 +94,7 @@ class _DashboardViewState extends State<DashboardView> {
         ? authState.profile.displayName
         : 'Öğrenci';
 
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final scheme = Theme.of(context).colorScheme;
 
     return SliverToBoxAdapter(
       child: Container(
@@ -100,15 +106,7 @@ class _DashboardViewState extends State<DashboardView> {
         ),
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: isDark
-                ? [
-                    ColorPalette.surfaceDark,
-                    ColorPalette.surfaceContainerDark,
-                  ]
-                : [
-                    ColorPalette.surfaceLight,
-                    ColorPalette.surfaceContainerHighLight,
-                  ],
+            colors: [scheme.surface, scheme.surfaceContainer],
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
           ),
@@ -144,7 +142,6 @@ class _DashboardViewState extends State<DashboardView> {
                     ],
                   ),
                 ),
-                // Refresh butonu
                 IconButton(
                   onPressed: () => context
                       .read<DashboardBloc>()
@@ -183,7 +180,7 @@ class _DashboardViewState extends State<DashboardView> {
     return 'İyi akşamlar 👋';
   }
 
-  // ── Error View ──────────────────────────────────────────────────────────────
+  // ── Error View ────────────────────────────────────────────────────────────
 
   SliverFillRemaining _buildErrorView(
       BuildContext context, DashboardError state) {
@@ -210,16 +207,16 @@ class _DashboardViewState extends State<DashboardView> {
     );
   }
 
-  // ── Main Content ────────────────────────────────────────────────────────────
+  // ── Main Content ──────────────────────────────────────────────────────────
 
-  SliverPadding _buildContent(BuildContext context, DashboardLoaded state) {
+  Widget _buildContent(BuildContext context, DashboardLoaded state) {
     return SliverPadding(
       padding: const EdgeInsets.fromLTRB(24, 0, 24, 100),
       sliver: SliverList(
         delegate: SliverChildListDelegate([
           const SizedBox(height: 8),
 
-          // ── Stat Kartları ─────────────────────────────
+          // ── Genel istatistik grid ─────────────────────────────────
           _SectionLabel(
                   title: 'quick_stats'.tr(), icon: Icons.bar_chart_rounded)
               .animate()
@@ -228,12 +225,84 @@ class _DashboardViewState extends State<DashboardView> {
           DashboardStatsGrid(stats: state.stats),
           const SizedBox(height: 28),
 
-          // ── AI Coach Radar ────────────────────────────
+          // ── Bugün detay kartı ─────────────────────────────────────
+          _SectionLabel(
+                  title: 'Bugün',
+                  icon: Icons.wb_sunny_rounded)
+              .animate()
+              .fadeIn(delay: 170.ms),
+          const SizedBox(height: 12),
+          DayDetailCard(stats: state.stats)
+              .animate()
+              .fadeIn(delay: 180.ms)
+              .slideY(begin: 0.05),
+          const SizedBox(height: 28),
+
+          // ── Aktivite Isı Haritası ─────────────────────────────────
+          _SectionLabel(
+                  title: 'Aktivite Haritası',
+                  icon: Icons.grid_view_rounded)
+              .animate()
+              .fadeIn(delay: 200.ms),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surfaceContainerLowest,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                  color: Theme.of(context)
+                      .colorScheme
+                      .outline
+                      .withValues(alpha: 0.12)),
+            ),
+            child: HeatmapWidget(
+              data: state.stats.heatmapData,
+            ),
+          ).animate().fadeIn(delay: 210.ms),
+          const SizedBox(height: 28),
+
+          // ── Akıllı Koç ────────────────────────────────────────────
+          if (state.coachMessage.isNotEmpty) ...[
+            _CoachCard(message: state.coachMessage)
+                .animate()
+                .fadeIn(delay: 220.ms)
+                .slideY(begin: 0.05),
+            const SizedBox(height: 28),
+          ],
+
+          // ── Bu Hafta Özet ─────────────────────────────────────────
+          _SectionLabel(
+                  title: 'Bu Hafta',
+                  icon: Icons.calendar_view_week_rounded)
+              .animate()
+              .fadeIn(delay: 230.ms),
+          const SizedBox(height: 12),
+          WeekSummaryCard(stats: state.stats)
+              .animate()
+              .fadeIn(delay: 240.ms)
+              .slideY(begin: 0.05),
+          const SizedBox(height: 28),
+
+          // ── Takvim görünümü (genişleyebilir) ─────────────────────
+          _ExpandableSection(
+            title: 'Takvim',
+            icon: Icons.calendar_month_rounded,
+            expanded: _calendarExpanded,
+            onToggle: () =>
+                setState(() => _calendarExpanded = !_calendarExpanded),
+            child: CalendarStatsView(
+              heatmapData: state.stats.heatmapData,
+            ),
+          ).animate().fadeIn(delay: 250.ms),
+          const SizedBox(height: 28),
+
+          // ── AI Coach Radar ────────────────────────────────────────
           _SectionLabel(
                   title: 'ai_coach_analysis'.tr(),
                   icon: Icons.auto_awesome_rounded)
               .animate()
-              .fadeIn(delay: 200.ms),
+              .fadeIn(delay: 260.ms),
           const SizedBox(height: 12),
           SkillRadarCard(
             volumeStats: state.volumeStats,
@@ -242,17 +311,18 @@ class _DashboardViewState extends State<DashboardView> {
           ),
           const SizedBox(height: 28),
 
-          // ── Kelime Seviyeleri ──────────────────────────
+          // ── Kelime Seviyeleri ─────────────────────────────────────
           _SectionLabel(title: 'word_levels'.tr(), icon: Icons.layers_rounded)
               .animate()
-              .fadeIn(delay: 250.ms),
+              .fadeIn(delay: 280.ms),
           const SizedBox(height: 12),
           WordTierPanel(tierDistribution: state.stats.tierDistribution),
           const SizedBox(height: 28),
 
-          // ── Aktivite Geçmişi ──────────────────────────
+          // ── Aylık Arşiv ───────────────────────────────────────────
           _SectionLabel(
-                  title: 'detailed_analysis'.tr(), icon: Icons.timeline_rounded)
+                  title: 'detailed_analysis'.tr(),
+                  icon: Icons.timeline_rounded)
               .animate()
               .fadeIn(delay: 300.ms),
           const SizedBox(height: 12),
@@ -280,7 +350,8 @@ class _QuickStatsRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final scheme = Theme.of(context).colorScheme;
+    final ext = Theme.of(context).extension<AppThemeExtension>()!;
 
     return Row(
       children: [
@@ -288,31 +359,27 @@ class _QuickStatsRow extends StatelessWidget {
           icon: Icons.local_fire_department_rounded,
           label: '$streak',
           sublabel: 'gün seri',
-          color: ColorPalette.tertiary,
-          isDark: isDark,
+          color: ext.tertiary,
         ),
         const SizedBox(width: 10),
         _QuickStatChip(
           icon: Icons.star_rounded,
           label: _formatXp(totalXp),
           sublabel: 'XP',
-          color: ColorPalette.primary,
-          isDark: isDark,
+          color: scheme.primary,
         ),
         const SizedBox(width: 10),
         _QuickStatChip(
           icon: Icons.trending_up_rounded,
           label: '$weekQuestions',
           sublabel: 'bu hafta',
-          color: ColorPalette.success,
-          isDark: isDark,
+          color: ext.success,
         ),
       ],
     );
   }
 
   String _formatXp(int xp) {
-    if (xp >= 10000) return '${(xp / 1000).toStringAsFixed(1)}k';
     if (xp >= 1000) return '${(xp / 1000).toStringAsFixed(1)}k';
     return '$xp';
   }
@@ -323,14 +390,12 @@ class _QuickStatChip extends StatelessWidget {
   final String label;
   final String sublabel;
   final Color color;
-  final bool isDark;
 
   const _QuickStatChip({
     required this.icon,
     required this.label,
     required this.sublabel,
     required this.color,
-    required this.isDark,
   });
 
   @override
@@ -339,13 +404,9 @@ class _QuickStatChip extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         decoration: BoxDecoration(
-          color: isDark
-              ? color.withValues(alpha: 0.1)
-              : color.withValues(alpha: 0.06),
+          color: color.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: color.withValues(alpha: isDark ? 0.2 : 0.12),
-          ),
+          border: Border.all(color: color.withValues(alpha: 0.15)),
         ),
         child: Row(
           children: [
@@ -376,6 +437,138 @@ class _QuickStatChip extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// COACH CARD
+// ═══════════════════════════════════════════════════════════════════════════════
+
+class _CoachCard extends StatelessWidget {
+  final String message;
+  const _CoachCard({required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: scheme.primaryContainer.withValues(alpha: 0.3),
+        borderRadius: BorderRadius.circular(16),
+        border:
+            Border.all(color: scheme.primary.withValues(alpha: 0.2)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: scheme.primary.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(Icons.auto_awesome_rounded,
+                color: scheme.primary, size: 18),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Koç',
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: scheme.primary,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  message,
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    color: scheme.onSurface.withValues(alpha: 0.8),
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// EXPANDABLE SECTION
+// ═══════════════════════════════════════════════════════════════════════════════
+
+class _ExpandableSection extends StatelessWidget {
+  final String title;
+  final IconData icon;
+  final bool expanded;
+  final VoidCallback onToggle;
+  final Widget child;
+
+  const _ExpandableSection({
+    required this.title,
+    required this.icon,
+    required this.expanded,
+    required this.onToggle,
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        GestureDetector(
+          onTap: onToggle,
+          child: Row(
+            children: [
+              Icon(icon, size: 18, color: scheme.primary),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  title,
+                  style: GoogleFonts.inter(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: -0.2,
+                    color: scheme.onSurface,
+                  ),
+                ),
+              ),
+              Icon(
+                expanded
+                    ? Icons.keyboard_arrow_up_rounded
+                    : Icons.keyboard_arrow_down_rounded,
+                color: scheme.onSurface.withValues(alpha: 0.5),
+              ),
+            ],
+          ),
+        ),
+        if (expanded) ...[
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: scheme.surfaceContainerLowest,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                  color: scheme.outline.withValues(alpha: 0.12)),
+            ),
+            child: child,
+          ),
+        ],
+      ],
     );
   }
 }

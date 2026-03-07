@@ -11,8 +11,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import '../../../../core/constants/app/color_palette.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../../core/init/theme/app_theme_extension.dart';
 
 import '../../../../srs/fsrs_state.dart';
 import '../state/study_zone_bloc.dart';
@@ -145,54 +145,62 @@ class _ReviewRatingSheetState extends State<ReviewRatingSheet>
               const SizedBox(height: 20),
 
               // 4 rating butonu — 2x2 grid
-              Row(
-                children: [
-                  Expanded(
-                    child: _RatingButton(
-                      label: 'Çok Zor',
-                      sublabel: 'Unutmuştum',
-                      rating: ReviewRating.again,
-                      color: ColorPalette.error,
-                      onTap: () => _submitRating(ReviewRating.again),
+              Builder(builder: (context) {
+                final scheme = Theme.of(context).colorScheme;
+                final ext = Theme.of(context).extension<AppThemeExtension>()!;
+                return Column(
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _RatingButton(
+                            label: 'Çok Zor',
+                            sublabel: 'Unutmuştum',
+                            rating: ReviewRating.again,
+                            color: scheme.error,
+                            onTap: () => _submitRating(ReviewRating.again),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _RatingButton(
+                            label: 'Zor',
+                            sublabel: 'Zorlandım',
+                            rating: ReviewRating.hard,
+                            color: ext.warning,
+                            onTap: () => _submitRating(ReviewRating.hard),
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: _RatingButton(
-                      label: 'Zor',
-                      sublabel: 'Zorlandım',
-                      rating: ReviewRating.hard,
-                      color: ColorPalette.tertiary,
-                      onTap: () => _submitRating(ReviewRating.hard),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _RatingButton(
+                            label: 'İyi',
+                            sublabel: 'Hatırladım',
+                            rating: ReviewRating.good,
+                            color: ext.success,
+                            isDefault: true,
+                            onTap: () => _submitRating(ReviewRating.good),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _RatingButton(
+                            label: 'Kolay',
+                            sublabel: 'Çok kolaydı',
+                            rating: ReviewRating.easy,
+                            color: scheme.secondary,
+                            onTap: () => _submitRating(ReviewRating.easy),
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    child: _RatingButton(
-                      label: 'İyi',
-                      sublabel: 'Hatırladım',
-                      rating: ReviewRating.good,
-                      color: ColorPalette.success,
-                      isDefault: true,
-                      onTap: () => _submitRating(ReviewRating.good),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: _RatingButton(
-                      label: 'Kolay',
-                      sublabel: 'Çok kolaydı',
-                      rating: ReviewRating.easy,
-                      color: ColorPalette.secondary,
-                      onTap: () => _submitRating(ReviewRating.easy),
-                    ),
-                  ),
-                ],
-              ),
+                  ],
+                );
+              }),
               const SizedBox(height: 8),
             ],
           ),
@@ -228,7 +236,7 @@ class _CountdownBar extends StatelessWidget {
               Theme.of(context).colorScheme.surfaceContainerHighest,
           valueColor: AlwaysStoppedAnimation<Color>(
             remaining <= 1
-                ? ColorPalette.error
+                ? Theme.of(context).colorScheme.error
                 : Theme.of(context).colorScheme.primary,
           ),
         ),

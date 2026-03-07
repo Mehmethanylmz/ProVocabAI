@@ -19,6 +19,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/constants/navigation/navigation_constants.dart';
 import '../../../../core/di/injection_container.dart';
+import '../../../../core/init/theme/app_theme_extension.dart';
 import '../../../../core/services/tts_service.dart';
 import '../../../../srs/fsrs_state.dart';
 import '../../../../srs/plan_models.dart';
@@ -173,7 +174,9 @@ class _ListeningScreenState extends State<ListeningScreen> {
                     suffixIcon: _isAnswered
                         ? Icon(
                             _isCorrect ? Icons.check_circle : Icons.cancel,
-                            color: _isCorrect ? Colors.green : Colors.red,
+                            color: _isCorrect
+                                ? Theme.of(ctx).extension<AppThemeExtension>()!.success
+                                : Theme.of(ctx).colorScheme.error,
                           )
                         : null,
                   ),
@@ -183,10 +186,10 @@ class _ListeningScreenState extends State<ListeningScreen> {
                 const SizedBox(height: 8),
                 Text(
                   'case_sensitive_info'.tr(),
-                  style: Theme.of(context)
+                  style: Theme.of(ctx)
                       .textTheme
                       .bodySmall
-                      ?.copyWith(color: Colors.grey),
+                      ?.copyWith(color: Theme.of(ctx).colorScheme.onSurfaceVariant),
                 ),
 
                 // Yanlış cevap → doğrusu göster
@@ -194,8 +197,8 @@ class _ListeningScreenState extends State<ListeningScreen> {
                   const SizedBox(height: 12),
                   Text(
                     'correct_answer'.tr(args: [state.currentWordText ?? '']),
-                    style: const TextStyle(
-                        color: Colors.red, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                        color: Theme.of(ctx).colorScheme.error, fontWeight: FontWeight.bold),
                   ),
                 ],
 
@@ -237,7 +240,7 @@ class _ListenButton extends StatelessWidget {
         width: 100,
         height: 100,
         decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+          color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
           shape: BoxShape.circle,
           border: Border.all(
             color: Theme.of(context).colorScheme.primary,

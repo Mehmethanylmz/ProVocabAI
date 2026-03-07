@@ -44,7 +44,7 @@ class HistoryCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(context.responsive.borderRadiusL),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: context.colors.shadow.withValues(alpha: 0.05),
             blurRadius: 12,
             offset: const Offset(0, 6),
           ),
@@ -55,7 +55,7 @@ class HistoryCard extends StatelessWidget {
           CircleAvatar(
             radius:
                 context.responsive.value(mobile: 22, tablet: 24, desktop: 26),
-            backgroundColor: rateColor.withOpacity(0.15),
+            backgroundColor: rateColor.withValues(alpha: 0.15),
             child: Text(
               '${result.successRate.toInt()}%',
               style: TextStyle(
@@ -76,7 +76,7 @@ class HistoryCard extends StatelessWidget {
                   children: [
                     Text(
                       DateFormat('dd MMM - HH:mm').format(result.date),
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.inter(
                         fontSize: context.responsive.fontSizeBody,
                         fontWeight: FontWeight.bold,
                         color: context.colors.onSurface,
@@ -88,7 +88,7 @@ class HistoryCard extends StatelessWidget {
                         vertical: context.responsive.spacingXS,
                       ),
                       decoration: BoxDecoration(
-                        color: context.colors.error.withOpacity(0.1),
+                        color: context.colors.error.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(
                             context.responsive.borderRadiusS),
                       ),
@@ -100,7 +100,7 @@ class HistoryCard extends StatelessWidget {
                           SizedBox(width: context.responsive.spacingXS),
                           Text(
                             compactTime,
-                            style: GoogleFonts.poppins(
+                            style: GoogleFonts.inter(
                               fontSize: context.responsive.fontSizeSmall,
                               fontWeight: FontWeight.w600,
                               color: context.colors.error,

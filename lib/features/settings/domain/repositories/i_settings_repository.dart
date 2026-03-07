@@ -38,4 +38,8 @@ abstract class ISettingsRepository {
   /// F10-07: En son hedef tutturulan gün ('YYYY-MM-DD').
   Future<Either<Failure, String?>> getLastGoalMetDate();
   Future<Either<Failure, void>> saveLastGoalMetDate(String date);
+
+  /// F14-03: Bildirim saati (saat, 0-23).
+  Future<Either<Failure, int>> getNotificationHour();
+  Future<Either<Failure, void>> saveNotificationHour(int hour);
 }

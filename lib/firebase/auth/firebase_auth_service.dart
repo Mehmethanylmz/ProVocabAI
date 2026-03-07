@@ -232,6 +232,47 @@ class FirebaseAuthService {
     }
   }
 
+  // ── F14-05: Önbellek temizleme (public) ───────────────────────────────────
+
+  /// Lokal kullanıcı verilerini siler (sign-out yapmadan).
+  /// words tablosu KORUNUR.
+  Future<void> clearUserData() => _clearLocalUserData();
+
+  // ── F14-02: Hesap silme ────────────────────────────────────────────────────
+
+  /// Kullanıcı hesabını tamamen siler:
+  ///   1. Firestore kullanıcı dokümanları temizlenir
+  ///   2. Lokal Drift verileri temizlenir
+  ///   3. Firebase Auth hesabı silinir (requires recent sign-in)
+  ///
+  /// Throws [FirebaseAuthException] 'requires-recent-login' if re-auth needed.
+  Future<void> deleteAccount() async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    // 1. Firestore temizle (auth aktifken yap)
+    try {
+      final uid = user.uid;
+      final batch = _firestore.batch();
+      batch.delete(_firestore.doc('users/$uid/profile/main'));
+      batch.delete(_firestore.doc('users/$uid'));
+      await batch.commit();
+    } catch (_) {
+      // Firestore hatası hesap silmeyi bloklamaz
+    }
+
+    // 2. Lokal verileri temizle
+    await _clearLocalUserData();
+
+    // 3. Auth hesabı sil (recent login gerekebilir — throws 'requires-recent-login')
+    await user.delete();
+
+    // 4. Google oturumunu kapat
+    try {
+      await _googleSignIn.signOut();
+    } catch (_) {}
+  }
+
   // ── F3-01: Drift tablo temizleme ──────────────────────────────────────────
 
   /// Kullanıcıya özel tüm lokal verileri siler.

@@ -97,7 +97,7 @@ class _ActivityHistoryListState extends State<ActivityHistoryList> {
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: context.colors.primary.withOpacity(0.3),
+                    color: context.colors.primary.withValues(alpha:0.3),
                     blurRadius: 12,
                     offset: const Offset(0, 4),
                   )
@@ -115,7 +115,7 @@ class _ActivityHistoryListState extends State<ActivityHistoryList> {
             children: [
               Text(
                 monthName,
-                style: GoogleFonts.poppins(
+                style: GoogleFonts.inter(
                   fontSize: context.responsive.fontSizeCaption,
                   fontWeight: FontWeight.bold,
                   color: isSelected
@@ -125,17 +125,17 @@ class _ActivityHistoryListState extends State<ActivityHistoryList> {
               ),
               Text(
                 year,
-                style: GoogleFonts.poppins(
+                style: GoogleFonts.inter(
                   fontSize: context.responsive.fontSizeCaption,
                   color: isSelected
-                      ? context.colors.onPrimary.withOpacity(0.9)
-                      : context.colors.onSurface.withOpacity(0.6),
+                      ? context.colors.onPrimary.withValues(alpha:0.9)
+                      : context.colors.onSurface.withValues(alpha:0.6),
                 ),
               ),
               SizedBox(height: context.responsive.spacingXS),
               Text(
                 '%${successRate.toStringAsFixed(0)}',
-                style: GoogleFonts.poppins(
+                style: GoogleFonts.inter(
                   fontSize: context.responsive.fontSizeH2,
                   fontWeight: FontWeight.bold,
                   color: isSelected
@@ -168,7 +168,7 @@ class _ActivityHistoryListState extends State<ActivityHistoryList> {
         borderRadius: BorderRadius.circular(context.responsive.borderRadiusL),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha:0.05),
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),
@@ -202,7 +202,7 @@ class _ActivityHistoryListState extends State<ActivityHistoryList> {
         SizedBox(height: context.responsive.spacingXS),
         Text(
           value,
-          style: GoogleFonts.poppins(
+          style: GoogleFonts.inter(
             fontWeight: FontWeight.bold,
             fontSize: context.responsive.fontSizeH3,
             color: context.colors.onSurface,
@@ -210,9 +210,9 @@ class _ActivityHistoryListState extends State<ActivityHistoryList> {
         ),
         Text(
           label,
-          style: GoogleFonts.poppins(
+          style: GoogleFonts.inter(
             fontSize: context.responsive.fontSizeCaption,
-            color: context.colors.onSurface.withOpacity(0.6),
+            color: context.colors.onSurface.withValues(alpha:0.6),
           ),
         ),
       ],
@@ -234,7 +234,7 @@ class _ActivityHistoryListState extends State<ActivityHistoryList> {
             size: context.responsive
                 .value(mobile: 60, tablet: 80, desktop: 100)
                 .toDouble(),
-            color: context.colors.onSurface.withOpacity(0.3),
+            color: context.colors.onSurface.withValues(alpha:0.3),
           ),
           SizedBox(height: context.responsive.spacingM),
           Text(
@@ -247,7 +247,7 @@ class _ActivityHistoryListState extends State<ActivityHistoryList> {
             'activity_empty_desc'.tr(),
             textAlign: TextAlign.center,
             style: context.textTheme.bodyMedium
-                ?.copyWith(color: context.colors.onSurface.withOpacity(0.6)),
+                ?.copyWith(color: context.colors.onSurface.withValues(alpha:0.6)),
           ),
         ],
       ),

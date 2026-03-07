@@ -1,12 +1,11 @@
 // lib/features/splash/presentation/state/splash_bloc.dart
 //
-// REPLACES: lib/features/splash/presentation/viewmodel/splash_view_model.dart
-// git rm lib/features/splash/presentation/viewmodel/splash_view_model.dart
+// FAZ 15 — F15-06: İlk indirme progress UI
 //
-// Sorumluluk: Uygulama başlangıç akışını yönet.
-//   1. İlk açılış → ONBOARDING
-//   2. Kelime DB boşsa → seed (DatasetService zaten bunu yapıyor, main'de çağrılıyor)
-//   3. Auth kontrol → LOGIN veya MAIN
+// Değişiklikler:
+//   - SplashDownloading state: Firestore indirme ilerlemesi için
+//   - _onInitialized: Dil ayarları → WordSyncService.isSynced() → sync
+//   - DatasetService.seedWordsIfNeeded() artık sourceLang + targetLang alıyor
 
 import 'package:equatable/equatable.dart';
 import 'package:flutter/material.dart';
@@ -44,6 +43,17 @@ class SplashLoading extends SplashState {
   const SplashLoading({this.seedingDatabase = false});
   @override
   List<Object?> get props => [seedingDatabase];
+}
+
+/// F15-06: Firestore kelime indirme ilerlemesi.
+class SplashDownloading extends SplashState {
+  final int synced;
+  final int total;
+  const SplashDownloading({required this.synced, required this.total});
+  @override
+  List<Object?> get props => [synced, total];
+
+  double get progress => total > 0 ? (synced / total).clamp(0.0, 1.0) : 0.0;
 }
 
 class SplashNavigateToOnboarding extends SplashState {
@@ -87,7 +97,7 @@ class SplashBloc extends Bloc<SplashEvent, SplashState> {
     SplashInitialized event,
     Emitter<SplashState> emit,
   ) async {
-    await Future.delayed(const Duration(milliseconds: 1800));
+    await Future.delayed(const Duration(milliseconds: 1500));
 
     // 1. İlk açılış kontrolü
     final firstLaunchResult = await _settingsRepo.isFirstLaunch();
@@ -98,12 +108,31 @@ class SplashBloc extends Bloc<SplashEvent, SplashState> {
       return;
     }
 
-    // 2. Kelime seed (DatasetService idempotent — zaten main'de çağrılıyor,
-    //    burada sadece yavaş cihazlar için fallback)
-    emit(const SplashLoading(seedingDatabase: true));
-    await _datasetService.seedWordsIfNeeded();
+    // 2. Dil ayarlarını al
+    final langResult = await _settingsRepo.getLanguageSettings();
+    final lang = langResult.fold((_) => <String, String>{}, (v) => v);
+    final sourceLang = lang['source'] ?? 'tr';
+    final targetLang = lang['target'] ?? 'en';
 
-    // 3. Auth kontrolü
+    // 3. F15-06: Kelime senkronizasyonu (Firestore → Drift)
+    final isSeeded = await _datasetService.isSeeded(
+      sourceLang: sourceLang,
+      targetLang: targetLang,
+    );
+
+    if (!isSeeded) {
+      // İlk indirme — progress UI göster
+      emit(const SplashDownloading(synced: 0, total: 0));
+      await _datasetService.seedWordsIfNeeded(
+        sourceLang: sourceLang,
+        targetLang: targetLang,
+        onProgress: (synced, total) {
+          emit(SplashDownloading(synced: synced, total: total));
+        },
+      );
+    }
+
+    // 4. Auth kontrolü
     final user = _authService.currentUser;
     if (user != null) {
       emit(const SplashNavigateToMain());

@@ -14,6 +14,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/di/injection_container.dart';
+import '../../../../core/init/theme/app_theme_extension.dart';
 import '../../../../core/utils/week_id_helper.dart';
 import '../../../../firebase/firestore/leaderboard_service.dart';
 
@@ -141,18 +142,21 @@ class _WeeklyTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final ext = Theme.of(context).extension<AppThemeExtension>()!;
+
     if (entries.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(Icons.emoji_events_outlined,
-                size: 64, color: Colors.amber.withValues(alpha: 0.6)),
+                size: 64, color: ext.tertiary.withValues(alpha: 0.6)),
             const SizedBox(height: 16),
             Text(
               'Bu hafta henüz kimse XP kazanmadı.\nİlk sen ol!',
               textAlign: TextAlign.center,
-              style: GoogleFonts.inter(fontSize: 16, color: Colors.grey),
+              style: GoogleFonts.inter(fontSize: 16, color: scheme.onSurfaceVariant),
             ),
           ],
         ),
@@ -391,7 +395,9 @@ class _PodiumItem extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.star_rounded, color: Colors.amber, size: 18),
+                Icon(Icons.star_rounded,
+                    color: Theme.of(context).extension<AppThemeExtension>()!.tertiary,
+                    size: 18),
                 const SizedBox(height: 2),
                 Text(
                   '${entry.weeklyXp}',
@@ -449,7 +455,7 @@ class _LeaderboardTile extends StatelessWidget {
             style: GoogleFonts.inter(
               fontWeight: FontWeight.w700,
               fontSize: 14,
-              color: Colors.grey,
+              color: scheme.onSurfaceVariant,
             ),
           ),
         ),
@@ -464,7 +470,9 @@ class _LeaderboardTile extends StatelessWidget {
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.star_rounded, color: Colors.amber, size: 16),
+            Icon(Icons.star_rounded,
+                color: Theme.of(context).extension<AppThemeExtension>()!.tertiary,
+                size: 16),
             const SizedBox(width: 4),
             Text(
               '${entry.weeklyXp} XP',
@@ -505,7 +513,9 @@ class _StickyMyRankRow extends StatelessWidget {
             ),
           ),
           const Spacer(),
-          const Icon(Icons.star_rounded, color: Colors.amber, size: 18),
+          Icon(Icons.star_rounded,
+              color: Theme.of(context).extension<AppThemeExtension>()!.tertiary,
+              size: 18),
           const SizedBox(width: 4),
           Text(
             '${entry.weeklyXp} XP',
@@ -531,10 +541,14 @@ class _ComingSoonTab extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.construction_rounded, size: 64, color: Colors.grey),
+          Icon(Icons.construction_rounded,
+              size: 64,
+              color: Theme.of(context).colorScheme.onSurfaceVariant),
           const SizedBox(height: 16),
           Text('Yakında',
-              style: GoogleFonts.inter(fontSize: 18, color: Colors.grey)),
+              style: GoogleFonts.inter(
+                  fontSize: 18,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant)),
         ],
       ),
     );
@@ -555,7 +569,9 @@ class _ErrorView extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.error_outline_rounded, size: 48, color: Colors.red),
+          Icon(Icons.error_outline_rounded,
+              size: 48,
+              color: Theme.of(context).colorScheme.error),
           const SizedBox(height: 12),
           Text('Yüklenemedi',
               style:

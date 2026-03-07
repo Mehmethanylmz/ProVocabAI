@@ -76,7 +76,7 @@ class FilterRow extends StatelessWidget {
                       boxShadow: isSelected
                           ? [
                               BoxShadow(
-                                color: accentColor.withOpacity(0.3),
+                                color: accentColor.withValues(alpha: 0.3),
                                 blurRadius: 8,
                                 offset: const Offset(0, 4),
                               ),
@@ -86,10 +86,10 @@ class FilterRow extends StatelessWidget {
                     child: Center(
                       child: Text(
                         item == 'all' ? 'filter_all'.tr() : item.toUpperCase(),
-                        style: GoogleFonts.poppins(
+                        style: GoogleFonts.inter(
                           fontSize: context.responsive.fontSizeCaption,
                           color: isSelected
-                              ? Colors.white
+                              ? context.colors.onPrimary
                               : context.colors.onSurfaceVariant,
                           fontWeight:
                               isSelected ? FontWeight.bold : FontWeight.w500,

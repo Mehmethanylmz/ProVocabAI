@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 
 class SpeechService {
@@ -13,11 +14,11 @@ class SpeechService {
     if (!_isAvailable) {
       try {
         _isAvailable = await _speechToText.initialize(
-          onError: (val) => print('Speech Error: $val'),
-          onStatus: (val) => print('Speech Status: $val'),
+          onError: (val) => debugPrint('Speech Error: $val'),
+          onStatus: (val) => debugPrint('Speech Status: $val'),
         );
       } catch (e) {
-        print("Speech Init Error: $e");
+        debugPrint("Speech Init Error: $e");
         _isAvailable = false;
       }
     }

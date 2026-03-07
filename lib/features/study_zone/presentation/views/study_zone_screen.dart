@@ -7,7 +7,8 @@
 //   F2-06: Streak göstergesi plan kartı üzerinde
 
 import 'package:flutter/material.dart';
-import '../../../../core/constants/app/color_palette.dart';
+import '../../../../core/constants/app/category_constants.dart';
+import '../../../../core/init/theme/app_theme_extension.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/di/injection_container.dart';
@@ -18,6 +19,7 @@ import '../../../../srs/plan_models.dart';
 import '../state/study_zone_bloc.dart';
 import '../state/study_zone_event.dart';
 import '../state/study_zone_state.dart';
+import '../widgets/category_picker_sheet.dart';
 import 'quiz_screen.dart';
 
 // ── StudyZoneScreen ───────────────────────────────────────────────────────────
@@ -37,8 +39,6 @@ class _StudyZoneScreenState extends State<StudyZoneScreen> {
 
   /// F2-01: Kullanıcının seçtiği mod (chip bar'dan)
   StudyMode? _selectedMode;
-
-  static const _allCategories = ['a1', 'a2', 'b1', 'b2', 'c1', 'oxford'];
 
   @override
   void initState() {
@@ -153,12 +153,11 @@ class _StudyZoneScreenState extends State<StudyZoneScreen> {
       onRefresh: () async => _loadPlan(),
       child: CustomScrollView(
         slivers: [
-          // Filtre: kategoriler
+          // F11-02/04/05: Kategori filtre bölümü (seviye + alan)
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-              child: CategoryFilterChips(
-                allCategories: _allCategories,
+              child: _CategoryFilterSection(
                 selected: _selectedCategories,
                 onChanged: (cats) {
                   setState(() {
@@ -407,7 +406,7 @@ class _ModeChipItem extends StatelessWidget {
         children: [
           Text(icon,
               style: TextStyle(
-                  fontSize: 14, color: isEnabled ? null : Colors.grey)),
+                  fontSize: 14, color: isEnabled ? null : scheme.onSurfaceVariant)),
           const SizedBox(width: 6),
           Text(
             label,
@@ -459,6 +458,7 @@ class DailyProgressCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final ext = Theme.of(context).extension<AppThemeExtension>()!;
     final total = plan.totalCards;
     final done = plan.completedCount;
 
@@ -506,19 +506,19 @@ class DailyProgressCard extends StatelessWidget {
                   key: const Key('stat_due'),
                   label: 'Tekrar',
                   value: plan.dueCount,
-                  color: ColorPalette.success),
+                  color: ext.success),
               const SizedBox(width: 12),
               _PlanStat(
                   key: const Key('stat_new'),
                   label: 'Yeni',
                   value: plan.newCount,
-                  color: ColorPalette.secondary),
+                  color: scheme.secondary),
               if (plan.leechCount > 0) ...[
                 const SizedBox(width: 12),
                 _PlanStat(
                     label: 'Zor',
                     value: plan.leechCount,
-                    color: ColorPalette.error),
+                    color: scheme.error),
               ],
             ],
           ),
@@ -572,22 +572,23 @@ class _StreakBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ext = Theme.of(context).extension<AppThemeExtension>()!;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: ColorPalette.tertiary.withValues(alpha: 0.15),
+        color: ext.tertiary.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.local_fire_department,
-              color: ColorPalette.tertiary, size: 14),
+          Icon(Icons.local_fire_department,
+              color: ext.tertiary, size: 14),
           const SizedBox(width: 3),
           Text(
             '$count',
-            style: const TextStyle(
-              color: ColorPalette.tertiary,
+            style: TextStyle(
+              color: ext.tertiary,
               fontSize: 12,
               fontWeight: FontWeight.w700,
             ),
@@ -598,46 +599,254 @@ class _StreakBadge extends StatelessWidget {
   }
 }
 
-// ── CategoryFilterChips ───────────────────────────────────────────────────────
+// ── _CategoryFilterSection (F11-02, F11-04, F11-05) ──────────────────────────
 
-class CategoryFilterChips extends StatelessWidget {
-  final List<String> allCategories;
+/// Kategori filtre bölümü — iki satır:
+///   1. Seviye chip bar (A1–C2)
+///   2. Seçili alan kategorileri + "Alan Seç" butonu + "Tümü" butonu
+class _CategoryFilterSection extends StatelessWidget {
   final List<String> selected;
   final ValueChanged<List<String>> onChanged;
 
-  const CategoryFilterChips({
-    super.key,
-    required this.allCategories,
+  const _CategoryFilterSection({
     required this.selected,
     required this.onChanged,
   });
 
+  List<String> get _selectedLevels =>
+      selected.where((s) => CategoryConstants.findBySlug(s)?.group == CategoryGroup.level).toList();
+
+  List<String> get _selectedDomains =>
+      selected.where((s) => CategoryConstants.findBySlug(s)?.group == CategoryGroup.domain).toList();
+
+  void _onLevelToggled(String slug, bool val) {
+    final next = List<String>.from(selected);
+    val ? next.add(slug) : next.remove(slug);
+    onChanged(next);
+  }
+
+  Future<void> _openDomainPicker(BuildContext context) async {
+    final result = await CategoryPickerSheet.show(
+      context,
+      initialSelected: _selectedDomains,
+    );
+    if (result == null) return;
+    // Seviyeleri koru, alan seçimini güncelle
+    final next = [..._selectedLevels, ...result];
+    onChanged(next);
+  }
+
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 36,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: allCategories.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 8),
-        itemBuilder: (_, i) {
-          final cat = allCategories[i];
-          final isSelected = selected.contains(cat);
-          return FilterChip(
-            key: Key('category_$cat'),
-            label: Text(cat.toUpperCase(),
-                style:
-                    const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
-            selected: isSelected,
-            onSelected: (val) {
-              final next = List<String>.from(selected);
-              val ? next.add(cat) : next.remove(cat);
-              onChanged(next);
-            },
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-            visualDensity: VisualDensity.compact,
-          );
-        },
+    final scheme = Theme.of(context).colorScheme;
+    final hasFilter = selected.isNotEmpty;
+    final domainSelected = _selectedDomains;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // ── Satır 1: Seviye chip bar (F11-02) ────────────────────────────────
+        Row(
+          children: [
+            Expanded(
+              child: SizedBox(
+                height: 36,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: CategoryConstants.levels.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 6),
+                  itemBuilder: (_, i) {
+                    final cat = CategoryConstants.levels[i];
+                    final isSelected = selected.contains(cat.slug);
+                    return _LevelChip(
+                      info: cat,
+                      isSelected: isSelected,
+                      onToggled: (val) => _onLevelToggled(cat.slug, val),
+                    );
+                  },
+                ),
+              ),
+            ),
+            // F11-05: "Tümü" butonu — filtreler varsa göster
+            if (hasFilter) ...[
+              const SizedBox(width: 8),
+              GestureDetector(
+                onTap: () => onChanged([]),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: scheme.error.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: scheme.error.withValues(alpha: 0.3)),
+                  ),
+                  child: Text(
+                    'Tümü',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: scheme.error,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+
+        // ── Satır 2: Seçili alanlar + Alan Seç butonu (F11-04) ───────────────
+        const SizedBox(height: 8),
+        SizedBox(
+          height: 32,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            children: [
+              // Seçili alan kategorileri chip'leri
+              ...domainSelected.map((slug) {
+                final info = CategoryConstants.findBySlug(slug);
+                if (info == null) return const SizedBox.shrink();
+                return Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: _SelectedDomainChip(
+                    info: info,
+                    onRemove: () {
+                      final next = List<String>.from(selected)..remove(slug);
+                      onChanged(next);
+                    },
+                  ),
+                );
+              }),
+
+              // "Alan Seç" / "Alan Ekle" butonu
+              GestureDetector(
+                onTap: () => _openDomainPicker(context),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: scheme.surfaceContainerHighest.withValues(alpha: 0.6),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: scheme.outline.withValues(alpha: 0.3),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.add_rounded, size: 14, color: scheme.onSurface.withValues(alpha: 0.7)),
+                      const SizedBox(width: 4),
+                      Text(
+                        domainSelected.isEmpty ? 'Alan Seç' : 'Alan Ekle',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: scheme.onSurface.withValues(alpha: 0.7),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Tekil seviye chip'i (A1–C2)
+class _LevelChip extends StatelessWidget {
+  final CategoryInfo info;
+  final bool isSelected;
+  final ValueChanged<bool> onToggled;
+
+  const _LevelChip({
+    required this.info,
+    required this.isSelected,
+    required this.onToggled,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return GestureDetector(
+      onTap: () => onToggled(!isSelected),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? scheme.primary.withValues(alpha: 0.15)
+              : scheme.surfaceContainerHighest.withValues(alpha: 0.5),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: isSelected
+                ? scheme.primary
+                : scheme.outline.withValues(alpha: 0.2),
+            width: isSelected ? 1.5 : 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(info.icon, style: const TextStyle(fontSize: 13)),
+            const SizedBox(width: 4),
+            Text(
+              info.label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                color: isSelected ? scheme.primary : scheme.onSurface,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Seçili alan kategorisi chip'i (kaldırma ikonu ile)
+class _SelectedDomainChip extends StatelessWidget {
+  final CategoryInfo info;
+  final VoidCallback onRemove;
+
+  const _SelectedDomainChip({required this.info, required this.onRemove});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: scheme.primary.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: scheme.primary, width: 1.5),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(info.icon, style: const TextStyle(fontSize: 12)),
+          const SizedBox(width: 4),
+          Text(
+            info.label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: scheme.primary,
+            ),
+          ),
+          const SizedBox(width: 4),
+          GestureDetector(
+            onTap: onRemove,
+            child: Icon(
+              Icons.close_rounded,
+              size: 14,
+              color: scheme.primary.withValues(alpha: 0.8),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -651,25 +860,26 @@ class LeechWarningBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final error = Theme.of(context).colorScheme.error;
     return Container(
       key: const Key('leech_warning_banner'),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: BoxDecoration(
-        color: ColorPalette.error.withValues(alpha: 0.10),
+        color: error.withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: ColorPalette.error.withValues(alpha: 0.3)),
+        border: Border.all(color: error.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [
-          const Icon(Icons.warning_amber_rounded,
-              color: ColorPalette.error, size: 20),
+          Icon(Icons.warning_amber_rounded,
+              color: error, size: 20),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
               '$leechCount zor kart var — ekstra tekrar gerekebilir',
-              style: const TextStyle(
+              style: TextStyle(
                   fontSize: 13,
-                  color: ColorPalette.error,
+                  color: error,
                   fontWeight: FontWeight.w500),
             ),
           ),
@@ -698,14 +908,15 @@ class _GoalMetBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final ext = Theme.of(context).extension<AppThemeExtension>()!;
     return Container(
       key: const Key('goal_met_banner'),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: ColorPalette.success.withValues(alpha: 0.10),
+        color: ext.success.withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(16),
         border:
-            Border.all(color: ColorPalette.success.withValues(alpha: 0.35)),
+            Border.all(color: ext.success.withValues(alpha: 0.35)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -718,7 +929,7 @@ class _GoalMetBanner extends StatelessWidget {
                 child: Text(
                   'Günlük hedefini tamamladın!',
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        color: ColorPalette.success,
+                        color: ext.success,
                         fontWeight: FontWeight.w700,
                       ),
                 ),
@@ -742,8 +953,8 @@ class _GoalMetBanner extends StatelessWidget {
                 key: const Key('continue_beyond_goal_button'),
                 onPressed: onContinue,
                 style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: ColorPalette.success),
-                  foregroundColor: ColorPalette.success,
+                  side: BorderSide(color: ext.success),
+                  foregroundColor: ext.success,
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12)),
                   padding: const EdgeInsets.symmetric(vertical: 10),
@@ -790,26 +1001,26 @@ class _AllDoneCard extends StatelessWidget {
       key: const Key('all_done_card'),
       padding: const EdgeInsets.all(32),
       decoration: BoxDecoration(
-        color: ColorPalette.success.withValues(alpha: 0.1),
+        color: Theme.of(context).extension<AppThemeExtension>()!.success.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: ColorPalette.success.withValues(alpha: 0.3)),
+        border: Border.all(color: Theme.of(context).extension<AppThemeExtension>()!.success.withValues(alpha: 0.3)),
       ),
-      child: const Column(
+      child: Column(
         children: [
-          Text('🎉', style: TextStyle(fontSize: 48)),
-          SizedBox(height: 12),
+          const Text('🎉', style: TextStyle(fontSize: 48)),
+          const SizedBox(height: 12),
           Text(
             'Bugünlük tamamladın!',
             style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w800,
-                color: ColorPalette.success),
+                color: Theme.of(context).extension<AppThemeExtension>()!.success),
             textAlign: TextAlign.center,
           ),
-          SizedBox(height: 8),
+          const SizedBox(height: 8),
           Text(
             'Yeni kartlar yarın seni bekliyor.',
-            style: TextStyle(color: Colors.grey),
+            style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
             textAlign: TextAlign.center,
           ),
         ],
@@ -833,13 +1044,13 @@ class _EmptyCard extends StatelessWidget {
             .withValues(alpha: 0.4),
         borderRadius: BorderRadius.circular(20),
       ),
-      child: const Column(
+      child: Column(
         children: [
-          Icon(Icons.inbox_outlined, size: 48, color: Colors.grey),
-          SizedBox(height: 12),
+          Icon(Icons.inbox_outlined, size: 48, color: Theme.of(context).colorScheme.onSurfaceVariant),
+          const SizedBox(height: 12),
           Text(
             'Çalışılacak kart bulunamadı',
-            style: TextStyle(fontSize: 16, color: Colors.grey),
+            style: TextStyle(fontSize: 16, color: Theme.of(context).colorScheme.onSurfaceVariant),
             textAlign: TextAlign.center,
           ),
         ],

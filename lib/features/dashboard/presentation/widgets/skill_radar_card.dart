@@ -5,6 +5,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:easy_localization/easy_localization.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/extensions/responsive_extension.dart';
+import '../../../../core/init/theme/app_theme_extension.dart';
 
 class SkillRadarCard extends StatelessWidget {
   final Map<String, double> volumeStats;
@@ -20,10 +21,10 @@ class SkillRadarCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Koyu bir kart tasarımı sabit kalabilir veya temaya göre değişebilir.
-    // Şık durması için hafif koyu gradient tercih ediyoruz ama renkleri theme'dan çekelim.
-    final bgColors = [const Color(0xFF2A2D3E), const Color(0xFF1F2029)];
-    final titleColor = Colors.white.withOpacity(0.9);
+    final scheme = Theme.of(context).colorScheme;
+    final ext = Theme.of(context).extension<AppThemeExtension>()!;
+    final bgColors = [scheme.surfaceContainerHigh, scheme.surfaceContainer];
+    final onSurface = scheme.onSurface;
 
     return Container(
       height: context.responsive.value(mobile: 280, tablet: 350, desktop: 400),
@@ -37,7 +38,7 @@ class SkillRadarCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(context.responsive.borderRadiusXL),
         boxShadow: [
           BoxShadow(
-            color: bgColors[0].withOpacity(0.5),
+            color: ext.glowPrimary,
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),
@@ -52,7 +53,7 @@ class SkillRadarCard extends StatelessWidget {
               Icons.radar_outlined,
               size: context.responsive
                   .value(mobile: 150, tablet: 200, desktop: 250),
-              color: Colors.white.withOpacity(0.03),
+              color: onSurface.withValues(alpha: 0.03),
             ),
           ),
           Padding(
@@ -65,7 +66,7 @@ class SkillRadarCard extends StatelessWidget {
                     RadarChartData(
                       dataSets: [
                         RadarDataSet(
-                          fillColor: context.ext.chartVolume.withOpacity(0.15),
+                          fillColor: context.ext.chartVolume.withValues(alpha: 0.15),
                           borderColor: context.ext.chartVolume,
                           entryRadius: 2,
                           dataEntries: [
@@ -78,7 +79,7 @@ class SkillRadarCard extends StatelessWidget {
                         ),
                         RadarDataSet(
                           fillColor:
-                              context.ext.chartAccuracy.withOpacity(0.25),
+                              context.ext.chartAccuracy.withValues(alpha: 0.25),
                           borderColor: context.ext.chartAccuracy,
                           entryRadius: 3,
                           dataEntries: [
@@ -95,8 +96,8 @@ class SkillRadarCard extends StatelessWidget {
                       radarBorderData:
                           const BorderSide(color: Colors.transparent),
                       titlePositionPercentageOffset: 0.2,
-                      titleTextStyle: GoogleFonts.poppins(
-                        color: titleColor,
+                      titleTextStyle: GoogleFonts.inter(
+                        color: onSurface.withValues(alpha: 0.9),
                         fontSize: context.responsive.fontSizeCaption,
                         fontWeight: FontWeight.bold,
                       ),
@@ -117,9 +118,9 @@ class SkillRadarCard extends StatelessWidget {
                       ticksTextStyle:
                           const TextStyle(color: Colors.transparent),
                       tickBorderData:
-                          BorderSide(color: Colors.white.withOpacity(0.1)),
+                          BorderSide(color: scheme.outline.withValues(alpha: 0.2)),
                       gridBorderData: BorderSide(
-                          color: Colors.white.withOpacity(0.1), width: 1.5),
+                          color: scheme.outline.withValues(alpha: 0.2), width: 1.5),
                     ),
                     swapAnimationDuration: const Duration(milliseconds: 1000),
                     swapAnimationCurve: Curves.elasticOut,
@@ -133,10 +134,10 @@ class SkillRadarCard extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       _buildLegendItem("radar_accuracy".tr(),
-                          context.ext.chartAccuracy, context),
+                          context.ext.chartAccuracy, context, onSurface),
                       SizedBox(height: context.responsive.spacingXS),
                       _buildLegendItem("radar_volume".tr(),
-                          context.ext.chartVolume, context),
+                          context.ext.chartVolume, context, onSurface),
                       SizedBox(height: context.responsive.spacingM),
                       Container(
                         padding: EdgeInsets.symmetric(
@@ -144,16 +145,16 @@ class SkillRadarCard extends StatelessWidget {
                           vertical: context.responsive.spacingXS,
                         ),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.1),
+                          color: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
                           borderRadius: BorderRadius.circular(
                               context.responsive.borderRadiusS),
                           border:
-                              Border.all(color: Colors.white.withOpacity(0.2)),
+                              Border.all(color: scheme.outline.withValues(alpha: 0.3)),
                         ),
                         child: Text(
                           "radar_analysis".tr(),
-                          style: GoogleFonts.poppins(
-                            color: Colors.white,
+                          style: GoogleFonts.inter(
+                            color: onSurface,
                             fontSize: context.responsive.fontSizeCaption,
                             fontWeight: FontWeight.bold,
                           ),
@@ -162,8 +163,8 @@ class SkillRadarCard extends StatelessWidget {
                       SizedBox(height: context.responsive.spacingS),
                       Text(
                         message,
-                        style: GoogleFonts.poppins(
-                          color: Colors.white.withOpacity(0.9),
+                        style: GoogleFonts.inter(
+                          color: onSurface.withValues(alpha: 0.9),
                           fontSize: context.responsive.fontSizeCaption,
                           height: 1.4,
                           fontWeight: FontWeight.w400,
@@ -180,7 +181,7 @@ class SkillRadarCard extends StatelessWidget {
     ).animate().scale(duration: 600.ms, curve: Curves.easeOutBack).fadeIn();
   }
 
-  Widget _buildLegendItem(String text, Color color, BuildContext context) {
+  Widget _buildLegendItem(String text, Color color, BuildContext context, Color onSurface) {
     return Row(
       children: [
         Container(
@@ -191,7 +192,7 @@ class SkillRadarCard extends StatelessWidget {
             shape: BoxShape.circle,
             boxShadow: [
               BoxShadow(
-                color: color.withOpacity(0.6),
+                color: color.withValues(alpha: 0.6),
                 blurRadius: 6,
               ),
             ],
@@ -200,8 +201,8 @@ class SkillRadarCard extends StatelessWidget {
         SizedBox(width: context.responsive.spacingXS),
         Text(
           text,
-          style: GoogleFonts.poppins(
-            color: Colors.white.withOpacity(0.8),
+          style: GoogleFonts.inter(
+            color: onSurface.withValues(alpha: 0.8),
             fontSize: context.responsive.fontSizeCaption,
           ),
         ),

@@ -17,6 +17,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../../../../core/di/injection_container.dart';
+import '../../../../core/init/theme/app_theme_extension.dart';
 import '../../../../core/services/speech_service.dart';
 import '../../../../core/utils/levenshtein.dart';
 import '../../../../database/app_database.dart';
@@ -208,9 +209,9 @@ class _SpeakingCardState extends State<SpeakingCard> {
         Container(
           padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
-            color: scheme.tertiaryContainer.withOpacity(0.35),
+            color: scheme.tertiaryContainer.withValues(alpha: 0.35),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: scheme.tertiary.withOpacity(0.3)),
+            border: Border.all(color: scheme.tertiary.withValues(alpha: 0.3)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -223,7 +224,7 @@ class _SpeakingCardState extends State<SpeakingCard> {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
                     decoration: BoxDecoration(
-                      color: scheme.tertiary.withOpacity(0.12),
+                      color: scheme.tertiary.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: const Row(
@@ -251,7 +252,7 @@ class _SpeakingCardState extends State<SpeakingCard> {
                 Text(
                   '"$example"',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: scheme.onSurface.withOpacity(0.55),
+                        color: scheme.onSurface.withValues(alpha: 0.55),
                         fontStyle: FontStyle.italic,
                       ),
                 ),
@@ -260,7 +261,7 @@ class _SpeakingCardState extends State<SpeakingCard> {
               Text(
                 'Yukarıdaki anlamın İngilizce karşılığını söyleyin.',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: scheme.onSurface.withOpacity(0.5),
+                      color: scheme.onSurface.withValues(alpha: 0.5),
                     ),
               ),
             ],
@@ -295,7 +296,7 @@ class _SpeakingCardState extends State<SpeakingCard> {
           child: Text(
             _micHintText(),
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: scheme.onSurface.withOpacity(0.45),
+                  color: scheme.onSurface.withValues(alpha: 0.45),
                 ),
           ),
         ),
@@ -339,7 +340,7 @@ class _MicButton extends StatelessWidget {
     }
 
     final isListening = phase == _SpeakingPhase.listening;
-    final color = isListening ? Colors.red : scheme.primary;
+    final color = isListening ? scheme.error : scheme.primary;
 
     return GestureDetector(
       onTap: isListening ? onTapStop : onTapStart,
@@ -348,7 +349,7 @@ class _MicButton extends StatelessWidget {
         width: isListening ? 100 : 84,
         height: isListening ? 100 : 84,
         decoration: BoxDecoration(
-          color: color.withOpacity(isListening ? 0.15 : 0.1),
+          color: color.withValues(alpha: isListening ? 0.15 : 0.1),
           shape: BoxShape.circle,
           border: Border.all(
             color: color,
@@ -380,15 +381,17 @@ class _ResultBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = isCorrect ? Colors.green : Colors.red;
+    final scheme = Theme.of(context).colorScheme;
+    final ext = Theme.of(context).extension<AppThemeExtension>()!;
+    final color = isCorrect ? ext.success : scheme.error;
     final similarity = Levenshtein.similarity(spokenText, expectedText);
 
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.10),
+        color: color.withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: color.withOpacity(0.4)),
+        border: Border.all(color: color.withValues(alpha: 0.4)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -410,7 +413,7 @@ class _ResultBanner extends StatelessWidget {
               Text(
                 '%${(similarity * 100).round()} benzerlik',
                 style: TextStyle(
-                    color: color.withOpacity(0.8),
+                    color: color.withValues(alpha: 0.8),
                     fontSize: 12,
                     fontWeight: FontWeight.w500),
               ),
@@ -420,15 +423,17 @@ class _ResultBanner extends StatelessWidget {
           Text.rich(
             TextSpan(
               children: [
-                const TextSpan(
+                TextSpan(
                     text: 'Söylediğiniz: ',
-                    style: TextStyle(fontSize: 12, color: Colors.grey)),
+                    style: TextStyle(
+                        fontSize: 12,
+                        color: scheme.onSurfaceVariant)),
                 TextSpan(
                     text: spokenText.isEmpty ? '(anlaşılamadı)' : spokenText,
                     style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
-                        color: Colors.grey[700])),
+                        color: scheme.onSurface)),
               ],
             ),
           ),
@@ -437,15 +442,17 @@ class _ResultBanner extends StatelessWidget {
             Text.rich(
               TextSpan(
                 children: [
-                  const TextSpan(
+                  TextSpan(
                       text: 'Doğru söyleyiş: ',
-                      style: TextStyle(fontSize: 12, color: Colors.grey)),
+                      style: TextStyle(
+                          fontSize: 12,
+                          color: scheme.onSurfaceVariant)),
                   TextSpan(
                       text: expectedText,
-                      style: const TextStyle(
+                      style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
-                          color: Colors.green)),
+                          color: ext.success)),
                 ],
               ),
             ),
@@ -464,15 +471,16 @@ class _SourceBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ext = Theme.of(context).extension<AppThemeExtension>()!;
     final (label, color) = switch (source) {
-      CardSource.newCard => ('Yeni', const Color(0xFF1E88E5)),
-      CardSource.leech => ('Zor', const Color(0xFFE53935)),
-      CardSource.due => ('Tekrar', const Color(0xFF43A047)),
+      CardSource.newCard => ('Yeni', ext.cardNew),
+      CardSource.leech => ('Zor', ext.cardLeech),
+      CardSource.due => ('Tekrar', ext.cardDue),
     };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
+        color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(6),
       ),
       child: Text(label,

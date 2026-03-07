@@ -6,6 +6,11 @@
 //   F4-03: getWeeklyLeaderboard() → users collection query (Cloud Function gereksiz)
 //   F4-04: getUserRank() → leaderboard listesinden pozisyon hesapla
 //
+// FAZ 15 — F15-09: Dil çifti bazlı liderboard
+//   - updateUserXP() artık opsiyonel [langPair] (ör. "en-tr") kabul eder
+//   - weeklyXpByPair.{langPair} alanını günceller (dil filtrelemesi için)
+//   - getLangPairLeaderboard(langPair, weekId): belirli dil çifti için top 100
+//
 // Firestore yapısı:
 //   users/{uid}  ← root level doküman (leaderboard sorgusu için)
 //     weeklyXp: number
@@ -14,6 +19,7 @@
 //     photoUrl: string
 //     weekId: "2026-W09"  ← her XP güncellemesinde set edilir
 //     lastActiveDate: "2026-02-28"
+//     weeklyXpByPair: { "en-tr": 120, "tr-de": 50, ... }  ← F15-09
 //
 // NOT: users/{uid}/profile/main hala detaylı profil için kullanılır (auth service).
 //      Root doküman leaderboard + XP sorguları içindir.
@@ -28,7 +34,7 @@ class LeaderboardService {
 
   final FirebaseFirestore _firestore;
 
-  // ── Leaderboard okuma (F4-03) ───────────────────────────────────────────
+  // ── Leaderboard okuma (F4-03 / F15-09) ─────────────────────────────────────
 
   /// Haftalık top 100 listeyi users koleksiyonundan döndür.
   ///
@@ -94,7 +100,39 @@ class LeaderboardService {
     );
   }
 
-  // ── XP güncelleme (F4-02) ───────────────────────────────────────────────
+  /// F15-09: Belirli dil çifti için haftalık top 100.
+  ///
+  /// [langPair]: "en-tr" formatında (targetLang-sourceLang)
+  /// [weekId]: "2026-W09" formatında ISO week ID
+  ///
+  /// Firestore composite index gerekli:
+  ///   Collection: users | weekId ASC, weeklyXpByPair.{pair} DESC
+  Future<List<LeaderboardEntry>> getLangPairLeaderboard(
+      String langPair, String weekId) async {
+    final field = 'weeklyXpByPair.$langPair';
+    final snap = await _firestore
+        .collection('users')
+        .where('weekId', isEqualTo: weekId)
+        .where(field, isGreaterThan: 0)
+        .orderBy(field, descending: true)
+        .limit(100)
+        .get();
+
+    final entries = <LeaderboardEntry>[];
+    for (var i = 0; i < snap.docs.length; i++) {
+      final doc = snap.docs[i];
+      final pairXp =
+          (doc.data()['weeklyXpByPair'] as Map<String, dynamic>?)?[langPair];
+      entries.add(LeaderboardEntry.fromMap(
+        doc.id,
+        {...doc.data(), 'weeklyXp': pairXp ?? 0},
+        rank: i + 1,
+      ));
+    }
+    return entries;
+  }
+
+  // ── XP güncelleme (F4-02 / F15-09) ─────────────────────────────────────────
 
   /// Session tamamlandığında hem root users/{uid} hem profile dokümanına XP yaz.
   ///
@@ -103,11 +141,13 @@ class LeaderboardService {
   ///
   /// Root doküman: leaderboard sorgusu için (weekId + weeklyXp indexed)
   /// Profile doküman: detaylı profil bilgileri için
+  /// [langPair]: opsiyonel — "en-tr" formatında; verilirse weeklyXpByPair güncellenir
   Future<void> updateUserXP({
     required String uid,
     required int xpDelta,
     String? displayName,
     String? photoUrl,
+    String? langPair,
   }) async {
     if (xpDelta <= 0) return;
 
@@ -136,6 +176,17 @@ class LeaderboardService {
     // displayName hiç yoksa default ekle
     if (!snap.exists || snap.data()?['displayName'] == null) {
       rootData['displayName'] ??= 'Anonim';
+    }
+
+    // F15-09: Dil çifti bazlı haftalık XP — weeklyXpByPair.{langPair}
+    if (langPair != null && langPair.isNotEmpty) {
+      final pairField = 'weeklyXpByPair.$langPair';
+      if (isNewWeek) {
+        // Yeni hafta: bu çift için sadece mevcut delta'yı yaz
+        rootData[pairField] = xpDelta;
+      } else {
+        rootData[pairField] = FieldValue.increment(xpDelta);
+      }
     }
 
     await rootRef.set(rootData, SetOptions(merge: true));

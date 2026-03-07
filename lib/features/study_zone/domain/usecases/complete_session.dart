@@ -17,11 +17,16 @@ class CompleteSessionParams {
   final int correctCards;
   final int xpEarned;
 
+  /// F15-09: Dil çifti — "tr-en" formatında (sourceLang-targetLang).
+  /// Leaderboard weeklyXpByPair alanını güncellemek için kullanılır.
+  final String? langPair;
+
   const CompleteSessionParams({
     required this.sessionId,
     required this.totalCards,
     required this.correctCards,
     required this.xpEarned,
+    this.langPair,
   });
 }
 
@@ -53,6 +58,7 @@ class CompleteSession {
             xpDelta: p.xpEarned,
             displayName: user.displayName,
             photoUrl: user.photoURL,
+            langPair: p.langPair, // F15-09: weeklyXpByPair dil çifti takibi
           );
         } catch (_) {
           // Offline-first: hata susturulur, sonraki sync'te tamamlanır

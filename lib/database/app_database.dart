@@ -28,7 +28,9 @@ part 'app_database.g.dart';
 /// Eski sistem: ProductDatabaseManager (sqflite, 4 tablo) — SİLİNDİ.
 /// Yeni sistem: AppDatabase (Drift, 6 tablo, type-safe, codegen).
 ///
-/// schemaVersion: 1 (greenfield — migration tarihi yok)
+/// schemaVersion: 2 (FAZ 15 — words tablosuna sourceLang + targetLang eklendi)
+///   v1 → v2 migration: Tüm tablolar drop+recreate edilir (test aşaması, prod kullanıcı yok).
+///   DatasetService.isSeeded() word count kontrolü ile sync flag'i otomatik sıfırlar.
 ///
 /// Kullanım:
 ///   final db = AppDatabase();           // normal
@@ -58,7 +60,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(QueryExecutor executor) : super(executor);
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -66,9 +68,22 @@ class AppDatabase extends _$AppDatabase {
           await m.createAll();
           await _createIndexes();
         },
-        // schemaVersion 1 → migration yok (greenfield reset).
-        // İleride versiyon artışında buraya eklenir.
-        onUpgrade: (m, from, to) async {},
+        // v1 → v2: Testing phase — no production users.
+        // Drop all tables and recreate with updated schema
+        // (words.source_lang + words.target_lang columns added).
+        // DatasetService.isSeeded() handles the sync flag reset via word count check.
+        onUpgrade: (m, from, to) async {
+          if (from < 2) {
+            await m.drop(words);
+            await m.drop(progress);
+            await m.drop(reviewEvents);
+            await m.drop(sessions);
+            await m.drop(dailyPlans);
+            await m.drop(syncQueue);
+            await m.createAll();
+            await _createIndexes();
+          }
+        },
         beforeOpen: (details) async {
           // WAL modu: concurrent read + write performansı.
           await customStatement('PRAGMA journal_mode=WAL');

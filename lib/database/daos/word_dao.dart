@@ -34,7 +34,8 @@ class WordDao extends DatabaseAccessor<AppDatabase> with _$WordDaoMixin {
   /// Yeni kartlar: progress tablosunda kaydı OLMAYAN kelimeler.
   ///
   /// LEFT JOIN: progress kaydı yoksa yeni kart.
-  /// ORDER BY difficulty_rank ASC: A1 önce, C2 sonra.
+  /// ORDER BY difficulty_rank ASC, RANDOM(): A1 önce, C2 sonra;
+  ///   aynı seviyede rastgele sıra — alfabetik kümelenmeyi önler.
   /// T-04 DailyPlanner bu metodu çağırır.
   ///
   /// [targetLang]   : 'en', 'tr', 'de', vb.
@@ -49,6 +50,10 @@ class WordDao extends DatabaseAccessor<AppDatabase> with _$WordDaoMixin {
     final categoryFilter = _buildCategoryFilter(categories);
     final categoryArgs = _buildCategoryArgs(categories);
 
+    // F15-03: Filter by w.target_lang so only words downloaded for the
+    // current language pair are returned (schema v2).
+    // F16 fix: RANDOM() secondary sort prevents alphabetical clustering
+    // within the same difficulty_rank level.
     final query = '''
       SELECT w.*
       FROM words w
@@ -56,12 +61,13 @@ class WordDao extends DatabaseAccessor<AppDatabase> with _$WordDaoMixin {
         ON w.id = p.word_id
         AND p.target_lang = ?
       WHERE p.word_id IS NULL
+        AND w.target_lang = ?
         ${categoryFilter.isEmpty ? '' : 'AND ($categoryFilter)'}
-      ORDER BY w.difficulty_rank ASC
+      ORDER BY w.difficulty_rank ASC, RANDOM()
       LIMIT ?
     ''';
 
-    final args = <Object>[targetLang, ...categoryArgs, limit];
+    final args = <Object>[targetLang, targetLang, ...categoryArgs, limit];
 
     final rows = await customSelect(
       query,
